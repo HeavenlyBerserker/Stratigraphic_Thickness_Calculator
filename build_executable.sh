@@ -49,14 +49,31 @@ echo "Executable name: $APP_NAME"
 echo "Bundling asset: $LOGO_FILE"
 
 conda run -n geo_stc python -m pip install -r requirements.txt
-conda run -n geo_stc pyinstaller \
+conda run -n geo_stc python -m PyInstaller \
   --noconfirm \
   --onefile \
   --windowed \
+  --icon "$LOGO_FILE" \
   --add-data "${LOGO_FILE}${ADD_DATA_SEP}." \
   --name "$APP_NAME" \
   "$APP_MAIN"
 
+if [[ "$OS_NAME" == MINGW* || "$OS_NAME" == MSYS* || "$OS_NAME" == CYGWIN* ]]; then
+  DIST_ARTIFACT="dist/${APP_NAME}.exe"
+  ROOT_ARTIFACT="./${APP_NAME}.exe"
+else
+  DIST_ARTIFACT="dist/${APP_NAME}"
+  ROOT_ARTIFACT="./${APP_NAME}"
+fi
+
+if [[ ! -f "$DIST_ARTIFACT" ]]; then
+  echo "Error: expected build artifact not found at $DIST_ARTIFACT"
+  exit 1
+fi
+
+cp "$DIST_ARTIFACT" "$ROOT_ARTIFACT"
+
 echo
 echo "Build complete."
-echo "Output is in dist/"
+echo "Output copied to: $ROOT_ARTIFACT"
+echo "Original remains in: $DIST_ARTIFACT"

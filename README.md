@@ -49,29 +49,31 @@ pip install -r requirements.txt
 python -m source.main
 ```
 
-## Build Portable Executables (Single Script)
+## Build Portable Executables
 
-Use the same script on all platforms:
-- `build_executable.sh`
+Scripts:
+- Windows (PowerShell): `build_executable.ps1`
+- Linux/macOS (shell): `build_executable.sh`
 
 This script:
 - Uses Conda env `geo_stc`
 - Installs `requirements.txt`
-- Runs PyInstaller with `--onefile --windowed`
+- Runs PyInstaller with `--onefile --windowed --icon logo.png`
 - Detects OS and uses the correct executable name
+- Copies the built executable from `dist/` to the project root
 
 Build on each target OS (cross-compiling is generally not supported by PyInstaller).
 
-### Windows
+### Windows (PowerShell)
 
-Run from **Git Bash** or **WSL**:
+Run in PowerShell from project root:
 
-```bash
-bash build_executable.sh
+```powershell
+.\build_executable.ps1
 ```
 
 Built artifact:
-- `dist/StratigraphicThicknessCalculator.exe`
+- `StratigraphicThicknessCalculator.exe` (project root)
 
 ### Linux
 
@@ -80,7 +82,7 @@ bash build_executable.sh
 ```
 
 Built artifact:
-- `dist/stratigraphic-thickness-calculator`
+- `stratigraphic-thickness-calculator` (project root)
 
 ### macOS
 
@@ -89,4 +91,4 @@ bash build_executable.sh
 ```
 
 Built artifact:
-- `dist/StratigraphicThicknessCalculator`
+- `StratigraphicThicknessCalculator` (project root)
