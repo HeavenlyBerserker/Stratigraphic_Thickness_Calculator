@@ -115,7 +115,9 @@ class ModelTab(QWidget):
         cursor = self.log_text.textCursor()
         cursor.movePosition(QTextCursor.End)
         text_format = QTextCharFormat()
-        text_format.setForeground(QColor("red") if is_error else QColor("black"))
+        text_format.setForeground(
+            QColor("red") if is_error else QColor(255, 255, 255)
+        )
         cursor.insertText(text, text_format)
         if not text.endswith("\n"):
             cursor.insertText("\n", text_format)
