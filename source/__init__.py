@@ -1,0 +1,1 @@
+"""Stratigraphic Thickness Calculator package."""
