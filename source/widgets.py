@@ -31,6 +31,7 @@ class ModelTab(QWidget):
         super().__init__()
         self.on_calculate = on_calculate
         self.inputs: dict[str, QDoubleSpinBox] = {}
+        self.std_inputs: dict[str, QDoubleSpinBox] = {}
         self._build_ui(title)
 
     def _build_ui(self, title: str) -> None:
@@ -88,16 +89,35 @@ class ModelTab(QWidget):
         step: float = 0.1,
         default: float = 0.0,
     ) -> None:
-        spin_box = QDoubleSpinBox()
-        spin_box.setDecimals(decimals)
-        spin_box.setRange(minimum, maximum)
-        spin_box.setSingleStep(step)
-        spin_box.setValue(default)
-        self.inputs[key] = spin_box
-        self.input_form.addRow(label, spin_box)
+        value_box = QDoubleSpinBox()
+        value_box.setDecimals(decimals)
+        value_box.setRange(minimum, maximum)
+        value_box.setSingleStep(step)
+        value_box.setValue(default)
+
+        std_box = QDoubleSpinBox()
+        std_box.setDecimals(decimals)
+        std_box.setRange(0.0, maximum - minimum)
+        std_box.setSingleStep(step)
+        std_box.setValue(0.0)
+        std_box.setPrefix("σ=")
+        std_box.setToolTip("Standard deviation for Monte Carlo sampling")
+
+        row_widget = QWidget()
+        row_layout = QHBoxLayout(row_widget)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.addWidget(value_box, stretch=3)
+        row_layout.addWidget(std_box, stretch=2)
+
+        self.inputs[key] = value_box
+        self.std_inputs[key] = std_box
+        self.input_form.addRow(label, row_widget)
 
     def value(self, key: str) -> float:
         return self.inputs[key].value()
+
+    def std(self, key: str) -> float:
+        return self.std_inputs[key].value()
 
     def set_output(self, text: str, is_html: bool = False) -> None:
         if is_html:

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import base64
+import io
+import random
 import sys
+from statistics import mean, pstdev
 from pathlib import Path
 
 from PySide6.QtGui import QIcon
@@ -352,6 +356,142 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         self.tabs.addTab(plunging_fold_tab, "Plunging Concentric Fold")
 
+    def _percentile(self, values: list[float], p: float) -> float:
+        if not values:
+            raise ValueError("Cannot compute percentile on empty values.")
+        if len(values) == 1:
+            return values[0]
+        sorted_vals = sorted(values)
+        index = (len(sorted_vals) - 1) * p
+        low = int(index)
+        high = min(low + 1, len(sorted_vals) - 1)
+        frac = index - low
+        return sorted_vals[low] * (1.0 - frac) + sorted_vals[high] * frac
+
+    def _any_std_non_zero(self, tab: ModelTab, keys: list[str]) -> bool:
+        return any(tab.std(key) > 0.0 for key in keys)
+
+    def _sample_values(
+        self,
+        tab: ModelTab,
+        key: str,
+        sample_count: int,
+        wrap: bool = False,
+    ) -> list[float]:
+        mu = tab.value(key)
+        sigma = tab.std(key)
+        if sigma <= 0.0:
+            return [mu] * sample_count
+
+        minimum = tab.inputs[key].minimum()
+        maximum = tab.inputs[key].maximum()
+        sampled: list[float] = []
+        adjusted = 0
+        if wrap:
+            width = maximum - minimum
+            for _ in range(sample_count):
+                raw = random.gauss(mu, sigma)
+                wrapped = ((raw - minimum) % width) + minimum
+                if abs(wrapped - raw) > 1e-12:
+                    adjusted += 1
+                sampled.append(wrapped)
+            print(f"{key}: wrap-around applied to {adjusted} Monte Carlo samples.")
+            return sampled
+
+        for _ in range(sample_count):
+            raw = random.gauss(mu, sigma)
+            clipped = min(max(raw, minimum), maximum)
+            if abs(clipped - raw) > 1e-12:
+                adjusted += 1
+            sampled.append(clipped)
+        print(f"{key}: truncation applied to {adjusted} Monte Carlo samples.")
+        return sampled
+
+    def _run_monte_carlo(
+        self,
+        tab: ModelTab,
+        key_to_field: list[tuple[str, str]],
+        wrap_keys: set[str],
+        compute_fn,
+        sample_count: int = 10000,
+    ) -> dict[str, float | str] | None:
+        keys = [key for key, _ in key_to_field]
+        if not self._any_std_non_zero(tab, keys):
+            return None
+
+        print(f"Monte Carlo enabled: running {sample_count} simulations...")
+        sampled_by_key = {
+            key: self._sample_values(
+                tab,
+                key,
+                sample_count,
+                wrap=key in wrap_keys,
+            )
+            for key in keys
+        }
+
+        thicknesses: list[float] = []
+        for idx in range(sample_count):
+            kwargs = {
+                field: sampled_by_key[key][idx]
+                for key, field in key_to_field
+            }
+            result = compute_fn(**kwargs)
+            thicknesses.append(result.true_stratigraphic_thickness)
+
+        plot_html = self._build_monte_carlo_plot_html(
+            thicknesses,
+            f"{self.tabs.tabText(self.tabs.currentIndex())} Monte Carlo Thickness Distribution",
+        )
+        return {
+            "n": float(len(thicknesses)),
+            "mean": mean(thicknesses),
+            "std": pstdev(thicknesses),
+            "p10": self._percentile(thicknesses, 0.10),
+            "p50": self._percentile(thicknesses, 0.50),
+            "p90": self._percentile(thicknesses, 0.90),
+            "plot_html": plot_html,
+        }
+
+    def _build_monte_carlo_plot_html(self, thicknesses: list[float], title: str) -> str:
+        try:
+            import matplotlib.pyplot as plt
+
+            fig, ax = plt.subplots(figsize=(8, 4.5))
+            ax.hist(thicknesses, bins=60, color="#4C78A8", edgecolor="white")
+            ax.set_title(title)
+            ax.set_xlabel("Thickness")
+            ax.set_ylabel("Frequency")
+            fig.tight_layout()
+            buffer = io.BytesIO()
+            fig.savefig(buffer, format="png", dpi=120)
+            plt.close(fig)
+            encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+            print("Embedded Monte Carlo histogram into output panel.")
+            return (
+                '<img src="data:image/png;base64,'
+                f'{encoded}" style="max-width:100%; height:auto;" />'
+            )
+        except Exception as exc:
+            print(f"Could not render Monte Carlo histogram: {exc}")
+            return ""
+
+    def _format_monte_carlo_section(self, stats: dict[str, float | str] | None) -> str:
+        if stats is None:
+            return ""
+        plot_html = str(stats.get("plot_html", ""))
+        plot_block = f"{plot_html}<br>" if plot_html else ""
+        return (
+            "<b>Monte Carlo Distribution</b><br>"
+            f"{plot_block}"
+            f"N = {int(stats['n'])}<br>"
+            f"Mean = {stats['mean']:.6f}<br>"
+            f"Std = {stats['std']:.6f}<br>"
+            f"P10 = {stats['p10']:.6f}<br>"
+            f"P50 = {stats['p50']:.6f}<br>"
+            f"P90 = {stats['p90']:.6f}<br><br>"
+        )
+
     def _compute_one_dip(self, tab: ModelTab) -> None:
         inputs = OneDipInputs(
             measured_thickness=tab.value("m"),
@@ -362,6 +502,19 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         print("Executing One-dip calculation...")
         result = compute_one_dip(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m", "measured_thickness"),
+                ("delta", "wellbore_inclination_deg"),
+                ("beta1", "formation_dip_deg"),
+                ("phib", "wellbore_azimuth_deg"),
+                ("phid1", "dip_azimuth_deg"),
+            ],
+            wrap_keys={"phib", "phid1"},
+            compute_fn=lambda **kwargs: compute_one_dip(OneDipInputs(**kwargs)),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
         output = (
             "<b>Result</b><br>"
             f"T<sub>1</sub> (True Stratigraphic Thickness): "
@@ -373,6 +526,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "U<sub>b</sub> (x,y,z) : "
             f"({result.ub_vector[0]:.6f}, {result.ub_vector[1]:.6f}, "
             f"{result.ub_vector[2]:.6f})<br><br>"
+            f"{mc_section}"
             "<b>Formula</b><br>"
             "T<sub>1</sub> = M(cosδ - sinδ(cos(φ<sub>d1</sub> - φ<sub>b</sub>))"
             "tanβ<sub>1</sub>)cosβ<sub>1</sub><br><br>"
@@ -401,6 +555,23 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         print("Executing Average-vector calculation...")
         result = compute_average_vector(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m2", "measured_thickness"),
+                ("delta2", "wellbore_inclination_deg"),
+                ("phib2", "wellbore_azimuth_deg"),
+                ("beta1_2", "formation_dip1_deg"),
+                ("phid1_2", "dip_azimuth1_deg"),
+                ("beta2_2", "formation_dip2_deg"),
+                ("phid2_2", "dip_azimuth2_deg"),
+            ],
+            wrap_keys={"phib2", "phid1_2", "phid2_2"},
+            compute_fn=lambda **kwargs: compute_average_vector(
+                AverageVectorInputs(**kwargs)
+            ),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
         output = (
             "<b>Result</b><br>"
             f"T<sub>2</sub> (True Stratigraphic Thickness): "
@@ -418,6 +589,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "U<sub>b</sub> (x,y,z) : "
             f"({result.ub_vector[0]:.6f}, {result.ub_vector[1]:.6f}, "
             f"{result.ub_vector[2]:.6f})<br><br>"
+            f"{mc_section}"
             "<b>Formula</b><br>"
             "U<sub>av</sub> = (U<sub>d1</sub> + U<sub>d2</sub>) / "
             "||U<sub>d1</sub> + U<sub>d2</sub>||<br>"
@@ -444,6 +616,23 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         print("Executing Average-thickness calculation...")
         result = compute_average_thickness(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m3", "measured_thickness"),
+                ("delta3", "wellbore_inclination_deg"),
+                ("phib3", "wellbore_azimuth_deg"),
+                ("beta1_3", "formation_dip1_deg"),
+                ("phid1_3", "dip_azimuth1_deg"),
+                ("beta2_3", "formation_dip2_deg"),
+                ("phid2_3", "dip_azimuth2_deg"),
+            ],
+            wrap_keys={"phib3", "phid1_3", "phid2_3"},
+            compute_fn=lambda **kwargs: compute_average_thickness(
+                AverageThicknessInputs(**kwargs)
+            ),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
         output = (
             "<b>Result</b><br>"
             f"T<sub>3</sub> (True Stratigraphic Thickness): "
@@ -460,6 +649,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.ub_vector[2]:.6f})<br>"
             f"U<sub>d1</sub> . U<sub>b</sub> = {result.ud1_dot_ub:.6f}<br>"
             f"U<sub>d2</sub> . U<sub>b</sub> = {result.ud2_dot_ub:.6f}<br><br>"
+            f"{mc_section}"
             "<b>Formula</b><br>"
             "T<sub>3</sub> = (M x U<sub>d1</sub> . U<sub>b</sub> + "
             "M x U<sub>d2</sub> . U<sub>b</sub>) / 2<br>"
@@ -487,6 +677,23 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         print("Executing Mixed Average calculation...")
         result = compute_mixed_average(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m4", "measured_thickness"),
+                ("delta4", "wellbore_inclination_deg"),
+                ("phib4", "wellbore_azimuth_deg"),
+                ("beta1_4", "formation_dip1_deg"),
+                ("phid1_4", "dip_azimuth1_deg"),
+                ("beta2_4", "formation_dip2_deg"),
+                ("phid2_4", "dip_azimuth2_deg"),
+            ],
+            wrap_keys={"phib4", "phid1_4", "phid2_4"},
+            compute_fn=lambda **kwargs: compute_mixed_average(
+                MixedAverageInputs(**kwargs)
+            ),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
         output = (
             "<b>Result</b><br>"
             f"T<sub>4</sub> (True Stratigraphic Thickness): "
@@ -506,6 +713,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "U<sub>b</sub> (x,y,z) : "
             f"({result.ub_vector[0]:.6f}, {result.ub_vector[1]:.6f}, "
             f"{result.ub_vector[2]:.6f})<br><br>"
+            f"{mc_section}"
             "<b>Formula</b><br>"
             "T<sub>4</sub> = T<sub>2</sub> + T<sub>3</sub><br><br>"
             "<b>Where</b><br>"
@@ -530,6 +738,23 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         print("Executing Concentric Fold calculation...")
         result = compute_concentric_fold(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m5", "measured_thickness"),
+                ("delta5", "wellbore_inclination_deg"),
+                ("phib5", "wellbore_azimuth_deg"),
+                ("beta1_5", "formation_dip1_deg"),
+                ("phid1_5", "dip_azimuth1_deg"),
+                ("beta2_5", "formation_dip2_deg"),
+                ("phid2_5", "dip_azimuth2_deg"),
+            ],
+            wrap_keys={"phib5", "phid1_5", "phid2_5"},
+            compute_fn=lambda **kwargs: compute_concentric_fold(
+                ConcentricFoldInputs(**kwargs)
+            ),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
         output = (
             "<b>Result</b><br>"
             f"T<sub>5</sub> (True Stratigraphic Thickness): "
@@ -554,6 +779,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "C (x,y,z) : "
             f"({result.c_vector[0]:.6f}, {result.c_vector[1]:.6f}, "
             f"{result.c_vector[2]:.6f})<br><br>"
+            f"{mc_section}"
             "<b>Formula</b><br>"
             "β'<sub>2</sub> = arctan(tanβ<sub>2</sub>cos(φ<sub>d1</sub>-φ<sub>d2</sub>))<br>"
             "N<sub>dc</sub> = (U<sub>d1</sub> x U'<sub>d2</sub>) / "
@@ -586,6 +812,23 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         print("Executing Plunging Concentric Fold calculation...")
         result = compute_plunging_concentric_fold(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m6", "measured_thickness"),
+                ("delta6", "wellbore_inclination_deg"),
+                ("phib6", "wellbore_azimuth_deg"),
+                ("beta1_6", "formation_dip1_deg"),
+                ("phid1_6", "dip_azimuth1_deg"),
+                ("beta2_6", "formation_dip2_deg"),
+                ("phid2_6", "dip_azimuth2_deg"),
+            ],
+            wrap_keys={"phib6", "phid1_6", "phid2_6"},
+            compute_fn=lambda **kwargs: compute_plunging_concentric_fold(
+                PlungingConcentricFoldInputs(**kwargs)
+            ),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
         output = (
             "<b>Result</b><br>"
             f"T<sub>5</sub> (True Stratigraphic Thickness): "
@@ -609,6 +852,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "C (x,y,z) : "
             f"({result.c_vector[0]:.6f}, {result.c_vector[1]:.6f}, "
             f"{result.c_vector[2]:.6f})<br><br>"
+            f"{mc_section}"
             "<b>Formula</b><br>"
             "N<sub>dp</sub> = (U<sub>d1</sub> x U<sub>d2</sub>) / "
             "||U<sub>d1</sub> x U<sub>d2</sub>||<br>"
