@@ -325,7 +325,7 @@ def compute_mixed_average(inputs: MixedAverageInputs) -> MixedAverageResult:
 
     t2_value = avg_vector_result.true_stratigraphic_thickness
     t3_value = avg_thickness_result.true_stratigraphic_thickness
-    t4_value = t2_value + t3_value
+    t4_value = (t2_value + t3_value) / 2.0
 
     return MixedAverageResult(
         true_stratigraphic_thickness=t4_value,
@@ -387,7 +387,7 @@ def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResul
     )
     mb_prime_unit = (mb_prime[0] / m_prime, mb_prime[1] / m_prime, mb_prime[2] / m_prime)
     gamma_rad = acos(_clip_unit(_dot(c, mb_prime_unit)))
-    alpha_rad = acos(_clip_unit(_dot(ud1, ud2_prime)))
+    alpha_rad = acos(_clip_unit(_dot(ud1, mb_prime_unit)))
 
     sin_alpha = sin(alpha_rad)
     if abs(sin_alpha) < 1e-12:
@@ -458,16 +458,16 @@ def compute_plunging_concentric_fold(
         mb_prime[2] / m_prime,
     )
     gamma_rad = acos(_clip_unit(_dot(c, mb_prime_unit)))
-    alpha_rad = acos(_clip_unit(_dot(ud1, ud2)))
+    alpha_rad = acos(_clip_unit(_dot(ud1, mb_prime_unit)))
 
     sin_alpha = sin(alpha_rad)
     if abs(sin_alpha) < 1e-12:
-        raise ValueError("sin(alpha) is zero. T5 is undefined for this geometry.")
+        raise ValueError("sin(alpha) is zero. T6 is undefined for this geometry.")
 
-    t5 = m_prime * (sin(gamma_rad) / sin_alpha)
+    t6 = m_prime * (sin(gamma_rad) / sin_alpha)
 
     return PlungingConcentricFoldResult(
-        true_stratigraphic_thickness=t5,
+        true_stratigraphic_thickness=t6,
         m_prime=m_prime,
         gamma_deg=gamma_rad * 180.0 / pi,
         alpha_deg=alpha_rad * 180.0 / pi,

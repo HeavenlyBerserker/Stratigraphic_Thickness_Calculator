@@ -120,10 +120,13 @@ class ModelTab(QWidget):
         return self.std_inputs[key].value()
 
     def set_output(self, text: str, is_html: bool = False) -> None:
+        # Clear first so embedded resources (e.g. Monte Carlo PNGs) do not persist
+        # across runs when the next output omits them.
+        self.output_text.clear()
         if is_html:
             self.output_text.setHtml(text)
-            return
-        self.output_text.setPlainText(text)
+        else:
+            self.output_text.setPlainText(text)
 
     def _clear_all(self) -> None:
         self.output_text.clear()

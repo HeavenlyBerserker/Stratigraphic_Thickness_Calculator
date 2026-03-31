@@ -26,13 +26,13 @@ Currently implemented:
   - `T₃ = (M × Ud₁ • Uᵦ + M × Ud₂ • Uᵦ) / 2`
   - `T₃ = M × (Ud₁ + Ud₂) • Uᵦ / 2`
 - Mixed Average model with:
-  - `T₄ = T₂ + T₃`
+  - `T₄ = (T₂ + T₃) / 2`
 - Concentric Fold model with:
   - `β'₂ = arctan(tanβ₂ cos(φd₁ - φd₂))`
   - `T₅ = M' (sinγ / sinα)`
 - Plunging Concentric Fold model (no dip-azimuth correction; use `Ud₁`, `Ud₂` directly):
   - `N_dp = (Ud₁ × Ud₂) / ||Ud₁ × Ud₂||`
-  - `T₅ = M' (sinγ / sinα)` with `γ`, `α` from `Ud₁`, `Ud₂`, and projected `M'b`
+  - `T₆ = M' (sinγ / sinα)` with `γ`, `α` from `C`, `Ud₁`, and unit `M'b`
 - Computed vectors:
   - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector
   - `U_d2` (written as `U<sub>d2</sub>` in the app): downward dip-pole unit vector at lower contact

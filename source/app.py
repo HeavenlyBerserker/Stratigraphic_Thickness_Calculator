@@ -369,7 +369,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         return sorted_vals[low] * (1.0 - frac) + sorted_vals[high] * frac
 
     def _any_std_non_zero(self, tab: ModelTab, keys: list[str]) -> bool:
-        return any(tab.std(key) > 0.0 for key in keys)
+        return any(tab.std(key) > 1e-12 for key in keys)
 
     def _sample_values(
         self,
@@ -715,9 +715,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.ub_vector[2]:.6f})<br><br>"
             f"{mc_section}"
             "<b>Formula</b><br>"
-            "T<sub>4</sub> = T<sub>2</sub> + T<sub>3</sub><br><br>"
+            "T<sub>4</sub> = (T<sub>2</sub> + T<sub>3</sub>) / 2<br><br>"
             "<b>Where</b><br>"
-            "T<sub>4</sub>: mixed-average thickness<br>"
+            "T<sub>4</sub>: mixed-average thickness (mean of T<sub>2</sub> and T<sub>3</sub>)<br>"
             "T<sub>2</sub>: average-vector thickness<br>"
             "T<sub>3</sub>: average-thickness value<br>"
             "U<sub>d1</sub>, U<sub>d2</sub>, U<sub>av</sub>, U<sub>b</sub>: "
@@ -787,7 +787,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "M' = ||M<sub>b</sub> - N<sub>dc</sub>(N<sub>dc</sub> . M<sub>b</sub>)||<br>"
             "C = (U<sub>d1</sub> - U'<sub>d2</sub>) / ||U<sub>d1</sub> - U'<sub>d2</sub>||<br>"
             "γ = arccos(C . M'<sub>b,unit</sub>)<br>"
-            "α = arccos(U<sub>d1</sub> . U'<sub>d2</sub>)<br>"
+            "α = arccos(U<sub>d1</sub> . M'<sub>b,unit</sub>)<br>"
             "T<sub>5</sub> = M' (sinγ / sinα)<br><br>"
             "<b>Where</b><br>"
             "T<sub>5</sub>: concentric-fold thickness<br>"
@@ -795,7 +795,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "U<sub>d1</sub>, U'<sub>d2</sub>: top and corrected-base dip vectors<br>"
             "N<sub>dc</sub>: normal to dip-vector plane<br>"
             "M<sub>b</sub>: well-path vector scaled by M; M': projected length<br>"
-            "C: normalized difference vector; γ and α are geometry angles"
+            "C: normalized difference vector<br>"
+            "γ: angle between C and M'<sub>b,unit</sub>; "
+            "α: angle between U<sub>d1</sub> and M'<sub>b,unit</sub>"
         )
         tab.set_output(output, is_html=True)
         print("Concentric Fold calculation completed.")
@@ -831,7 +833,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         mc_section = self._format_monte_carlo_section(mc_stats)
         output = (
             "<b>Result</b><br>"
-            f"T<sub>5</sub> (True Stratigraphic Thickness): "
+            f"T<sub>6</sub> (True Stratigraphic Thickness): "
             f"{result.true_stratigraphic_thickness:.6f}<br><br>"
             "<b>Quantities</b><br>"
             f"M' = {result.m_prime:.6f}<br>"
@@ -861,14 +863,16 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "C = (U<sub>d1</sub> - U<sub>d2</sub>) / "
             "||U<sub>d1</sub> - U<sub>d2</sub>||<br>"
             "γ = arccos(C . M'<sub>b,unit</sub>)<br>"
-            "α = arccos(U<sub>d1</sub> . U<sub>d2</sub>)<br>"
-            "T<sub>5</sub> = M' (sinγ / sinα)<br><br>"
+            "α = arccos(U<sub>d1</sub> . M'<sub>b,unit</sub>)<br>"
+            "T<sub>6</sub> = M' (sinγ / sinα)<br><br>"
             "<b>Where</b><br>"
-            "T<sub>5</sub>: plunging concentric-fold thickness<br>"
+            "T<sub>6</sub>: plunging concentric-fold thickness<br>"
             "U<sub>d1</sub>, U<sub>d2</sub>: top and base dip vectors<br>"
             "N<sub>dp</sub>: normal to dip-vector plane<br>"
             "M<sub>b</sub>: well-path vector scaled by M; M': projected length<br>"
-            "C: normalized difference vector; γ and α are geometry angles"
+            "C: normalized difference vector<br>"
+            "γ: angle between C and M'<sub>b,unit</sub>; "
+            "α: angle between U<sub>d1</sub> and M'<sub>b,unit</sub>"
         )
         tab.set_output(output, is_html=True)
         print("Plunging Concentric Fold calculation completed.")
