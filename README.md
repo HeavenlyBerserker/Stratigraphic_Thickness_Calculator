@@ -10,6 +10,7 @@ Code lives in `source/` and provides tabs for:
 - Mixed Average
 - Concentric Fold
 - Plunging Concentric Fold
+- Wedging Bed
 
 Each tab has:
 - Input section
@@ -27,12 +28,19 @@ Currently implemented:
   - `T₃ = M × (Ud₁ + Ud₂) • Uᵦ / 2`
 - Mixed Average model with:
   - `T₄ = (T₂ + T₃) / 2`
-- Concentric Fold model with:
+- Concentric Fold model (Xu et al., 2007, 2010; bed azimuth fixed at φd₁; Berg, 2011 for M’):
   - `β'₂ = arctan(tanβ₂ cos(φd₁ - φd₂))`
+  - `U'd₂ = (-cos φd₁ sin β'₂, -sin φd₁ sin β'₂, cos β'₂)`; `U_d1` same with `β₁` in place of `β'₂`
+  - `N_dc = (U_d1 × U'd₂) / ||U_d1 × U'd₂||`; `M' = ||M_b - N_dc(N_dc · M_b)||` with `M_b = M U_b`
+  - `U_c = (U_d1 - U'd₂) / ||U_d1 - U'd₂||`; `γ = arccos(U_c · U'_b)`, `α = arccos(U_d1 · U'_b)` where `U'_b = M'_b / ||M'_b||`
   - `T₅ = M' (sinγ / sinα)`
-- Plunging Concentric Fold model (no dip-azimuth correction; use `Ud₁`, `Ud₂` directly):
-  - `N_dp = (Ud₁ × Ud₂) / ||Ud₁ × Ud₂||`
-  - `T₆ = M' (sinγ / sinα)` with `γ`, `α` from `C`, `Ud₁`, and unit `M'b`
+- Plunging Concentric Fold model (bed azimuths may differ; no base azimuth correction):
+  - `N_dp = (Ud₁ × Ud₂) / ||Ud₁ × Ud₂||`; `M' = ||M_b - N_dp(N_dp · M_b)||` with `M_b = M U_b`
+  - `U_c = (U_d1 - U_d2) / ||U_d1 - U_d2||`; `γ = arccos(U_c · U'_b)`, `α = arccos(U_d1 · U_c)` with `U'_b = M'_b / ||M'_b||`
+  - `T₆ = M' (sinγ / sinα)`
+- Wedging Bed model (`M` measured normal to the top bed; Berg, 2011):
+  - Same `N_dp`, `M'`, `U'_b` as eq. (22)–(24); `α = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)`
+  - `S = N_dp · U'_b`; if `S < 0`: `T₇ = M' cos(α − η) / cos(η)`; if `S ≥ 0`: `T₇ = M' cos(α + η) / cos(η)` (equivalent to `T₇ = M' (sinγ / sinμ)`)
 - Computed vectors:
   - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector
   - `U_d2` (written as `U<sub>d2</sub>` in the app): downward dip-pole unit vector at lower contact

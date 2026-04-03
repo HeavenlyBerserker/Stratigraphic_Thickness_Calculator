@@ -17,12 +17,14 @@ from source.models import (
     MixedAverageInputs,
     OneDipInputs,
     PlungingConcentricFoldInputs,
+    WedgingBedInputs,
     compute_average_thickness,
     compute_average_vector,
     compute_concentric_fold,
     compute_mixed_average,
     compute_one_dip,
     compute_plunging_concentric_fold,
+    compute_wedging_bed,
 )
 from source.widgets import ModelTab
 
@@ -355,6 +357,58 @@ class StratigraphicCalculatorWindow(QMainWindow):
             default=150.0,
         )
         self.tabs.addTab(plunging_fold_tab, "Plunging Concentric Fold")
+
+        wedging_tab = ModelTab("Wedging Bed Model", self._compute_wedging_bed)
+        wedging_tab.add_float_input(
+            "m7",
+            "M (Measured Thickness)",
+            minimum=0.0,
+            default=100.0,
+            step=1.0,
+        )
+        wedging_tab.add_float_input(
+            "delta7",
+            "δ (Wellbore Inclination, deg)",
+            minimum=0.0,
+            maximum=90.0,
+            default=20.0,
+        )
+        wedging_tab.add_float_input(
+            "phib7",
+            "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+            minimum=0.0,
+            maximum=360.0,
+            default=120.0,
+        )
+        wedging_tab.add_float_input(
+            "beta1_7",
+            "β<sub>1</sub> (Top Dip, deg)",
+            minimum=0.0,
+            maximum=89.99,
+            default=15.0,
+        )
+        wedging_tab.add_float_input(
+            "phid1_7",
+            "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
+            minimum=0.0,
+            maximum=360.0,
+            default=140.0,
+        )
+        wedging_tab.add_float_input(
+            "beta2_7",
+            "β<sub>2</sub> (Base Dip, deg)",
+            minimum=0.0,
+            maximum=89.99,
+            default=18.0,
+        )
+        wedging_tab.add_float_input(
+            "phid2_7",
+            "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
+            minimum=0.0,
+            maximum=360.0,
+            default=150.0,
+        )
+        self.tabs.addTab(wedging_tab, "Wedging Bed")
 
     def _percentile(self, values: list[float], p: float) -> float:
         if not values:
@@ -776,28 +830,36 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "N<sub>dc</sub> (x,y,z) : "
             f"({result.ndc_vector[0]:.6f}, {result.ndc_vector[1]:.6f}, "
             f"{result.ndc_vector[2]:.6f})<br>"
-            "C (x,y,z) : "
+            "U<sub>c</sub> (x,y,z) : "
             f"({result.c_vector[0]:.6f}, {result.c_vector[1]:.6f}, "
             f"{result.c_vector[2]:.6f})<br><br>"
             f"{mc_section}"
             "<b>Formula</b><br>"
             "β'<sub>2</sub> = arctan(tanβ<sub>2</sub>cos(φ<sub>d1</sub>-φ<sub>d2</sub>))<br>"
+            "U<sub>d1</sub> = (-cos φ<sub>d1</sub> sin β<sub>1</sub>, "
+            "-sin φ<sub>d1</sub> sin β<sub>1</sub>, cos β<sub>1</sub>)<br>"
+            "U'<sub>d2</sub> = (-cos φ<sub>d1</sub> sin β'<sub>2</sub>, "
+            "-sin φ<sub>d1</sub> sin β'<sub>2</sub>, cos β'<sub>2</sub>)<br>"
             "N<sub>dc</sub> = (U<sub>d1</sub> x U'<sub>d2</sub>) / "
             "||U<sub>d1</sub> x U'<sub>d2</sub>||<br>"
-            "M' = ||M<sub>b</sub> - N<sub>dc</sub>(N<sub>dc</sub> . M<sub>b</sub>)||<br>"
-            "C = (U<sub>d1</sub> - U'<sub>d2</sub>) / ||U<sub>d1</sub> - U'<sub>d2</sub>||<br>"
-            "γ = arccos(C . M'<sub>b,unit</sub>)<br>"
-            "α = arccos(U<sub>d1</sub> . M'<sub>b,unit</sub>)<br>"
+            "M' = ||M<sub>b</sub> - N<sub>dc</sub>(N<sub>dc</sub> . M<sub>b</sub>)||; "
+            "M<sub>b</sub> = M U<sub>b</sub><br>"
+            "U'<sub>b</sub> = M'<sub>b</sub> / ||M'<sub>b</sub>|| with M'<sub>b</sub> = "
+            "M<sub>b</sub> - N<sub>dc</sub>(N<sub>dc</sub> . M<sub>b</sub>)<br>"
+            "U<sub>c</sub> = (U<sub>d1</sub> - U'<sub>d2</sub>) / "
+            "||U<sub>d1</sub> - U'<sub>d2</sub>||<br>"
+            "γ = arccos(U<sub>c</sub> . U'<sub>b</sub>)<br>"
+            "α = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>"
             "T<sub>5</sub> = M' (sinγ / sinα)<br><br>"
             "<b>Where</b><br>"
-            "T<sub>5</sub>: concentric-fold thickness<br>"
+            "T<sub>5</sub>: concentric-fold thickness (Xu et al.; M' after Berg, 2011)<br>"
             "β'<sub>2</sub>: azimuth-corrected base dip<br>"
-            "U<sub>d1</sub>, U'<sub>d2</sub>: top and corrected-base dip vectors<br>"
+            "U<sub>d1</sub>, U'<sub>d2</sub>: top and corrected-base dip vectors (fixed bed azimuth φ<sub>d1</sub>)<br>"
             "N<sub>dc</sub>: normal to dip-vector plane<br>"
             "M<sub>b</sub>: well-path vector scaled by M; M': projected length<br>"
-            "C: normalized difference vector<br>"
-            "γ: angle between C and M'<sub>b,unit</sub>; "
-            "α: angle between U<sub>d1</sub> and M'<sub>b,unit</sub>"
+            "U<sub>c</sub>: normalized difference of dip poles; U'<sub>b</sub>: unit projection of M<sub>b</sub><br>"
+            "γ: angle between U<sub>c</sub> and U'<sub>b</sub>; "
+            "α: angle between U<sub>d1</sub> and U'<sub>b</sub>"
         )
         tab.set_output(output, is_html=True)
         print("Concentric Fold calculation completed.")
@@ -851,28 +913,108 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "N<sub>dp</sub> (x,y,z) : "
             f"({result.ndp_vector[0]:.6f}, {result.ndp_vector[1]:.6f}, "
             f"{result.ndp_vector[2]:.6f})<br>"
-            "C (x,y,z) : "
+            "U<sub>c</sub> (x,y,z) : "
             f"({result.c_vector[0]:.6f}, {result.c_vector[1]:.6f}, "
             f"{result.c_vector[2]:.6f})<br><br>"
             f"{mc_section}"
             "<b>Formula</b><br>"
             "N<sub>dp</sub> = (U<sub>d1</sub> x U<sub>d2</sub>) / "
             "||U<sub>d1</sub> x U<sub>d2</sub>||<br>"
-            "M' = ||M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>)||<br>"
-            "M'<sub>b</sub> = M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>)<br>"
-            "C = (U<sub>d1</sub> - U<sub>d2</sub>) / "
+            "M' = ||M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>)||; "
+            "M<sub>b</sub> = M U<sub>b</sub><br>"
+            "M'<sub>b</sub> = M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>); "
+            "U'<sub>b</sub> = M'<sub>b</sub> / ||M'<sub>b</sub>||<br>"
+            "U<sub>c</sub> = (U<sub>d1</sub> - U<sub>d2</sub>) / "
             "||U<sub>d1</sub> - U<sub>d2</sub>||<br>"
-            "γ = arccos(C . M'<sub>b,unit</sub>)<br>"
-            "α = arccos(U<sub>d1</sub> . M'<sub>b,unit</sub>)<br>"
+            "γ = arccos(U<sub>c</sub> . U'<sub>b</sub>)<br>"
+            "α = arccos(U<sub>d1</sub> . U<sub>c</sub>)<br>"
             "T<sub>6</sub> = M' (sinγ / sinα)<br><br>"
             "<b>Where</b><br>"
-            "T<sub>6</sub>: plunging concentric-fold thickness<br>"
-            "U<sub>d1</sub>, U<sub>d2</sub>: top and base dip vectors<br>"
-            "N<sub>dp</sub>: normal to dip-vector plane<br>"
+            "T<sub>6</sub>: plunging-fold thickness (no base azimuth correction)<br>"
+            "U<sub>d1</sub>, U<sub>d2</sub>: top and base dip-pole vectors<br>"
+            "N<sub>dp</sub>: normal to the plane of U<sub>d1</sub> and U<sub>d2</sub><br>"
             "M<sub>b</sub>: well-path vector scaled by M; M': projected length<br>"
-            "C: normalized difference vector<br>"
-            "γ: angle between C and M'<sub>b,unit</sub>; "
-            "α: angle between U<sub>d1</sub> and M'<sub>b,unit</sub>"
+            "U<sub>c</sub>: normalized (U<sub>d1</sub> - U<sub>d2</sub>)<br>"
+            "γ: angle between U<sub>c</sub> and U'<sub>b</sub>; "
+            "α: angle between U<sub>d1</sub> and U<sub>c</sub>"
         )
         tab.set_output(output, is_html=True)
         print("Plunging Concentric Fold calculation completed.")
+
+    def _compute_wedging_bed(self, tab: ModelTab) -> None:
+        inputs = WedgingBedInputs(
+            measured_thickness=tab.value("m7"),
+            wellbore_inclination_deg=tab.value("delta7"),
+            wellbore_azimuth_deg=tab.value("phib7"),
+            formation_dip1_deg=tab.value("beta1_7"),
+            dip_azimuth1_deg=tab.value("phid1_7"),
+            formation_dip2_deg=tab.value("beta2_7"),
+            dip_azimuth2_deg=tab.value("phid2_7"),
+        )
+        print("Executing Wedging Bed calculation...")
+        result = compute_wedging_bed(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m7", "measured_thickness"),
+                ("delta7", "wellbore_inclination_deg"),
+                ("phib7", "wellbore_azimuth_deg"),
+                ("beta1_7", "formation_dip1_deg"),
+                ("phid1_7", "dip_azimuth1_deg"),
+                ("beta2_7", "formation_dip2_deg"),
+                ("phid2_7", "dip_azimuth2_deg"),
+            ],
+            wrap_keys={"phib7", "phid1_7", "phid2_7"},
+            compute_fn=lambda **kwargs: compute_wedging_bed(WedgingBedInputs(**kwargs)),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
+        branch_note = (
+            "T<sub>7</sub> = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
+            if result.uses_positive_s_branch
+            else "T<sub>7</sub> = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)"
+        )
+        output = (
+            "<b>Result</b><br>"
+            f"T<sub>7</sub> (True Stratigraphic Thickness): "
+            f"{result.true_stratigraphic_thickness:.6f}<br><br>"
+            "<b>Quantities</b><br>"
+            f"M' = {result.m_prime:.6f}<br>"
+            f"α = {result.alpha_deg:.6f} deg<br>"
+            f"η = {result.eta_deg:.6f} deg<br>"
+            f"S = N<sub>dp</sub> . U'<sub>b</sub> = {result.s_value:.6f}<br>"
+            f"Branch: {branch_note}<br><br>"
+            "U<sub>d1</sub> (x,y,z) : "
+            f"({result.ud1_vector[0]:.6f}, {result.ud1_vector[1]:.6f}, "
+            f"{result.ud1_vector[2]:.6f})<br>"
+            "U<sub>d2</sub> (x,y,z) : "
+            f"({result.ud2_vector[0]:.6f}, {result.ud2_vector[1]:.6f}, "
+            f"{result.ud2_vector[2]:.6f})<br>"
+            "U<sub>b</sub> (x,y,z) : "
+            f"({result.ub_vector[0]:.6f}, {result.ub_vector[1]:.6f}, "
+            f"{result.ub_vector[2]:.6f})<br>"
+            "N<sub>dp</sub> (x,y,z) : "
+            f"({result.ndp_vector[0]:.6f}, {result.ndp_vector[1]:.6f}, "
+            f"{result.ndp_vector[2]:.6f})<br>"
+            "U'<sub>b</sub> (x,y,z) : "
+            f"({result.ub_prime_vector[0]:.6f}, {result.ub_prime_vector[1]:.6f}, "
+            f"{result.ub_prime_vector[2]:.6f})<br><br>"
+            f"{mc_section}"
+            "<b>Formula</b><br>"
+            "N<sub>dp</sub> = (U<sub>d1</sub> x U<sub>d2</sub>) / "
+            "||U<sub>d1</sub> x U<sub>d2</sub>||<br>"
+            "M' = ||M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>)||; "
+            "M<sub>b</sub> = M U<sub>b</sub><br>"
+            "U'<sub>b</sub> = M'<sub>b</sub> / ||M'<sub>b</sub>|| with M'<sub>b</sub> = "
+            "M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>)<br>"
+            "α = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>"
+            "η = arccos(U<sub>d1</sub> . U<sub>d2</sub>)<br>"
+            "S = N<sub>dp</sub> . U'<sub>b</sub><br>"
+            "If S &lt; 0: T<sub>7</sub> = M' cos(α − η) / cos(η) &nbsp; (eq. 31)<br>"
+            "If S ≥ 0: T<sub>7</sub> = M' cos(α + η) / cos(η) &nbsp; (eq. 35)<br>"
+            "Also T<sub>7</sub> = M' (sinγ / sinμ) = M' cos(α ∓ η) / cos(η) (Berg, 2011)<br><br>"
+            "<b>Where</b><br>"
+            "T<sub>7</sub>: wedging-bed thickness; M measured perpendicular to top bed<br>"
+            "η: angle between dip poles at top and base; S selects thickening sense<br>"
+        )
+        tab.set_output(output, is_html=True)
+        print("Wedging Bed calculation completed.")

@@ -132,6 +132,32 @@ class PlungingConcentricFoldResult:
     c_vector: tuple[float, float, float]
 
 
+@dataclass(slots=True)
+class WedgingBedInputs:
+    measured_thickness: float
+    wellbore_inclination_deg: float
+    wellbore_azimuth_deg: float
+    formation_dip1_deg: float
+    dip_azimuth1_deg: float
+    formation_dip2_deg: float
+    dip_azimuth2_deg: float
+
+
+@dataclass(slots=True)
+class WedgingBedResult:
+    true_stratigraphic_thickness: float
+    m_prime: float
+    alpha_deg: float
+    eta_deg: float
+    s_value: float
+    uses_positive_s_branch: bool
+    ud1_vector: tuple[float, float, float]
+    ud2_vector: tuple[float, float, float]
+    ub_vector: tuple[float, float, float]
+    ndp_vector: tuple[float, float, float]
+    ub_prime_vector: tuple[float, float, float]
+
+
 def _unit_vector_from_inclination_azimuth(
     inclination_deg: float,
     azimuth_deg: float,
@@ -164,6 +190,23 @@ def _downward_dip_pole_vector(
     z = cos(beta_rad)
     norm = sqrt(x * x + y * y + z * z)
     return (x / norm, y / norm, z / norm)
+
+
+def _concentric_fold_dip_pole_unit(
+    dip_azimuth_deg: float,
+    formation_dip_deg: float,
+) -> tuple[float, float, float]:
+    """
+    Dip-pole unit vector for the concentric-fold model (Xu et al., 2007, 2010):
+    U = (-cos φd sin β, -sin φd sin β, cos β) with x=East, y=North, z=Down.
+    Bed azimuth is fixed at φd; U'd2 uses β'2 and Ud1 uses β1 at the same φd.
+    """
+    beta_rad = radians(formation_dip_deg)
+    phi_rad = radians(dip_azimuth_deg)
+    x = -cos(phi_rad) * sin(beta_rad)
+    y = -sin(phi_rad) * sin(beta_rad)
+    z = cos(beta_rad)
+    return (x, y, z)
 
 
 def _dot(a: tuple[float, float, float], b: tuple[float, float, float]) -> float:
@@ -345,13 +388,14 @@ def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResul
     )
     beta2_prime_deg = beta2_prime_rad * 180.0 / pi
 
-    ud1 = _downward_dip_pole_vector(
+    phi_d1 = inputs.dip_azimuth1_deg
+    ud1 = _concentric_fold_dip_pole_unit(
+        dip_azimuth_deg=phi_d1,
         formation_dip_deg=inputs.formation_dip1_deg,
-        dip_azimuth_deg=inputs.dip_azimuth1_deg,
     )
-    ud2_prime = _downward_dip_pole_vector(
+    ud2_prime = _concentric_fold_dip_pole_unit(
+        dip_azimuth_deg=phi_d1,
         formation_dip_deg=beta2_prime_deg,
-        dip_azimuth_deg=inputs.dip_azimuth1_deg,
     )
     ub = _unit_vector_from_inclination_azimuth(
         inclination_deg=inputs.wellbore_inclination_deg,
@@ -413,8 +457,9 @@ def compute_plunging_concentric_fold(
     inputs: PlungingConcentricFoldInputs,
 ) -> PlungingConcentricFoldResult:
     """
-    Plunging concentric fold: no dip azimuth correction; use Ud1 and Ud2 directly.
-    N_dp = (Ud1 x Ud2) / ||Ud1 x Ud2||; M'b and M' as for concentric fold with N_dp.
+    Plunging fold: bed azimuths at top and base may differ; no azimuth correction.
+    N_dp = (Ud1 x Ud2) / ||Ud1 x Ud2||; M' = ||M'b|| with M'b = Mb - N_dp(N_dp . Mb).
+    Uc = (Ud1 - Ud2) / ||Ud1 - Ud2||; gamma = arccos(Uc . U'b), alpha = arccos(Ud1 . Uc).
     """
     ud1 = _downward_dip_pole_vector(
         formation_dip_deg=inputs.formation_dip1_deg,
@@ -458,7 +503,7 @@ def compute_plunging_concentric_fold(
         mb_prime[2] / m_prime,
     )
     gamma_rad = acos(_clip_unit(_dot(c, mb_prime_unit)))
-    alpha_rad = acos(_clip_unit(_dot(ud1, mb_prime_unit)))
+    alpha_rad = acos(_clip_unit(_dot(ud1, c)))
 
     sin_alpha = sin(alpha_rad)
     if abs(sin_alpha) < 1e-12:
@@ -476,4 +521,78 @@ def compute_plunging_concentric_fold(
         ub_vector=ub,
         ndp_vector=ndp,
         c_vector=c,
+    )
+
+
+def compute_wedging_bed(inputs: WedgingBedInputs) -> WedgingBedResult:
+    """
+    Wedging bed (disharmonic / thickness wedge): M is measured normal to the top bed.
+    M' from Berg (2011) projection onto the plane of Ud1 and Ud2 (eq. 22 with N_dp).
+    T7 = M' cos(α ∓ η)/cos(η) with minus for S < 0 and plus for S ≥ 0; S = N_dp · U'b.
+    """
+    ud1 = _downward_dip_pole_vector(
+        formation_dip_deg=inputs.formation_dip1_deg,
+        dip_azimuth_deg=inputs.dip_azimuth1_deg,
+    )
+    ud2 = _downward_dip_pole_vector(
+        formation_dip_deg=inputs.formation_dip2_deg,
+        dip_azimuth_deg=inputs.dip_azimuth2_deg,
+    )
+    ub = _unit_vector_from_inclination_azimuth(
+        inclination_deg=inputs.wellbore_inclination_deg,
+        azimuth_deg=inputs.wellbore_azimuth_deg,
+    )
+
+    ndp = _normalize(
+        _cross(ud1, ud2),
+        "U_d1 x U_d2 is zero. N_dp is undefined.",
+    )
+    mb = (
+        inputs.measured_thickness * ub[0],
+        inputs.measured_thickness * ub[1],
+        inputs.measured_thickness * ub[2],
+    )
+    ndp_dot_mb = _dot(ndp, mb)
+    mb_prime = (
+        mb[0] - ndp[0] * ndp_dot_mb,
+        mb[1] - ndp[1] * ndp_dot_mb,
+        mb[2] - ndp[2] * ndp_dot_mb,
+    )
+    m_prime = _norm(mb_prime)
+    if m_prime == 0:
+        raise ValueError("M' is zero. Projection onto dip-normal plane is zero.")
+
+    ub_prime = (
+        mb_prime[0] / m_prime,
+        mb_prime[1] / m_prime,
+        mb_prime[2] / m_prime,
+    )
+
+    alpha_rad = acos(_clip_unit(_dot(ud1, ub_prime)))
+    eta_rad = acos(_clip_unit(_dot(ud1, ud2)))
+
+    cos_eta = cos(eta_rad)
+    if abs(cos_eta) < 1e-12:
+        raise ValueError("cos(η) is zero. T7 is undefined for this geometry.")
+
+    s_val = _dot(ndp, ub_prime)
+    if s_val >= 0.0:
+        t7 = m_prime * cos(alpha_rad + eta_rad) / cos_eta
+        uses_positive = True
+    else:
+        t7 = m_prime * cos(alpha_rad - eta_rad) / cos_eta
+        uses_positive = False
+
+    return WedgingBedResult(
+        true_stratigraphic_thickness=t7,
+        m_prime=m_prime,
+        alpha_deg=alpha_rad * 180.0 / pi,
+        eta_deg=eta_rad * 180.0 / pi,
+        s_value=s_val,
+        uses_positive_s_branch=uses_positive,
+        ud1_vector=ud1,
+        ud2_vector=ud2,
+        ub_vector=ub,
+        ndp_vector=ndp,
+        ub_prime_vector=ub_prime,
     )
