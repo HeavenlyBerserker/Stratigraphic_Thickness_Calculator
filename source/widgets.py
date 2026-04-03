@@ -3,15 +3,18 @@ from __future__ import annotations
 import io
 import traceback
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 from typing import Callable
 
 from PySide6.QtGui import QColor, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
     QDoubleSpinBox,
+    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
@@ -27,11 +30,23 @@ class ModelTab(QWidget):
     - combined stdout/stderr section at the bottom
     """
 
-    def __init__(self, title: str, on_calculate: Callable[["ModelTab"], None]) -> None:
+    def __init__(
+        self,
+        title: str,
+        on_calculate: Callable[["ModelTab"], None],
+        export_basename: str,
+    ) -> None:
         super().__init__()
         self.on_calculate = on_calculate
+        self.export_basename = export_basename
         self.inputs: dict[str, QDoubleSpinBox] = {}
         self.std_inputs: dict[str, QDoubleSpinBox] = {}
+        self._mc_thicknesses: list[float] | None = None
+        self._mc_title: str = ""
+        self._xlsx_input_columns: list[tuple[str, float, float]] | None = None
+        self._xlsx_output_rows: list[tuple[str, float | int]] | None = None
+        self._xlsx_mc_rows: list[tuple[str, float | int]] | None = None
+        self.mc_save_fn: Callable[[list[float], str, str, str], None] | None = None
         self._build_ui(title)
 
     def _build_ui(self, title: str) -> None:
@@ -55,6 +70,23 @@ class ModelTab(QWidget):
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
         output_layout.addWidget(self.output_text)
+
+        mc_row = QHBoxLayout()
+        self._save_excel_btn = QPushButton("Save Results to Excel")
+        self._save_excel_btn.clicked.connect(self._on_save_excel)
+        self._save_excel_btn.setVisible(False)
+        self._mc_save_png_btn = QPushButton("Save MC plot (PNG)")
+        self._mc_save_svg_btn = QPushButton("Save MC plot (SVG)")
+        self._mc_save_png_btn.setVisible(False)
+        self._mc_save_svg_btn.setVisible(False)
+        self._mc_save_png_btn.clicked.connect(self._on_save_mc_png)
+        self._mc_save_svg_btn.clicked.connect(self._on_save_mc_svg)
+        mc_row.addWidget(self._save_excel_btn)
+        mc_row.addWidget(self._mc_save_png_btn)
+        mc_row.addWidget(self._mc_save_svg_btn)
+        mc_row.addStretch()
+        output_layout.addLayout(mc_row)
+
         self.output_group.setLayout(output_layout)
         content_layout.addWidget(self.output_group, stretch=1)
 
@@ -123,13 +155,170 @@ class ModelTab(QWidget):
         # Clear first so embedded resources (e.g. Monte Carlo PNGs) do not persist
         # across runs when the next output omits them.
         self.output_text.clear()
+        self.set_monte_carlo_export_state(None, "")
+        self._xlsx_input_columns = None
+        self._xlsx_output_rows = None
+        self._xlsx_mc_rows = None
+        self._save_excel_btn.setVisible(False)
         if is_html:
             self.output_text.setHtml(text)
         else:
             self.output_text.setPlainText(text)
 
+    def set_monte_carlo_export_state(
+        self,
+        thicknesses: list[float] | None,
+        title: str = "",
+    ) -> None:
+        self._mc_thicknesses = list(thicknesses) if thicknesses else None
+        self._mc_title = title
+        visible = bool(self._mc_thicknesses)
+        self._mc_save_png_btn.setVisible(visible)
+        self._mc_save_svg_btn.setVisible(visible)
+
+    def set_export_snapshot_sections(
+        self,
+        input_columns: list[tuple[str, float, float]],
+        output_rows: list[tuple[str, float | int]],
+        mc_rows: list[tuple[str, float | int]] | None,
+    ) -> None:
+        self._xlsx_input_columns = list(input_columns)
+        self._xlsx_output_rows = list(output_rows)
+        self._xlsx_mc_rows = list(mc_rows) if mc_rows is not None else None
+        self._save_excel_btn.setVisible(self._xlsx_export_ready())
+
+    def _xlsx_export_ready(self) -> bool:
+        return (
+            self._xlsx_input_columns is not None
+            and len(self._xlsx_input_columns) > 0
+            and self._xlsx_output_rows is not None
+            and len(self._xlsx_output_rows) > 0
+        )
+
+    def _default_export_path(self, extension: str) -> str:
+        ext = extension.lstrip(".")
+        return str(Path.cwd().resolve() / f"{self.export_basename}.{ext}")
+
+    def _on_save_excel(self) -> None:
+        if not self._xlsx_export_ready():
+            QMessageBox.information(
+                self,
+                "Save Results to Excel",
+                "Run Calculate first to save results.",
+            )
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Results to Excel",
+            self._default_export_path("xlsx"),
+            "Excel Workbook (*.xlsx)",
+        )
+        if not path:
+            return
+        if not path.lower().endswith(".xlsx"):
+            path += ".xlsx"
+        try:
+            self._write_results_xlsx(
+                path,
+                self._xlsx_input_columns,
+                self._xlsx_output_rows,
+                self._xlsx_mc_rows,
+            )
+            print(f"Saved Excel workbook to {path}")
+        except OSError as exc:
+            QMessageBox.warning(self, "Save Results to Excel", str(exc))
+        except Exception as exc:
+            QMessageBox.warning(
+                self,
+                "Save Results to Excel",
+                f"Could not write workbook: {exc}",
+            )
+
+    @staticmethod
+    def _write_results_xlsx(
+        path: str,
+        input_columns: list[tuple[str, float, float]] | None,
+        output_rows: list[tuple[str, float | int]] | None,
+        mc_rows: list[tuple[str, float | int]] | None,
+    ) -> None:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font
+
+        if not input_columns or not output_rows:
+            raise ValueError("Missing export data")
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Results"
+        bold = Font(bold=True)
+        r = 1
+
+        ws.cell(row=r, column=1, value="Inputs").font = bold
+        r += 1
+        ws.cell(row=r, column=1, value="Field").font = bold
+        ws.cell(row=r, column=2, value="Value").font = bold
+        ws.cell(row=r, column=3, value="Sigma").font = bold
+        r += 1
+        for name, val, sigma in input_columns:
+            ws.cell(row=r, column=1, value=name)
+            ws.cell(row=r, column=2, value=val)
+            ws.cell(row=r, column=3, value=sigma)
+            r += 1
+        r += 1
+
+        ws.cell(row=r, column=1, value="Outputs").font = bold
+        r += 1
+        ws.cell(row=r, column=1, value="Field").font = bold
+        ws.cell(row=r, column=2, value="Value").font = bold
+        r += 1
+        for name, val in output_rows:
+            ws.cell(row=r, column=1, value=name)
+            ws.cell(row=r, column=2, value=val)
+            r += 1
+
+        if mc_rows:
+            r += 1
+            ws.cell(row=r, column=1, value="Monte Carlo").font = bold
+            r += 1
+            ws.cell(row=r, column=1, value="Field").font = bold
+            ws.cell(row=r, column=2, value="Value").font = bold
+            r += 1
+            for name, val in mc_rows:
+                ws.cell(row=r, column=1, value=name)
+                ws.cell(row=r, column=2, value=val)
+                r += 1
+
+        wb.save(path)
+
+    def _on_save_mc_png(self) -> None:
+        self._save_mc_plot_dialog("png", "PNG Images (*.png)")
+
+    def _on_save_mc_svg(self) -> None:
+        self._save_mc_plot_dialog("svg", "SVG Vector Graphics (*.svg)")
+
+    def _save_mc_plot_dialog(self, fmt: str, name_filter: str) -> None:
+        if not self._mc_thicknesses or not self.mc_save_fn:
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            f"Save Monte Carlo histogram ({fmt.upper()})",
+            self._default_export_path(fmt),
+            name_filter,
+        )
+        if not path:
+            return
+        ext = f".{fmt}"
+        if not path.lower().endswith(ext):
+            path += ext
+        self.mc_save_fn(self._mc_thicknesses, self._mc_title, fmt, path)
+
     def _clear_all(self) -> None:
         self.output_text.clear()
+        self.set_monte_carlo_export_state(None, "")
+        self._xlsx_input_columns = None
+        self._xlsx_output_rows = None
+        self._xlsx_mc_rows = None
+        self._save_excel_btn.setVisible(False)
         self.log_text.clear()
 
     def _append_log(self, text: str, is_error: bool) -> None:

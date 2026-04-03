@@ -49,7 +49,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(icon_path)))
 
     def _build_tabs(self) -> None:
-        one_dip_tab = ModelTab("One-dip Model", self._compute_one_dip)
+        one_dip_tab = ModelTab("One-dip Model", self._compute_one_dip, "One-dip")
         one_dip_tab.add_float_input(
             "m",
             "M (Measured Thickness)",
@@ -90,6 +90,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         average_vector_tab = ModelTab(
             "Average-vector Model",
             self._compute_average_vector,
+            "Average-vector",
         )
         average_vector_tab.add_float_input(
             "m2",
@@ -144,6 +145,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         average_thickness_tab = ModelTab(
             "Average-thickness Model",
             self._compute_average_thickness,
+            "Average-thickness",
         )
         average_thickness_tab.add_float_input(
             "m3",
@@ -198,6 +200,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         mixed_average_tab = ModelTab(
             "Mixed Average Model",
             self._compute_mixed_average,
+            "Mixed Average",
         )
         mixed_average_tab.add_float_input(
             "m4",
@@ -252,6 +255,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         concentric_fold_tab = ModelTab(
             "Concentric Fold Model",
             self._compute_concentric_fold,
+            "Concentric Fold",
         )
         concentric_fold_tab.add_float_input(
             "m5",
@@ -306,6 +310,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         plunging_fold_tab = ModelTab(
             "Plunging Concentric Fold Model",
             self._compute_plunging_concentric_fold,
+            "Plunging Concentric Fold",
         )
         plunging_fold_tab.add_float_input(
             "m6",
@@ -358,7 +363,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         self.tabs.addTab(plunging_fold_tab, "Plunging Concentric Fold")
 
-        wedging_tab = ModelTab("Wedging Bed Model", self._compute_wedging_bed)
+        wedging_tab = ModelTab("Wedging Bed Model", self._compute_wedging_bed, "Wedging Bed")
         wedging_tab.add_float_input(
             "m7",
             "M (Measured Thickness)",
@@ -409,6 +414,66 @@ class StratigraphicCalculatorWindow(QMainWindow):
             default=150.0,
         )
         self.tabs.addTab(wedging_tab, "Wedging Bed")
+
+        self._wire_monte_carlo_export_on_tabs()
+
+    def _wire_monte_carlo_export_on_tabs(self) -> None:
+        for idx in range(self.tabs.count()):
+            w = self.tabs.widget(idx)
+            if isinstance(w, ModelTab):
+                w.mc_save_fn = self._save_monte_carlo_figure_file
+
+    def _apply_model_output(
+        self,
+        tab: ModelTab,
+        output_html: str,
+        mc_stats: dict[str, float | str | list[float]] | None,
+        xlsx_input_columns: list[tuple[str, float, float]],
+        xlsx_output_rows: list[tuple[str, float | int]],
+        xlsx_mc_rows: list[tuple[str, float | int]] | None,
+    ) -> None:
+        tab.set_output(output_html, is_html=True)
+        if mc_stats is not None and mc_stats.get("thicknesses"):
+            tab.set_monte_carlo_export_state(
+                list(mc_stats["thicknesses"]),
+                str(mc_stats.get("plot_title", "")),
+            )
+        tab.set_export_snapshot_sections(
+            xlsx_input_columns,
+            xlsx_output_rows,
+            xlsx_mc_rows,
+        )
+
+    @staticmethod
+    def _xlsx_input_column(
+        tab: ModelTab, input_key: str, column_name: str
+    ) -> tuple[str, float, float]:
+        return (column_name, tab.value(input_key), tab.std(input_key))
+
+    @staticmethod
+    def _vec3_csv_rows(
+        prefix: str, v: tuple[float, float, float]
+    ) -> list[tuple[str, float]]:
+        return [
+            (f"{prefix}_x", v[0]),
+            (f"{prefix}_y", v[1]),
+            (f"{prefix}_z", v[2]),
+        ]
+
+    @staticmethod
+    def _mc_excel_rows_from_stats(
+        mc_stats: dict[str, float | str | list[float]] | None,
+    ) -> list[tuple[str, float | int]] | None:
+        if mc_stats is None:
+            return None
+        return [
+            ("MC_N", int(mc_stats["n"])),
+            ("MC_mean", float(mc_stats["mean"])),
+            ("MC_std", float(mc_stats["std"])),
+            ("MC_P10", float(mc_stats["p10"])),
+            ("MC_P50", float(mc_stats["p50"])),
+            ("MC_P90", float(mc_stats["p90"])),
+        ]
 
     def _percentile(self, values: list[float], p: float) -> float:
         if not values:
@@ -493,10 +558,11 @@ class StratigraphicCalculatorWindow(QMainWindow):
             result = compute_fn(**kwargs)
             thicknesses.append(result.true_stratigraphic_thickness)
 
-        plot_html = self._build_monte_carlo_plot_html(
-            thicknesses,
-            f"{self.tabs.tabText(self.tabs.currentIndex())} Monte Carlo Thickness Distribution",
+        plot_title = (
+            f"{self.tabs.tabText(self.tabs.currentIndex())} "
+            "Monte Carlo Thickness Distribution"
         )
+        plot_html = self._build_monte_carlo_plot_html(thicknesses, plot_title)
         return {
             "n": float(len(thicknesses)),
             "mean": mean(thicknesses),
@@ -505,18 +571,55 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "p50": self._percentile(thicknesses, 0.50),
             "p90": self._percentile(thicknesses, 0.90),
             "plot_html": plot_html,
+            "thicknesses": thicknesses,
+            "plot_title": plot_title,
         }
+
+    def _create_monte_carlo_figure(self, thicknesses: list[float], title: str):
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        if thicknesses:
+            n = len(thicknesses)
+            pct_weight = 100.0 / n
+            ax.hist(
+                thicknesses,
+                bins=60,
+                weights=[pct_weight] * n,
+                color="#4C78A8",
+                edgecolor="white",
+            )
+        ax.set_title(title)
+        ax.set_xlabel("Thickness")
+        ax.set_ylabel("Percentage (%)")
+        fig.tight_layout()
+        return fig
+
+    def _save_monte_carlo_figure_file(
+        self,
+        thicknesses: list[float],
+        title: str,
+        fmt: str,
+        path: str,
+    ) -> None:
+        import matplotlib.pyplot as plt
+
+        try:
+            fig = self._create_monte_carlo_figure(thicknesses, title)
+            save_kw: dict = {"format": fmt}
+            if fmt == "png":
+                save_kw["dpi"] = 120
+            fig.savefig(path, **save_kw)
+            plt.close(fig)
+            print(f"Saved Monte Carlo histogram to {path}")
+        except Exception as exc:
+            print(f"Could not save Monte Carlo plot: {exc}")
 
     def _build_monte_carlo_plot_html(self, thicknesses: list[float], title: str) -> str:
         try:
             import matplotlib.pyplot as plt
 
-            fig, ax = plt.subplots(figsize=(8, 4.5))
-            ax.hist(thicknesses, bins=60, color="#4C78A8", edgecolor="white")
-            ax.set_title(title)
-            ax.set_xlabel("Thickness")
-            ax.set_ylabel("Frequency")
-            fig.tight_layout()
+            fig = self._create_monte_carlo_figure(thicknesses, title)
             buffer = io.BytesIO()
             fig.savefig(buffer, format="png", dpi=120)
             plt.close(fig)
@@ -594,7 +697,26 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "U<sub>d1</sub>: downward dip-pole unit vector<br>"
             "U<sub>b</sub>: borehole direction unit vector"
         )
-        tab.set_output(output, is_html=True)
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m", "M"),
+            self._xlsx_input_column(tab, "delta", "delta_deg"),
+            self._xlsx_input_column(tab, "beta1", "beta1_deg"),
+            self._xlsx_input_column(tab, "phib", "phib_deg"),
+            self._xlsx_input_column(tab, "phid1", "phid1_deg"),
+        ]
+        xlsx_out: list[tuple[str, float | int]] = [
+            ("T1", result.true_stratigraphic_thickness),
+        ]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
         print("One-dip calculation completed.")
 
     def _compute_average_vector(self, tab: ModelTab) -> None:
@@ -655,7 +777,28 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "U<sub>b</sub>: borehole unit vector<br>"
             "M: measured thickness along the well path"
         )
-        tab.set_output(output, is_html=True)
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m2", "M"),
+            self._xlsx_input_column(tab, "delta2", "delta_deg"),
+            self._xlsx_input_column(tab, "phib2", "phib_deg"),
+            self._xlsx_input_column(tab, "beta1_2", "beta1_deg"),
+            self._xlsx_input_column(tab, "phid1_2", "phid1_deg"),
+            self._xlsx_input_column(tab, "beta2_2", "beta2_deg"),
+            self._xlsx_input_column(tab, "phid2_2", "phid2_deg"),
+        ]
+        xlsx_out = [("T2", result.true_stratigraphic_thickness)]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ud2", result.ud2_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Uav", result.uav_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
         print("Average-vector calculation completed.")
 
     def _compute_average_thickness(self, tab: ModelTab) -> None:
@@ -716,7 +859,29 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "M: measured thickness along the well path<br>"
             ". : dot product"
         )
-        tab.set_output(output, is_html=True)
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m3", "M"),
+            self._xlsx_input_column(tab, "delta3", "delta_deg"),
+            self._xlsx_input_column(tab, "phib3", "phib_deg"),
+            self._xlsx_input_column(tab, "beta1_3", "beta1_deg"),
+            self._xlsx_input_column(tab, "phid1_3", "phid1_deg"),
+            self._xlsx_input_column(tab, "beta2_3", "beta2_deg"),
+            self._xlsx_input_column(tab, "phid2_3", "phid2_deg"),
+        ]
+        xlsx_out = [("T3", result.true_stratigraphic_thickness)]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ud2", result.ud2_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        xlsx_out.append(("Ud1_dot_Ub", result.ud1_dot_ub))
+        xlsx_out.append(("Ud2_dot_Ub", result.ud2_dot_ub))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
         print("Average-thickness calculation completed.")
 
     def _compute_mixed_average(self, tab: ModelTab) -> None:
@@ -777,7 +942,32 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "U<sub>d1</sub>, U<sub>d2</sub>, U<sub>av</sub>, U<sub>b</sub>: "
             "supporting vectors from component models"
         )
-        tab.set_output(output, is_html=True)
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m4", "M"),
+            self._xlsx_input_column(tab, "delta4", "delta_deg"),
+            self._xlsx_input_column(tab, "phib4", "phib_deg"),
+            self._xlsx_input_column(tab, "beta1_4", "beta1_deg"),
+            self._xlsx_input_column(tab, "phid1_4", "phid1_deg"),
+            self._xlsx_input_column(tab, "beta2_4", "beta2_deg"),
+            self._xlsx_input_column(tab, "phid2_4", "phid2_deg"),
+        ]
+        xlsx_out = [
+            ("T4", result.true_stratigraphic_thickness),
+            ("T2_component", result.t2_value),
+            ("T3_component", result.t3_value),
+        ]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ud2", result.ud2_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Uav", result.uav_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
         print("Mixed Average calculation completed.")
 
     def _compute_concentric_fold(self, tab: ModelTab) -> None:
@@ -861,7 +1051,35 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "γ: angle between U<sub>c</sub> and U'<sub>b</sub>; "
             "α: angle between U<sub>d1</sub> and U'<sub>b</sub>"
         )
-        tab.set_output(output, is_html=True)
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m5", "M"),
+            self._xlsx_input_column(tab, "delta5", "delta_deg"),
+            self._xlsx_input_column(tab, "phib5", "phib_deg"),
+            self._xlsx_input_column(tab, "beta1_5", "beta1_deg"),
+            self._xlsx_input_column(tab, "phid1_5", "phid1_deg"),
+            self._xlsx_input_column(tab, "beta2_5", "beta2_deg"),
+            self._xlsx_input_column(tab, "phid2_5", "phid2_deg"),
+        ]
+        xlsx_out = [
+            ("T5", result.true_stratigraphic_thickness),
+            ("beta2_prime_deg", result.beta2_prime_deg),
+            ("M_prime", result.m_prime),
+            ("gamma_deg", result.gamma_deg),
+            ("alpha_deg", result.alpha_deg),
+        ]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ud2_prime", result.ud2_prime_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ndc", result.ndc_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Uc", result.c_vector))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
         print("Concentric Fold calculation completed.")
 
     def _compute_plunging_concentric_fold(self, tab: ModelTab) -> None:
@@ -938,7 +1156,34 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "γ: angle between U<sub>c</sub> and U'<sub>b</sub>; "
             "α: angle between U<sub>d1</sub> and U<sub>c</sub>"
         )
-        tab.set_output(output, is_html=True)
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m6", "M"),
+            self._xlsx_input_column(tab, "delta6", "delta_deg"),
+            self._xlsx_input_column(tab, "phib6", "phib_deg"),
+            self._xlsx_input_column(tab, "beta1_6", "beta1_deg"),
+            self._xlsx_input_column(tab, "phid1_6", "phid1_deg"),
+            self._xlsx_input_column(tab, "beta2_6", "beta2_deg"),
+            self._xlsx_input_column(tab, "phid2_6", "phid2_deg"),
+        ]
+        xlsx_out = [
+            ("T6", result.true_stratigraphic_thickness),
+            ("M_prime", result.m_prime),
+            ("gamma_deg", result.gamma_deg),
+            ("alpha_deg", result.alpha_deg),
+        ]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ud2", result.ud2_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ndp", result.ndp_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Uc", result.c_vector))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
         print("Plunging Concentric Fold calculation completed.")
 
     def _compute_wedging_bed(self, tab: ModelTab) -> None:
@@ -1016,5 +1261,37 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "T<sub>7</sub>: wedging-bed thickness; M measured perpendicular to top bed<br>"
             "η: angle between dip poles at top and base; S selects thickening sense<br>"
         )
-        tab.set_output(output, is_html=True)
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m7", "M"),
+            self._xlsx_input_column(tab, "delta7", "delta_deg"),
+            self._xlsx_input_column(tab, "phib7", "phib_deg"),
+            self._xlsx_input_column(tab, "beta1_7", "beta1_deg"),
+            self._xlsx_input_column(tab, "phid1_7", "phid1_deg"),
+            self._xlsx_input_column(tab, "beta2_7", "beta2_deg"),
+            self._xlsx_input_column(tab, "phid2_7", "phid2_deg"),
+        ]
+        xlsx_out = [
+            ("T7", result.true_stratigraphic_thickness),
+            ("M_prime", result.m_prime),
+            ("alpha_deg", result.alpha_deg),
+            ("eta_deg", result.eta_deg),
+            ("S_Ndp_dot_Ub_prime", result.s_value),
+            (
+                "T7_positive_S_branch",
+                1.0 if result.uses_positive_s_branch else 0.0,
+            ),
+        ]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ud2", result.ud2_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ndp", result.ndp_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub_prime", result.ub_prime_vector))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
         print("Wedging Bed calculation completed.")
