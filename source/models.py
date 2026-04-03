@@ -133,7 +133,7 @@ class PlungingConcentricFoldResult:
 
 
 @dataclass(slots=True)
-class WedgingBedInputs:
+class TopNormalInputs:
     measured_thickness: float
     wellbore_inclination_deg: float
     wellbore_azimuth_deg: float
@@ -144,8 +144,35 @@ class WedgingBedInputs:
 
 
 @dataclass(slots=True)
-class WedgingBedResult:
+class TopNormalResult:
     true_stratigraphic_thickness: float
+    m_prime: float
+    alpha_deg: float
+    eta_deg: float
+    s_value: float
+    uses_positive_s_branch: bool
+    ud1_vector: tuple[float, float, float]
+    ud2_vector: tuple[float, float, float]
+    ub_vector: tuple[float, float, float]
+    ndp_vector: tuple[float, float, float]
+    ub_prime_vector: tuple[float, float, float]
+
+
+@dataclass(slots=True)
+class EqualAngleInputs:
+    measured_thickness: float
+    wellbore_inclination_deg: float
+    wellbore_azimuth_deg: float
+    formation_dip1_deg: float
+    dip_azimuth1_deg: float
+    formation_dip2_deg: float
+    dip_azimuth2_deg: float
+
+
+@dataclass(slots=True)
+class EqualAngleResult:
+    true_stratigraphic_thickness: float
+    top_normal_thickness: float
     m_prime: float
     alpha_deg: float
     eta_deg: float
@@ -524,11 +551,11 @@ def compute_plunging_concentric_fold(
     )
 
 
-def compute_wedging_bed(inputs: WedgingBedInputs) -> WedgingBedResult:
+def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
     """
-    Wedging bed (disharmonic / thickness wedge): M is measured normal to the top bed.
+    Top-normal (wedging) bed: M is measured normal to the top bed.
     M' from Berg (2011) projection onto the plane of Ud1 and Ud2 (eq. 22 with N_dp).
-    T7 = M' cos(α ∓ η)/cos(η) with minus for S < 0 and plus for S ≥ 0; S = N_dp · U'b.
+    Thickness = M' cos(α ∓ η)/cos(η) (paper T7) with S = N_dp · U'b selecting the branch.
     """
     ud1 = _downward_dip_pole_vector(
         formation_dip_deg=inputs.formation_dip1_deg,
@@ -573,18 +600,18 @@ def compute_wedging_bed(inputs: WedgingBedInputs) -> WedgingBedResult:
 
     cos_eta = cos(eta_rad)
     if abs(cos_eta) < 1e-12:
-        raise ValueError("cos(η) is zero. T7 is undefined for this geometry.")
+        raise ValueError("cos(η) is zero. Top-normal thickness is undefined for this geometry.")
 
     s_val = _dot(ndp, ub_prime)
     if s_val >= 0.0:
-        t7 = m_prime * cos(alpha_rad + eta_rad) / cos_eta
+        t_top_normal = m_prime * cos(alpha_rad + eta_rad) / cos_eta
         uses_positive = True
     else:
-        t7 = m_prime * cos(alpha_rad - eta_rad) / cos_eta
+        t_top_normal = m_prime * cos(alpha_rad - eta_rad) / cos_eta
         uses_positive = False
 
-    return WedgingBedResult(
-        true_stratigraphic_thickness=t7,
+    return TopNormalResult(
+        true_stratigraphic_thickness=t_top_normal,
         m_prime=m_prime,
         alpha_deg=alpha_rad * 180.0 / pi,
         eta_deg=eta_rad * 180.0 / pi,
@@ -595,4 +622,38 @@ def compute_wedging_bed(inputs: WedgingBedInputs) -> WedgingBedResult:
         ub_vector=ub,
         ndp_vector=ndp,
         ub_prime_vector=ub_prime,
+    )
+
+
+def compute_equal_angle(inputs: EqualAngleInputs) -> EqualAngleResult:
+    """
+    Equal-angle method: T8 = T_top cos(η/2) where T_top is the top-normal thickness
+    and η = arccos(Ud1 · Ud2) (eq. 33, 38).
+    """
+    tn = compute_top_normal(
+        TopNormalInputs(
+            measured_thickness=inputs.measured_thickness,
+            wellbore_inclination_deg=inputs.wellbore_inclination_deg,
+            wellbore_azimuth_deg=inputs.wellbore_azimuth_deg,
+            formation_dip1_deg=inputs.formation_dip1_deg,
+            dip_azimuth1_deg=inputs.dip_azimuth1_deg,
+            formation_dip2_deg=inputs.formation_dip2_deg,
+            dip_azimuth2_deg=inputs.dip_azimuth2_deg,
+        )
+    )
+    eta_rad = radians(tn.eta_deg)
+    t8 = tn.true_stratigraphic_thickness * cos(eta_rad / 2.0)
+    return EqualAngleResult(
+        true_stratigraphic_thickness=t8,
+        top_normal_thickness=tn.true_stratigraphic_thickness,
+        m_prime=tn.m_prime,
+        alpha_deg=tn.alpha_deg,
+        eta_deg=tn.eta_deg,
+        s_value=tn.s_value,
+        uses_positive_s_branch=tn.uses_positive_s_branch,
+        ud1_vector=tn.ud1_vector,
+        ud2_vector=tn.ud2_vector,
+        ub_vector=tn.ub_vector,
+        ndp_vector=tn.ndp_vector,
+        ub_prime_vector=tn.ub_prime_vector,
     )

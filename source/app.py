@@ -14,17 +14,19 @@ from source.models import (
     AverageThicknessInputs,
     AverageVectorInputs,
     ConcentricFoldInputs,
+    EqualAngleInputs,
     MixedAverageInputs,
     OneDipInputs,
     PlungingConcentricFoldInputs,
-    WedgingBedInputs,
+    TopNormalInputs,
     compute_average_thickness,
     compute_average_vector,
     compute_concentric_fold,
+    compute_equal_angle,
     compute_mixed_average,
     compute_one_dip,
     compute_plunging_concentric_fold,
-    compute_wedging_bed,
+    compute_top_normal,
 )
 from source.widgets import ModelTab
 
@@ -49,7 +51,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(icon_path)))
 
     def _build_tabs(self) -> None:
-        one_dip_tab = ModelTab("One-dip Model", self._compute_one_dip, "One-dip")
+        one_dip_tab = ModelTab(
+            "One-dip (T₁) Model", self._compute_one_dip, "One-dip (T₁)"
+        )
         one_dip_tab.add_float_input(
             "m",
             "M (Measured Thickness)",
@@ -85,12 +89,12 @@ class StratigraphicCalculatorWindow(QMainWindow):
             maximum=360.0,
             default=140.0,
         )
-        self.tabs.addTab(one_dip_tab, "One-dip")
+        self.tabs.addTab(one_dip_tab, "One-dip (T₁)")
 
         average_vector_tab = ModelTab(
-            "Average-vector Model",
+            "Average-vector (T₂) Model",
             self._compute_average_vector,
-            "Average-vector",
+            "Average-vector (T₂)",
         )
         average_vector_tab.add_float_input(
             "m2",
@@ -141,11 +145,11 @@ class StratigraphicCalculatorWindow(QMainWindow):
             maximum=360.0,
             default=150.0,
         )
-        self.tabs.addTab(average_vector_tab, "Average-vector")
+        self.tabs.addTab(average_vector_tab, "Average-vector (T₂)")
         average_thickness_tab = ModelTab(
-            "Average-thickness Model",
+            "Average-thickness (T₃) Model",
             self._compute_average_thickness,
-            "Average-thickness",
+            "Average-thickness (T₃)",
         )
         average_thickness_tab.add_float_input(
             "m3",
@@ -196,11 +200,11 @@ class StratigraphicCalculatorWindow(QMainWindow):
             maximum=360.0,
             default=150.0,
         )
-        self.tabs.addTab(average_thickness_tab, "Average-thickness")
+        self.tabs.addTab(average_thickness_tab, "Average-thickness (T₃)")
         mixed_average_tab = ModelTab(
-            "Mixed Average Model",
+            "Mixed Average (T₄) Model",
             self._compute_mixed_average,
-            "Mixed Average",
+            "Mixed Average (T₄)",
         )
         mixed_average_tab.add_float_input(
             "m4",
@@ -251,11 +255,11 @@ class StratigraphicCalculatorWindow(QMainWindow):
             maximum=360.0,
             default=150.0,
         )
-        self.tabs.addTab(mixed_average_tab, "Mixed Average")
+        self.tabs.addTab(mixed_average_tab, "Mixed Average (T₄)")
         concentric_fold_tab = ModelTab(
-            "Concentric Fold Model",
+            "Concentric Fold (T₅) Model",
             self._compute_concentric_fold,
-            "Concentric Fold",
+            "Concentric Fold (T₅)",
         )
         concentric_fold_tab.add_float_input(
             "m5",
@@ -306,11 +310,11 @@ class StratigraphicCalculatorWindow(QMainWindow):
             maximum=360.0,
             default=150.0,
         )
-        self.tabs.addTab(concentric_fold_tab, "Concentric Fold")
+        self.tabs.addTab(concentric_fold_tab, "Concentric Fold (T₅)")
         plunging_fold_tab = ModelTab(
-            "Plunging Concentric Fold Model",
+            "Plunging Concentric Fold (T₆) Model",
             self._compute_plunging_concentric_fold,
-            "Plunging Concentric Fold",
+            "Plunging Concentric Fold (T₆)",
         )
         plunging_fold_tab.add_float_input(
             "m6",
@@ -361,59 +365,115 @@ class StratigraphicCalculatorWindow(QMainWindow):
             maximum=360.0,
             default=150.0,
         )
-        self.tabs.addTab(plunging_fold_tab, "Plunging Concentric Fold")
+        self.tabs.addTab(plunging_fold_tab, "Plunging Concentric Fold (T₆)")
 
-        wedging_tab = ModelTab("Wedging Bed Model", self._compute_wedging_bed, "Wedging Bed")
-        wedging_tab.add_float_input(
+        top_normal_tab = ModelTab(
+            "Top-normal (T₇) Model", self._compute_top_normal, "Top-normal (T₇)"
+        )
+        top_normal_tab.add_float_input(
             "m7",
             "M (Measured Thickness)",
             minimum=0.0,
             default=100.0,
             step=1.0,
         )
-        wedging_tab.add_float_input(
+        top_normal_tab.add_float_input(
             "delta7",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
             maximum=90.0,
             default=20.0,
         )
-        wedging_tab.add_float_input(
+        top_normal_tab.add_float_input(
             "phib7",
             "φ<sub>b</sub> (Wellbore Azimuth, deg)",
             minimum=0.0,
             maximum=360.0,
             default=120.0,
         )
-        wedging_tab.add_float_input(
+        top_normal_tab.add_float_input(
             "beta1_7",
             "β<sub>1</sub> (Top Dip, deg)",
             minimum=0.0,
             maximum=89.99,
             default=15.0,
         )
-        wedging_tab.add_float_input(
+        top_normal_tab.add_float_input(
             "phid1_7",
             "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
             minimum=0.0,
             maximum=360.0,
             default=140.0,
         )
-        wedging_tab.add_float_input(
+        top_normal_tab.add_float_input(
             "beta2_7",
             "β<sub>2</sub> (Base Dip, deg)",
             minimum=0.0,
             maximum=89.99,
             default=18.0,
         )
-        wedging_tab.add_float_input(
+        top_normal_tab.add_float_input(
             "phid2_7",
             "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
             minimum=0.0,
             maximum=360.0,
             default=150.0,
         )
-        self.tabs.addTab(wedging_tab, "Wedging Bed")
+        self.tabs.addTab(top_normal_tab, "Top-normal (T₇)")
+
+        equal_angle_tab = ModelTab(
+            "Equal-angle (T₈) Model", self._compute_equal_angle, "Equal-angle (T₈)"
+        )
+        equal_angle_tab.add_float_input(
+            "m8",
+            "M (Measured Thickness)",
+            minimum=0.0,
+            default=100.0,
+            step=1.0,
+        )
+        equal_angle_tab.add_float_input(
+            "delta8",
+            "δ (Wellbore Inclination, deg)",
+            minimum=0.0,
+            maximum=90.0,
+            default=20.0,
+        )
+        equal_angle_tab.add_float_input(
+            "phib8",
+            "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+            minimum=0.0,
+            maximum=360.0,
+            default=120.0,
+        )
+        equal_angle_tab.add_float_input(
+            "beta1_8",
+            "β<sub>1</sub> (Top Dip, deg)",
+            minimum=0.0,
+            maximum=89.99,
+            default=15.0,
+        )
+        equal_angle_tab.add_float_input(
+            "phid1_8",
+            "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
+            minimum=0.0,
+            maximum=360.0,
+            default=140.0,
+        )
+        equal_angle_tab.add_float_input(
+            "beta2_8",
+            "β<sub>2</sub> (Base Dip, deg)",
+            minimum=0.0,
+            maximum=89.99,
+            default=18.0,
+        )
+        equal_angle_tab.add_float_input(
+            "phid2_8",
+            "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
+            minimum=0.0,
+            maximum=360.0,
+            default=150.0,
+        )
+        self.tabs.addTab(equal_angle_tab, "Equal-angle (T₈)")
 
         self._wire_monte_carlo_export_on_tabs()
 
@@ -1186,8 +1246,8 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         print("Plunging Concentric Fold calculation completed.")
 
-    def _compute_wedging_bed(self, tab: ModelTab) -> None:
-        inputs = WedgingBedInputs(
+    def _compute_top_normal(self, tab: ModelTab) -> None:
+        inputs = TopNormalInputs(
             measured_thickness=tab.value("m7"),
             wellbore_inclination_deg=tab.value("delta7"),
             wellbore_azimuth_deg=tab.value("phib7"),
@@ -1196,8 +1256,8 @@ class StratigraphicCalculatorWindow(QMainWindow):
             formation_dip2_deg=tab.value("beta2_7"),
             dip_azimuth2_deg=tab.value("phid2_7"),
         )
-        print("Executing Wedging Bed calculation...")
-        result = compute_wedging_bed(inputs)
+        print("Executing Top-normal calculation...")
+        result = compute_top_normal(inputs)
         mc_stats = self._run_monte_carlo(
             tab=tab,
             key_to_field=[
@@ -1210,17 +1270,17 @@ class StratigraphicCalculatorWindow(QMainWindow):
                 ("phid2_7", "dip_azimuth2_deg"),
             ],
             wrap_keys={"phib7", "phid1_7", "phid2_7"},
-            compute_fn=lambda **kwargs: compute_wedging_bed(WedgingBedInputs(**kwargs)),
+            compute_fn=lambda **kwargs: compute_top_normal(TopNormalInputs(**kwargs)),
         )
         mc_section = self._format_monte_carlo_section(mc_stats)
         branch_note = (
-            "T<sub>7</sub> = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
+            "Top-normal = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
             if result.uses_positive_s_branch
-            else "T<sub>7</sub> = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)"
+            else "Top-normal = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)"
         )
         output = (
             "<b>Result</b><br>"
-            f"T<sub>7</sub> (True Stratigraphic Thickness): "
+            "Top-normal (stratigraphic thickness, normal to top bed): "
             f"{result.true_stratigraphic_thickness:.6f}<br><br>"
             "<b>Quantities</b><br>"
             f"M' = {result.m_prime:.6f}<br>"
@@ -1254,11 +1314,11 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "α = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>"
             "η = arccos(U<sub>d1</sub> . U<sub>d2</sub>)<br>"
             "S = N<sub>dp</sub> . U'<sub>b</sub><br>"
-            "If S &lt; 0: T<sub>7</sub> = M' cos(α − η) / cos(η) &nbsp; (eq. 31)<br>"
-            "If S ≥ 0: T<sub>7</sub> = M' cos(α + η) / cos(η) &nbsp; (eq. 35)<br>"
-            "Also T<sub>7</sub> = M' (sinγ / sinμ) = M' cos(α ∓ η) / cos(η) (Berg, 2011)<br><br>"
+            "If S &lt; 0: Top-normal = M' cos(α − η) / cos(η) &nbsp; (eq. 31; paper T<sub>7</sub>)<br>"
+            "If S ≥ 0: Top-normal = M' cos(α + η) / cos(η) &nbsp; (eq. 35; paper T<sub>7</sub>)<br>"
+            "Also Top-normal = M' (sinγ / sinμ) = M' cos(α ∓ η) / cos(η) (Berg, 2011)<br><br>"
             "<b>Where</b><br>"
-            "T<sub>7</sub>: wedging-bed thickness; M measured perpendicular to top bed<br>"
+            "Top-normal: thickness for M measured normal to the top bed (paper T<sub>7</sub>)<br>"
             "η: angle between dip poles at top and base; S selects thickening sense<br>"
         )
         xlsx_in = [
@@ -1271,13 +1331,13 @@ class StratigraphicCalculatorWindow(QMainWindow):
             self._xlsx_input_column(tab, "phid2_7", "phid2_deg"),
         ]
         xlsx_out = [
-            ("T7", result.true_stratigraphic_thickness),
+            ("Top_normal_T7", result.true_stratigraphic_thickness),
             ("M_prime", result.m_prime),
             ("alpha_deg", result.alpha_deg),
             ("eta_deg", result.eta_deg),
             ("S_Ndp_dot_Ub_prime", result.s_value),
             (
-                "T7_positive_S_branch",
+                "Top_normal_positive_S_branch",
                 1.0 if result.uses_positive_s_branch else 0.0,
             ),
         ]
@@ -1294,4 +1354,105 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
         )
-        print("Wedging Bed calculation completed.")
+        print("Top-normal calculation completed.")
+
+    def _compute_equal_angle(self, tab: ModelTab) -> None:
+        inputs = EqualAngleInputs(
+            measured_thickness=tab.value("m8"),
+            wellbore_inclination_deg=tab.value("delta8"),
+            wellbore_azimuth_deg=tab.value("phib8"),
+            formation_dip1_deg=tab.value("beta1_8"),
+            dip_azimuth1_deg=tab.value("phid1_8"),
+            formation_dip2_deg=tab.value("beta2_8"),
+            dip_azimuth2_deg=tab.value("phid2_8"),
+        )
+        print("Executing Equal-angle (T8) calculation...")
+        result = compute_equal_angle(inputs)
+        mc_stats = self._run_monte_carlo(
+            tab=tab,
+            key_to_field=[
+                ("m8", "measured_thickness"),
+                ("delta8", "wellbore_inclination_deg"),
+                ("phib8", "wellbore_azimuth_deg"),
+                ("beta1_8", "formation_dip1_deg"),
+                ("phid1_8", "dip_azimuth1_deg"),
+                ("beta2_8", "formation_dip2_deg"),
+                ("phid2_8", "dip_azimuth2_deg"),
+            ],
+            wrap_keys={"phib8", "phid1_8", "phid2_8"},
+            compute_fn=lambda **kwargs: compute_equal_angle(EqualAngleInputs(**kwargs)),
+        )
+        mc_section = self._format_monte_carlo_section(mc_stats)
+        branch_note = (
+            "Top-normal = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
+            if result.uses_positive_s_branch
+            else "Top-normal = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)"
+        )
+        output = (
+            "<b>Result</b><br>"
+            f"T<sub>8</sub> (equal-angle): {result.true_stratigraphic_thickness:.6f}<br>"
+            f"Top-normal (intermediate): {result.top_normal_thickness:.6f}<br><br>"
+            "<b>Quantities</b><br>"
+            f"M' = {result.m_prime:.6f}<br>"
+            f"α = {result.alpha_deg:.6f} deg<br>"
+            f"η = {result.eta_deg:.6f} deg<br>"
+            f"S = N<sub>dp</sub> . U'<sub>b</sub> = {result.s_value:.6f}<br>"
+            f"Branch: {branch_note}<br><br>"
+            "U<sub>d1</sub> (x,y,z) : "
+            f"({result.ud1_vector[0]:.6f}, {result.ud1_vector[1]:.6f}, "
+            f"{result.ud1_vector[2]:.6f})<br>"
+            "U<sub>d2</sub> (x,y,z) : "
+            f"({result.ud2_vector[0]:.6f}, {result.ud2_vector[1]:.6f}, "
+            f"{result.ud2_vector[2]:.6f})<br>"
+            "U<sub>b</sub> (x,y,z) : "
+            f"({result.ub_vector[0]:.6f}, {result.ub_vector[1]:.6f}, "
+            f"{result.ub_vector[2]:.6f})<br>"
+            "N<sub>dp</sub> (x,y,z) : "
+            f"({result.ndp_vector[0]:.6f}, {result.ndp_vector[1]:.6f}, "
+            f"{result.ndp_vector[2]:.6f})<br>"
+            "U'<sub>b</sub> (x,y,z) : "
+            f"({result.ub_prime_vector[0]:.6f}, {result.ub_prime_vector[1]:.6f}, "
+            f"{result.ub_prime_vector[2]:.6f})<br><br>"
+            f"{mc_section}"
+            "<b>Formula</b><br>"
+            "Same intermediate quantities as Top-normal (N<sub>dp</sub>, M', U'<sub>b</sub>, α, η, S)<br>"
+            "Top-normal = M' cos(α ∓ η) / cos(η) per S (paper T<sub>7</sub>)<br>"
+            "T<sub>8</sub> = Top-normal × cos(η / 2) &nbsp; (eq. 38; equal-angle method)<br><br>"
+            "<b>Where</b><br>"
+            "T<sub>8</sub>: equal-angle thickness; η = arccos(U<sub>d1</sub> · U<sub>d2</sub>) (eq. 33)<br>"
+        )
+        xlsx_in = [
+            self._xlsx_input_column(tab, "m8", "M"),
+            self._xlsx_input_column(tab, "delta8", "delta_deg"),
+            self._xlsx_input_column(tab, "phib8", "phib_deg"),
+            self._xlsx_input_column(tab, "beta1_8", "beta1_deg"),
+            self._xlsx_input_column(tab, "phid1_8", "phid1_deg"),
+            self._xlsx_input_column(tab, "beta2_8", "beta2_deg"),
+            self._xlsx_input_column(tab, "phid2_8", "phid2_deg"),
+        ]
+        xlsx_out = [
+            ("T8_equal_angle", result.true_stratigraphic_thickness),
+            ("Top_normal_intermediate", result.top_normal_thickness),
+            ("M_prime", result.m_prime),
+            ("alpha_deg", result.alpha_deg),
+            ("eta_deg", result.eta_deg),
+            ("S_Ndp_dot_Ub_prime", result.s_value),
+            (
+                "Top_normal_positive_S_branch",
+                1.0 if result.uses_positive_s_branch else 0.0,
+            ),
+        ]
+        xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ud2", result.ud2_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub", result.ub_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ndp", result.ndp_vector))
+        xlsx_out.extend(self._vec3_csv_rows("Ub_prime", result.ub_prime_vector))
+        self._apply_model_output(
+            tab,
+            output,
+            mc_stats,
+            xlsx_in,
+            xlsx_out,
+            self._mc_excel_rows_from_stats(mc_stats),
+        )
+        print("Equal-angle (T8) calculation completed.")

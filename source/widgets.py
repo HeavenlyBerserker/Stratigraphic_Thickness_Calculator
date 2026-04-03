@@ -21,6 +21,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Shown on every σ (Monte Carlo uncertainty) spin box — short, plain language.
+MONTE_CARLO_SIGMA_TOOLTIP = (
+    "If your instrument quotes ±ε for this reading (e.g. ±2°), it is\n"
+    "common to use σ = ε ÷ 2. While σ = 0 yields a single thickness output,\n"
+    "non-zero σ explores a range of possible values accounting for the\n"
+    "inaccuracies resulting from instrument errors.\n\n"
+    "For more accurate calculations, use the confidence level stated in\n"
+    "your manual (most field instruments quote ±ε for a 95% interval).\n"
+    "Then set σ = ε ÷ z, where z is the z-score for that level:\n"
+    "z ≈ 1.645 (90%), 1.960 (95%), 2.576 (99%). The rule σ = ε ÷ 2\n"
+    "above is the 95% case rounded, since z for 95% is close to 2."
+)
+
 
 class ModelTab(QWidget):
     """
@@ -133,7 +146,7 @@ class ModelTab(QWidget):
         std_box.setSingleStep(step)
         std_box.setValue(0.0)
         std_box.setPrefix("σ=")
-        std_box.setToolTip("Standard deviation for Monte Carlo sampling")
+        std_box.setToolTip(MONTE_CARLO_SIGMA_TOOLTIP)
 
         row_widget = QWidget()
         row_layout = QHBoxLayout(row_widget)

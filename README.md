@@ -10,7 +10,8 @@ Code lives in `source/` and provides tabs for:
 - Mixed Average
 - Concentric Fold
 - Plunging Concentric Fold
-- Wedging Bed
+- Top-normal
+- Equal-angle (T₈)
 
 Each tab has:
 - Input section
@@ -38,9 +39,10 @@ Currently implemented:
   - `N_dp = (Ud₁ × Ud₂) / ||Ud₁ × Ud₂||`; `M' = ||M_b - N_dp(N_dp · M_b)||` with `M_b = M U_b`
   - `U_c = (U_d1 - U_d2) / ||U_d1 - U_d2||`; `γ = arccos(U_c · U'_b)`, `α = arccos(U_d1 · U_c)` with `U'_b = M'_b / ||M'_b||`
   - `T₆ = M' (sinγ / sinα)`
-- Wedging Bed model (`M` measured normal to the top bed; Berg, 2011):
-  - Same `N_dp`, `M'`, `U'_b` as eq. (22)–(24); `α = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)`
-  - `S = N_dp · U'_b`; if `S < 0`: `T₇ = M' cos(α − η) / cos(η)`; if `S ≥ 0`: `T₇ = M' cos(α + η) / cos(η)` (equivalent to `T₇ = M' (sinγ / sinμ)`)
+- Top-normal model (`M` measured normal to the top bed; Berg, 2011):
+  - Same `N_dp`, `M'`, `U'_b` as eq. (22)–(24); `α = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)` (eq. 33)
+  - **Top-normal** (paper `T₇`): `S = N_dp · U'_b`; if `S < 0`: `M' cos(α − η) / cos(η)`; if `S ≥ 0`: `M' cos(α + η) / cos(η)` (also `M' (sinγ / sinμ)`)
+- Equal-angle (`T₈`) tab: same inputs as Top-normal; `T₈ =` Top-normal `× cos(η/2)` (eq. 38)
 - Computed vectors:
   - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector
   - `U_d2` (written as `U<sub>d2</sub>` in the app): downward dip-pole unit vector at lower contact
