@@ -532,6 +532,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             ("MC_std", float(mc_stats["std"])),
             ("MC_P10", float(mc_stats["p10"])),
             ("MC_P25", float(mc_stats["p25"])),
+            ("MC_P50", float(mc_stats["p50"])),
             ("MC_P75", float(mc_stats["p75"])),
             ("MC_P90", float(mc_stats["p90"])),
         ]
@@ -630,6 +631,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "std": pstdev(thicknesses),
             "p10": self._percentile(thicknesses, 0.10),
             "p25": self._percentile(thicknesses, 0.25),
+            "p50": self._percentile(thicknesses, 0.50),
             "p75": self._percentile(thicknesses, 0.75),
             "p90": self._percentile(thicknesses, 0.90),
             "plot_html": plot_html,
@@ -708,6 +710,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"Std = {stats['std']:.6f}<br>"
             f"P10 = {stats['p10']:.6f}<br>"
             f"P25 = {stats['p25']:.6f}<br>"
+            f"P50 = {stats['p50']:.6f}<br>"
             f"P75 = {stats['p75']:.6f}<br>"
             f"P90 = {stats['p90']:.6f}<br><br>"
         )
