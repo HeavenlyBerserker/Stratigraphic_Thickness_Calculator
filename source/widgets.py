@@ -60,15 +60,15 @@ class ModelTab(QWidget):
         self._xlsx_output_rows: list[tuple[str, float | int]] | None = None
         self._xlsx_mc_rows: list[tuple[str, float | int]] | None = None
         self.mc_save_fn: Callable[[list[float], str, str, str], None] | None = None
+        self._log_normal_fg = QColor(0, 0, 0)
         self._build_ui(title)
 
     def _build_ui(self, title: str) -> None:
         root_layout = QVBoxLayout()
         self.setLayout(root_layout)
 
-        title_label = QLabel(title)
-        title_label.setStyleSheet("font-size: 16px; font-weight: 600;")
-        root_layout.addWidget(title_label)
+        self._title_label = QLabel(title)
+        root_layout.addWidget(self._title_label)
 
         content_layout = QHBoxLayout()
         root_layout.addLayout(content_layout, stretch=1)
@@ -157,6 +157,26 @@ class ModelTab(QWidget):
         self.inputs[key] = value_box
         self.std_inputs[key] = std_box
         self.input_form.addRow(label, row_widget)
+
+    def apply_theme(self, dark: bool) -> None:
+        self._log_normal_fg = (
+            QColor(0xE8, 0xE8, 0xE8) if dark else QColor(0, 0, 0)
+        )
+        title_color = "#e8e8e8" if dark else "#000000"
+        self._title_label.setStyleSheet(
+            f"font-size: 16px; font-weight: 600; color: {title_color}; "
+            "background: transparent;"
+        )
+        if dark:
+            self.output_text.document().setDefaultStyleSheet(
+                "body, p, div, span, b, li { color: #e8e8e8; } "
+                "a { color: #8cb4ff; }"
+            )
+        else:
+            self.output_text.document().setDefaultStyleSheet(
+                "body, p, div, span, b, li { color: #000000; } "
+                "a { color: #0066cc; }"
+            )
 
     def value(self, key: str) -> float:
         return self.inputs[key].value()
@@ -341,7 +361,7 @@ class ModelTab(QWidget):
         cursor.movePosition(QTextCursor.End)
         text_format = QTextCharFormat()
         text_format.setForeground(
-            QColor("red") if is_error else QColor(255, 255, 255)
+            QColor("red") if is_error else self._log_normal_fg
         )
         cursor.insertText(text, text_format)
         if not text.endswith("\n"):

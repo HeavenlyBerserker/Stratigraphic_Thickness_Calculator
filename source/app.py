@@ -7,8 +7,9 @@ import sys
 from statistics import mean, pstdev
 from pathlib import Path
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QTabWidget
+from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget, QToolButton
 
 from source.models import (
     AverageThicknessInputs,
@@ -28,11 +29,12 @@ from source.models import (
     compute_plunging_concentric_fold,
     compute_top_normal,
 )
+from source.theme import DARK_STYLESHEET, LIGHT_STYLESHEET
 from source.widgets import ModelTab
 
 
 class StratigraphicCalculatorWindow(QMainWindow):
-    def __init__(self) -> None:
+    def __init__(self, initial_dark: bool = False) -> None:
         super().__init__()
         self.setWindowTitle("Stratigraphic Thickness Calculator")
         self.resize(1200, 800)
@@ -40,6 +42,45 @@ class StratigraphicCalculatorWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
         self._build_tabs()
+        self._dark_mode = initial_dark
+        self._setup_theme_toggle()
+        self._sync_all_model_tab_themes()
+
+    def _setup_theme_toggle(self) -> None:
+        self._theme_toggle_btn = QToolButton(self)
+        self._theme_toggle_btn.setObjectName("themeToggle")
+        self._theme_toggle_btn.setFixedSize(40, 28)
+        self._theme_toggle_btn.setAutoRaise(True)
+        self._theme_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        font = self._theme_toggle_btn.font()
+        font.setPointSize(14)
+        self._theme_toggle_btn.setFont(font)
+        self._update_theme_toggle_button()
+        self._theme_toggle_btn.clicked.connect(self._toggle_theme)
+        self.statusBar().addPermanentWidget(self._theme_toggle_btn)
+
+    def _update_theme_toggle_button(self) -> None:
+        # Moon while in light mode → switch to dark; sun while in dark → switch to light.
+        if self._dark_mode:
+            self._theme_toggle_btn.setText("\u2600")
+            self._theme_toggle_btn.setToolTip("Switch to light theme")
+        else:
+            self._theme_toggle_btn.setText("\u263e")
+            self._theme_toggle_btn.setToolTip("Switch to dark theme")
+
+    def _toggle_theme(self) -> None:
+        self._dark_mode = not self._dark_mode
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(DARK_STYLESHEET if self._dark_mode else LIGHT_STYLESHEET)
+        self._update_theme_toggle_button()
+        self._sync_all_model_tab_themes()
+
+    def _sync_all_model_tab_themes(self) -> None:
+        for idx in range(self.tabs.count()):
+            w = self.tabs.widget(idx)
+            if isinstance(w, ModelTab):
+                w.apply_theme(self._dark_mode)
 
     def _set_window_logo(self) -> None:
         if getattr(sys, "frozen", False):
