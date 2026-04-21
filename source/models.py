@@ -100,7 +100,8 @@ class ConcentricFoldResult:
     beta2_prime_deg: float
     m_prime: float
     gamma_deg: float
-    alpha_deg: float
+    alpha_deg: float  # α = 90° − η/2 (degrees), eq. (19)
+    eta_deg: float  # η = arccos(Ud1 · U'd2), degrees, eq. (22)
     ud1_vector: tuple[float, float, float]
     ud2_prime_vector: tuple[float, float, float]
     ub_vector: tuple[float, float, float]
@@ -219,6 +220,14 @@ def _downward_dip_pole_vector(
     return (x / norm, y / norm, z / norm)
 
 
+def _smallest_azimuth_separation_deg(phi1_deg: float, phi2_deg: float) -> float:
+    """Smallest angle between two map azimuths, in [0, 180] degrees."""
+    d = abs(phi1_deg - phi2_deg) % 360.0
+    if d > 180.0:
+        d = 360.0 - d
+    return d
+
+
 def _concentric_fold_dip_pole_unit(
     dip_azimuth_deg: float,
     formation_dip_deg: float,
@@ -226,7 +235,7 @@ def _concentric_fold_dip_pole_unit(
     """
     Dip-pole unit vector for the concentric-fold model (Xu et al., 2007, 2010):
     U = (-cos φd sin β, -sin φd sin β, cos β) with x=East, y=North, z=Down.
-    Bed azimuth is fixed at φd; U'd2 uses β'2 and Ud1 uses β1 at the same φd.
+    U_d1 uses (φ_d1, β_1); U'_d2 uses (φ for eq. 12 or 13, β'_2).
     """
     beta_rad = radians(formation_dip_deg)
     phi_rad = radians(dip_azimuth_deg)
@@ -266,7 +275,56 @@ def _clip_unit(x: float) -> float:
     return max(-1.0, min(1.0, x))
 
 
+_SURVEY_DEG_EPS = 1e-6
+_INTERIOR_DEG_EPS = 1e-3  # strict inequalities for η, α, γ (degrees)
+
+
+def _validate_survey_angles(
+    *,
+    wellbore_inclination_deg: float,
+    wellbore_azimuth_deg: float,
+    bed_dips_deg: list[float],
+    bed_azimuths_deg: list[float],
+) -> None:
+    """Enforce documented input ranges: δ∈[0,180], φ∈[0,360], β∈[0,90]."""
+    if not (-_SURVEY_DEG_EPS <= wellbore_inclination_deg <= 180.0 + _SURVEY_DEG_EPS):
+        raise ValueError(
+            "Wellbore inclination δ must be in [0°, 180°] (angle from vertical down)."
+        )
+    if not (-_SURVEY_DEG_EPS <= wellbore_azimuth_deg <= 360.0 + _SURVEY_DEG_EPS):
+        raise ValueError(
+            "Wellbore azimuth φ_b must be in [0°, 360°] (clockwise from north)."
+        )
+    for b in bed_dips_deg:
+        if not (-_SURVEY_DEG_EPS <= b <= 90.0 + _SURVEY_DEG_EPS):
+            raise ValueError(f"Bed dip β must be in [0°, 90°] (got {b:.6f}°).")
+    for p in bed_azimuths_deg:
+        if not (-_SURVEY_DEG_EPS <= p <= 360.0 + _SURVEY_DEG_EPS):
+            raise ValueError(f"Dip azimuth φ must be in [0°, 360°] (got {p:.6f}°).")
+
+
+def _assert_intermediate_closed_deg(label: str, value_deg: float, lo: float, hi: float) -> None:
+    if not (lo - _SURVEY_DEG_EPS <= value_deg <= hi + _SURVEY_DEG_EPS):
+        raise ValueError(
+            f"{label} must be in [{lo}°, {hi}°] for this geometry (got {value_deg:.6f}°)."
+        )
+
+
+def _assert_interior_open_deg(label: str, value_deg: float, lo: float, hi: float) -> None:
+    if not (lo + _INTERIOR_DEG_EPS < value_deg < hi - _INTERIOR_DEG_EPS):
+        raise ValueError(
+            f"{label} must be strictly between {lo}° and {hi}° for this geometry "
+            f"(got {value_deg:.6f}°)."
+        )
+
+
 def compute_one_dip(inputs: OneDipInputs) -> OneDipResult:
+    _validate_survey_angles(
+        wellbore_inclination_deg=inputs.wellbore_inclination_deg,
+        wellbore_azimuth_deg=inputs.wellbore_azimuth_deg,
+        bed_dips_deg=[inputs.formation_dip_deg],
+        bed_azimuths_deg=[inputs.dip_azimuth_deg],
+    )
     delta = radians(inputs.wellbore_inclination_deg)
     beta1 = radians(inputs.formation_dip_deg)
     azimuth_diff = radians(inputs.dip_azimuth_deg - inputs.wellbore_azimuth_deg)
@@ -297,6 +355,12 @@ def compute_one_dip(inputs: OneDipInputs) -> OneDipResult:
 
 
 def compute_average_vector(inputs: AverageVectorInputs) -> AverageVectorResult:
+    _validate_survey_angles(
+        wellbore_inclination_deg=inputs.wellbore_inclination_deg,
+        wellbore_azimuth_deg=inputs.wellbore_azimuth_deg,
+        bed_dips_deg=[inputs.formation_dip1_deg, inputs.formation_dip2_deg],
+        bed_azimuths_deg=[inputs.dip_azimuth1_deg, inputs.dip_azimuth2_deg],
+    )
     ud1 = _downward_dip_pole_vector(
         formation_dip_deg=inputs.formation_dip1_deg,
         dip_azimuth_deg=inputs.dip_azimuth1_deg,
@@ -342,6 +406,12 @@ def compute_average_vector(inputs: AverageVectorInputs) -> AverageVectorResult:
 def compute_average_thickness(
     inputs: AverageThicknessInputs,
 ) -> AverageThicknessResult:
+    _validate_survey_angles(
+        wellbore_inclination_deg=inputs.wellbore_inclination_deg,
+        wellbore_azimuth_deg=inputs.wellbore_azimuth_deg,
+        bed_dips_deg=[inputs.formation_dip1_deg, inputs.formation_dip2_deg],
+        bed_azimuths_deg=[inputs.dip_azimuth1_deg, inputs.dip_azimuth2_deg],
+    )
     ud1 = _downward_dip_pole_vector(
         formation_dip_deg=inputs.formation_dip1_deg,
         dip_azimuth_deg=inputs.dip_azimuth1_deg,
@@ -409,19 +479,34 @@ def compute_mixed_average(inputs: MixedAverageInputs) -> MixedAverageResult:
 
 
 def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResult:
+    """
+    Concentric fold (Xu et al., 2007, 2010): eq. (10) β'₂, (11) N_dc, (12)/(13) U'_d2,
+    (14)–(17) M' and U'_b, (18)–(19) T₅ = M' sin γ / cos(η/2), (20)–(22) γ, U_c, η.
+    """
+    _validate_survey_angles(
+        wellbore_inclination_deg=inputs.wellbore_inclination_deg,
+        wellbore_azimuth_deg=inputs.wellbore_azimuth_deg,
+        bed_dips_deg=[inputs.formation_dip1_deg, inputs.formation_dip2_deg],
+        bed_azimuths_deg=[inputs.dip_azimuth1_deg, inputs.dip_azimuth2_deg],
+    )
+    phi_d1 = inputs.dip_azimuth1_deg
+    phi_d2 = inputs.dip_azimuth2_deg
+    az_sep = _smallest_azimuth_separation_deg(phi_d1, phi_d2)
+
     beta2_prime_rad = atan(
         tan(radians(inputs.formation_dip2_deg))
-        * cos(radians(inputs.dip_azimuth1_deg - inputs.dip_azimuth2_deg))
+        * abs(cos(radians(phi_d1 - phi_d2)))
     )
     beta2_prime_deg = beta2_prime_rad * 180.0 / pi
 
-    phi_d1 = inputs.dip_azimuth1_deg
+    phi_for_ud2 = phi_d1 if az_sep <= 90.0 else (phi_d1 + 180.0) % 360.0
+
     ud1 = _concentric_fold_dip_pole_unit(
         dip_azimuth_deg=phi_d1,
         formation_dip_deg=inputs.formation_dip1_deg,
     )
     ud2_prime = _concentric_fold_dip_pole_unit(
-        dip_azimuth_deg=phi_d1,
+        dip_azimuth_deg=phi_for_ud2,
         formation_dip_deg=beta2_prime_deg,
     )
     ub = _unit_vector_from_inclination_azimuth(
@@ -458,20 +543,29 @@ def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResul
     )
     mb_prime_unit = (mb_prime[0] / m_prime, mb_prime[1] / m_prime, mb_prime[2] / m_prime)
     gamma_rad = acos(_clip_unit(_dot(c, mb_prime_unit)))
-    alpha_rad = acos(_clip_unit(_dot(ud1, mb_prime_unit)))
+    eta_rad = acos(_clip_unit(_dot(ud1, ud2_prime)))
+    cos_half_eta = cos(eta_rad / 2.0)
+    if abs(cos_half_eta) < 1e-12:
+        raise ValueError("cos(η/2) is zero. T5 is undefined for this geometry.")
 
-    sin_alpha = sin(alpha_rad)
-    if abs(sin_alpha) < 1e-12:
-        raise ValueError("sin(alpha) is zero. T5 is undefined for this geometry.")
+    t5 = m_prime * (sin(gamma_rad) / cos_half_eta)
+    alpha_paper_rad = pi / 2.0 - eta_rad / 2.0
 
-    t5 = m_prime * (sin(gamma_rad) / sin_alpha)
+    eta_deg_check = eta_rad * 180.0 / pi
+    gamma_deg_check = gamma_rad * 180.0 / pi
+    alpha_deg_check = alpha_paper_rad * 180.0 / pi
+    _assert_intermediate_closed_deg("β'₂", beta2_prime_deg, 0.0, 90.0)
+    _assert_interior_open_deg("η (between U_d1 and U'_d2)", eta_deg_check, 0.0, 180.0)
+    _assert_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0)
+    _assert_interior_open_deg("α (90° − η/2)", alpha_deg_check, 0.0, 90.0)
 
     return ConcentricFoldResult(
         true_stratigraphic_thickness=t5,
         beta2_prime_deg=beta2_prime_deg,
         m_prime=m_prime,
         gamma_deg=gamma_rad * 180.0 / pi,
-        alpha_deg=alpha_rad * 180.0 / pi,
+        alpha_deg=alpha_paper_rad * 180.0 / pi,
+        eta_deg=eta_rad * 180.0 / pi,
         ud1_vector=ud1,
         ud2_prime_vector=ud2_prime,
         ub_vector=ub,
@@ -488,6 +582,12 @@ def compute_plunging_concentric_fold(
     N_dp = (Ud1 x Ud2) / ||Ud1 x Ud2||; M' = ||M'b|| with M'b = Mb - N_dp(N_dp . Mb).
     Uc = (Ud1 - Ud2) / ||Ud1 - Ud2||; gamma = arccos(Uc . U'b), alpha = arccos(Ud1 . Uc).
     """
+    _validate_survey_angles(
+        wellbore_inclination_deg=inputs.wellbore_inclination_deg,
+        wellbore_azimuth_deg=inputs.wellbore_azimuth_deg,
+        bed_dips_deg=[inputs.formation_dip1_deg, inputs.formation_dip2_deg],
+        bed_azimuths_deg=[inputs.dip_azimuth1_deg, inputs.dip_azimuth2_deg],
+    )
     ud1 = _downward_dip_pole_vector(
         formation_dip_deg=inputs.formation_dip1_deg,
         dip_azimuth_deg=inputs.dip_azimuth1_deg,
@@ -537,6 +637,10 @@ def compute_plunging_concentric_fold(
         raise ValueError("sin(alpha) is zero. T6 is undefined for this geometry.")
 
     t6 = m_prime * (sin(gamma_rad) / sin_alpha)
+    gamma_deg_check = gamma_rad * 180.0 / pi
+    alpha_deg_check = alpha_rad * 180.0 / pi
+    _assert_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0)
+    _assert_interior_open_deg("α", alpha_deg_check, 0.0, 90.0)
 
     return PlungingConcentricFoldResult(
         true_stratigraphic_thickness=t6,
@@ -557,6 +661,12 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
     M' from Berg (2011) projection onto the plane of Ud1 and Ud2 (eq. 22 with N_dp).
     Thickness = M' cos(α ∓ η)/cos(η) (paper T7) with S = N_dp · U'b selecting the branch.
     """
+    _validate_survey_angles(
+        wellbore_inclination_deg=inputs.wellbore_inclination_deg,
+        wellbore_azimuth_deg=inputs.wellbore_azimuth_deg,
+        bed_dips_deg=[inputs.formation_dip1_deg, inputs.formation_dip2_deg],
+        bed_azimuths_deg=[inputs.dip_azimuth1_deg, inputs.dip_azimuth2_deg],
+    )
     ud1 = _downward_dip_pole_vector(
         formation_dip_deg=inputs.formation_dip1_deg,
         dip_azimuth_deg=inputs.dip_azimuth1_deg,
@@ -609,6 +719,9 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
     else:
         t_top_normal = m_prime * cos(alpha_rad - eta_rad) / cos_eta
         uses_positive = False
+
+    eta_deg_check = eta_rad * 180.0 / pi
+    _assert_interior_open_deg("η (between U_d1 and U_d2)", eta_deg_check, 0.0, 180.0)
 
     return TopNormalResult(
         true_stratigraphic_thickness=t_top_normal,

@@ -106,14 +106,14 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         one_dip_tab.add_float_input(
             "beta1",
             "β<sub>1</sub> (Formation Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         one_dip_tab.add_float_input(
@@ -148,7 +148,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta2",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         average_vector_tab.add_float_input(
@@ -162,7 +162,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta1_2",
             "β<sub>1</sub> (Upper Formation Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         average_vector_tab.add_float_input(
@@ -176,7 +176,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta2_2",
             "β<sub>2</sub> (Lower Formation Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=18.0,
         )
         average_vector_tab.add_float_input(
@@ -203,7 +203,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta3",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         average_thickness_tab.add_float_input(
@@ -217,7 +217,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta1_3",
             "β<sub>1</sub> (Upper Formation Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         average_thickness_tab.add_float_input(
@@ -231,7 +231,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta2_3",
             "β<sub>2</sub> (Lower Formation Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=18.0,
         )
         average_thickness_tab.add_float_input(
@@ -258,7 +258,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta4",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         mixed_average_tab.add_float_input(
@@ -272,7 +272,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta1_4",
             "β<sub>1</sub> (Upper Formation Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         mixed_average_tab.add_float_input(
@@ -286,7 +286,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta2_4",
             "β<sub>2</sub> (Lower Formation Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=18.0,
         )
         mixed_average_tab.add_float_input(
@@ -313,7 +313,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta5",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         concentric_fold_tab.add_float_input(
@@ -327,7 +327,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta1_5",
             "β<sub>1</sub> (Top Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         concentric_fold_tab.add_float_input(
@@ -341,7 +341,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta2_5",
             "β<sub>2</sub> (Base Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=18.0,
         )
         concentric_fold_tab.add_float_input(
@@ -368,7 +368,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta6",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         plunging_fold_tab.add_float_input(
@@ -382,7 +382,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta1_6",
             "β<sub>1</sub> (Top Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         plunging_fold_tab.add_float_input(
@@ -396,7 +396,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta2_6",
             "β<sub>2</sub> (Base Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=18.0,
         )
         plunging_fold_tab.add_float_input(
@@ -422,7 +422,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta7",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         top_normal_tab.add_float_input(
@@ -436,7 +436,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta1_7",
             "β<sub>1</sub> (Top Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         top_normal_tab.add_float_input(
@@ -450,7 +450,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta2_7",
             "β<sub>2</sub> (Base Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=18.0,
         )
         top_normal_tab.add_float_input(
@@ -476,7 +476,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "delta8",
             "δ (Wellbore Inclination, deg)",
             minimum=0.0,
-            maximum=90.0,
+            maximum=180.0,
             default=20.0,
         )
         equal_angle_tab.add_float_input(
@@ -490,7 +490,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta1_8",
             "β<sub>1</sub> (Top Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=15.0,
         )
         equal_angle_tab.add_float_input(
@@ -504,7 +504,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "beta2_8",
             "β<sub>2</sub> (Base Dip, deg)",
             minimum=0.0,
-            maximum=89.99,
+            maximum=90.0,
             default=18.0,
         )
         equal_angle_tab.add_float_input(
@@ -797,10 +797,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "<b>Where</b><br>"
             "T<sub>1</sub>: true stratigraphic thickness<br>"
             "M: measured thickness along the well path<br>"
-            "δ: wellbore inclination<br>"
-            "β<sub>1</sub>: bed dip at entry<br>"
-            "φ<sub>b</sub>: wellbore azimuth<br>"
-            "φ<sub>d1</sub>: dip azimuth at entry<br>"
+            "δ: borehole inclination from vertical down, 0° ≤ δ ≤ 180°<br>"
+            "β<sub>1</sub>: bed dip, 0° ≤ β ≤ 90°<br>"
+            "φ<sub>b</sub>, φ<sub>d1</sub>: azimuths clockwise from north, 0° ≤ φ ≤ 360°<br>"
             "U<sub>d1</sub>: downward dip-pole unit vector<br>"
             "U<sub>b</sub>: borehole direction unit vector"
         )
@@ -1114,7 +1113,8 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"β'<sub>2</sub> = {result.beta2_prime_deg:.6f} deg<br>"
             f"M' = {result.m_prime:.6f}<br>"
             f"γ = {result.gamma_deg:.6f} deg<br>"
-            f"α = {result.alpha_deg:.6f} deg<br>"
+            f"η = {result.eta_deg:.6f} deg<br>"
+            f"α = 90° − η/2 = {result.alpha_deg:.6f} deg<br>"
             "U<sub>d1</sub> (x,y,z) : "
             f"({result.ud1_vector[0]:.6f}, {result.ud1_vector[1]:.6f}, "
             f"{result.ud1_vector[2]:.6f})<br>"
@@ -1132,11 +1132,15 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.c_vector[2]:.6f})<br><br>"
             f"{mc_section}"
             "<b>Formula</b><br>"
-            "β'<sub>2</sub> = arctan(tanβ<sub>2</sub>cos(φ<sub>d1</sub>-φ<sub>d2</sub>))<br>"
+            "β'<sub>2</sub> = arctan(tanβ<sub>2</sub> |cos(φ<sub>d1</sub>−φ<sub>d2</sub>)|) "
+            "(eq. 10)<br>"
+            "If smallest |φ<sub>d1</sub>−φ<sub>d2</sub>| ≤ 90°: U'<sub>d2</sub> from φ<sub>d1</sub> "
+            "(eq. 12); else from φ<sub>d1</sub>+180° (eq. 13)<br>"
             "U<sub>d1</sub> = (-cos φ<sub>d1</sub> sin β<sub>1</sub>, "
             "-sin φ<sub>d1</sub> sin β<sub>1</sub>, cos β<sub>1</sub>)<br>"
-            "U'<sub>d2</sub> = (-cos φ<sub>d1</sub> sin β'<sub>2</sub>, "
-            "-sin φ<sub>d1</sub> sin β'<sub>2</sub>, cos β'<sub>2</sub>)<br>"
+            "U'<sub>d2</sub> = (-cos φ<sub>eff</sub> sin β'<sub>2</sub>, "
+            "-sin φ<sub>eff</sub> sin β'<sub>2</sub>, cos β'<sub>2</sub>) "
+            "with φ<sub>eff</sub> as above<br>"
             "N<sub>dc</sub> = (U<sub>d1</sub> x U'<sub>d2</sub>) / "
             "||U<sub>d1</sub> x U'<sub>d2</sub>||<br>"
             "M' = ||M<sub>b</sub> - N<sub>dc</sub>(N<sub>dc</sub> . M<sub>b</sub>)||; "
@@ -1145,18 +1149,18 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "M<sub>b</sub> - N<sub>dc</sub>(N<sub>dc</sub> . M<sub>b</sub>)<br>"
             "U<sub>c</sub> = (U<sub>d1</sub> - U'<sub>d2</sub>) / "
             "||U<sub>d1</sub> - U'<sub>d2</sub>||<br>"
-            "γ = arccos(U<sub>c</sub> . U'<sub>b</sub>)<br>"
-            "α = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>"
-            "T<sub>5</sub> = M' (sinγ / sinα)<br><br>"
+            "γ = arccos(U<sub>c</sub> . U'<sub>b</sub>); "
+            "η = arccos(U<sub>d1</sub> . U'<sub>d2</sub>)<br>"
+            "α = 90° − η/2; T<sub>5</sub> = M' sinγ / cos(η/2) (eqs. 18–19)<br><br>"
             "<b>Where</b><br>"
             "T<sub>5</sub>: concentric-fold thickness (Xu et al.; M' after Berg, 2011)<br>"
-            "β'<sub>2</sub>: azimuth-corrected base dip<br>"
-            "U<sub>d1</sub>, U'<sub>d2</sub>: top and corrected-base dip vectors (fixed bed azimuth φ<sub>d1</sub>)<br>"
+            "β'<sub>2</sub>: azimuth-corrected base dip (eq. 10)<br>"
+            "U<sub>d1</sub>, U'<sub>d2</sub>: top and corrected-base dip poles (eqs. 12–13)<br>"
             "N<sub>dc</sub>: normal to dip-vector plane<br>"
             "M<sub>b</sub>: well-path vector scaled by M; M': projected length<br>"
-            "U<sub>c</sub>: normalized difference of dip poles; U'<sub>b</sub>: unit projection of M<sub>b</sub><br>"
-            "γ: angle between U<sub>c</sub> and U'<sub>b</sub>; "
-            "α: angle between U<sub>d1</sub> and U'<sub>b</sub>"
+            "U<sub>c</sub>: normalized (U<sub>d1</sub> − U'<sub>d2</sub>); "
+            "U'<sub>b</sub>: unit projection of M<sub>b</sub><br>"
+            "γ, η, α: eqs. (20)–(22) and α = 90° − η/2"
         )
         xlsx_in = [
             self._xlsx_input_column(tab, "m5", "M"),
@@ -1172,6 +1176,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             ("beta2_prime_deg", result.beta2_prime_deg),
             ("M_prime", result.m_prime),
             ("gamma_deg", result.gamma_deg),
+            ("eta_deg", result.eta_deg),
             ("alpha_deg", result.alpha_deg),
         ]
         xlsx_out.extend(self._vec3_csv_rows("Ud1", result.ud1_vector))
