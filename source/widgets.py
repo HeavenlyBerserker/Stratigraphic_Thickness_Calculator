@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import io
 import traceback
 from contextlib import redirect_stderr, redirect_stdout
@@ -167,15 +168,23 @@ class ModelTab(QWidget):
             f"font-size: 16px; font-weight: 600; color: {title_color}; "
             "background: transparent;"
         )
+        # Geometry warning call-outs use class geometry-warnings; base rules would
+        # otherwise paint li/span/b inside them with the normal output color.
+        _warn_colors = (
+            "div.geometry-warnings, div.geometry-warnings span, "
+            "div.geometry-warnings b, div.geometry-warnings li { color: #b91c1c; } "
+        )
         if dark:
             self.output_text.document().setDefaultStyleSheet(
                 "body, p, div, span, b, li { color: #e8e8e8; } "
-                "a { color: #8cb4ff; }"
+                "a { color: #8cb4ff; } "
+                + _warn_colors
             )
         else:
             self.output_text.document().setDefaultStyleSheet(
                 "body, p, div, span, b, li { color: #000000; } "
-                "a { color: #0066cc; }"
+                "a { color: #0066cc; } "
+                + _warn_colors
             )
 
     def value(self, key: str) -> float:
@@ -389,7 +398,11 @@ class ModelTab(QWidget):
                 self.on_calculate(self)
         except Exception as exc:  # pragma: no cover
             traceback.print_exc(file=stderr_buffer)
-            self.set_output(f"Calculation failed: {exc}")
+            msg = html.escape(f"Calculation failed: {exc}")
+            self.set_output(
+                f'<p style="color:#b91c1c;">{msg}</p>',
+                is_html=True,
+            )
         finally:
             self._set_combined_logs(
                 stdout_buffer.getvalue(),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import acos, atan, cos, pi, radians, sin, sqrt, tan
 
 
@@ -100,13 +100,14 @@ class ConcentricFoldResult:
     beta2_prime_deg: float
     m_prime: float
     gamma_deg: float
-    alpha_deg: float  # α = 90° − η/2 (degrees), eq. (19)
-    eta_deg: float  # η = arccos(Ud1 · U'd2), degrees, eq. (22)
+    alpha_deg: float  # α = 90° − η/2 (degrees)
+    eta_deg: float  # η = arccos(Ud1 · U'd2), degrees
     ud1_vector: tuple[float, float, float]
     ud2_prime_vector: tuple[float, float, float]
     ub_vector: tuple[float, float, float]
     ndc_vector: tuple[float, float, float]
     c_vector: tuple[float, float, float]
+    geometry_warnings: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)
@@ -131,6 +132,7 @@ class PlungingConcentricFoldResult:
     ub_vector: tuple[float, float, float]
     ndp_vector: tuple[float, float, float]
     c_vector: tuple[float, float, float]
+    geometry_warnings: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)
@@ -157,6 +159,7 @@ class TopNormalResult:
     ub_vector: tuple[float, float, float]
     ndp_vector: tuple[float, float, float]
     ub_prime_vector: tuple[float, float, float]
+    geometry_warnings: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)
@@ -184,6 +187,7 @@ class EqualAngleResult:
     ub_vector: tuple[float, float, float]
     ndp_vector: tuple[float, float, float]
     ub_prime_vector: tuple[float, float, float]
+    geometry_warnings: tuple[str, ...] = field(default_factory=tuple)
 
 
 def _unit_vector_from_inclination_azimuth(
@@ -235,7 +239,7 @@ def _concentric_fold_dip_pole_unit(
     """
     Dip-pole unit vector for the concentric-fold model (Xu et al., 2007, 2010):
     U = (-cos φd sin β, -sin φd sin β, cos β) with x=East, y=North, z=Down.
-    U_d1 uses (φ_d1, β_1); U'_d2 uses (φ for eq. 12 or 13, β'_2).
+    U_d1 uses (φ_d1, β_1); U'_d2 uses (φ from the azimuth-branch rule, β'_2).
     """
     beta_rad = radians(formation_dip_deg)
     phi_rad = radians(dip_azimuth_deg)
@@ -303,19 +307,24 @@ def _validate_survey_angles(
             raise ValueError(f"Dip azimuth φ must be in [0°, 360°] (got {p:.6f}°).")
 
 
-def _assert_intermediate_closed_deg(label: str, value_deg: float, lo: float, hi: float) -> None:
-    if not (lo - _SURVEY_DEG_EPS <= value_deg <= hi + _SURVEY_DEG_EPS):
-        raise ValueError(
-            f"{label} must be in [{lo}°, {hi}°] for this geometry (got {value_deg:.6f}°)."
-        )
+def _warn_intermediate_closed_deg(
+    label: str, value_deg: float, lo: float, hi: float
+) -> str | None:
+    if lo - _SURVEY_DEG_EPS <= value_deg <= hi + _SURVEY_DEG_EPS:
+        return None
+    return (
+        f"{label} is outside the expected closed range [{lo}°, {hi}°] "
+        f"(computed {value_deg:.4f}°). The thickness above may be non-physical or unreliable."
+    )
 
 
-def _assert_interior_open_deg(label: str, value_deg: float, lo: float, hi: float) -> None:
-    if not (lo + _INTERIOR_DEG_EPS < value_deg < hi - _INTERIOR_DEG_EPS):
-        raise ValueError(
-            f"{label} must be strictly between {lo}° and {hi}° for this geometry "
-            f"(got {value_deg:.6f}°)."
-        )
+def _warn_interior_open_deg(label: str, value_deg: float, lo: float, hi: float) -> str | None:
+    if lo + _INTERIOR_DEG_EPS < value_deg < hi - _INTERIOR_DEG_EPS:
+        return None
+    return (
+        f"{label} is outside the expected open range ({lo}°, {hi}°) "
+        f"(computed {value_deg:.4f}°). The thickness above may be non-physical or unreliable."
+    )
 
 
 def compute_one_dip(inputs: OneDipInputs) -> OneDipResult:
@@ -480,8 +489,8 @@ def compute_mixed_average(inputs: MixedAverageInputs) -> MixedAverageResult:
 
 def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResult:
     """
-    Concentric fold (Xu et al., 2007, 2010): eq. (10) β'₂, (11) N_dc, (12)/(13) U'_d2,
-    (14)–(17) M' and U'_b, (18)–(19) T₅ = M' sin γ / cos(η/2), (20)–(22) γ, U_c, η.
+    Concentric fold (Xu et al., 2007, 2010): corrected β'₂ and U'_d2, N_dc, Berg (2011)
+    M' and U'_b, T₅ = M' sin γ / cos(η/2), with γ, U_c, and η from dip-pole geometry.
     """
     _validate_survey_angles(
         wellbore_inclination_deg=inputs.wellbore_inclination_deg,
@@ -554,10 +563,15 @@ def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResul
     eta_deg_check = eta_rad * 180.0 / pi
     gamma_deg_check = gamma_rad * 180.0 / pi
     alpha_deg_check = alpha_paper_rad * 180.0 / pi
-    _assert_intermediate_closed_deg("β'₂", beta2_prime_deg, 0.0, 90.0)
-    _assert_interior_open_deg("η (between U_d1 and U'_d2)", eta_deg_check, 0.0, 180.0)
-    _assert_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0)
-    _assert_interior_open_deg("α (90° − η/2)", alpha_deg_check, 0.0, 90.0)
+    geom_warn: list[str] = []
+    for w in (
+        _warn_intermediate_closed_deg("β′₂ (corrected base dip)", beta2_prime_deg, 0.0, 90.0),
+        _warn_interior_open_deg("η (angle between U_d1 and U′d2)", eta_deg_check, 0.0, 180.0),
+        _warn_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0),
+        _warn_interior_open_deg("α (90° − η/2)", alpha_deg_check, 0.0, 90.0),
+    ):
+        if w is not None:
+            geom_warn.append(w)
 
     return ConcentricFoldResult(
         true_stratigraphic_thickness=t5,
@@ -571,6 +585,7 @@ def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResul
         ub_vector=ub,
         ndc_vector=ndc,
         c_vector=c,
+        geometry_warnings=tuple(geom_warn),
     )
 
 
@@ -639,8 +654,13 @@ def compute_plunging_concentric_fold(
     t6 = m_prime * (sin(gamma_rad) / sin_alpha)
     gamma_deg_check = gamma_rad * 180.0 / pi
     alpha_deg_check = alpha_rad * 180.0 / pi
-    _assert_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0)
-    _assert_interior_open_deg("α", alpha_deg_check, 0.0, 90.0)
+    geom_warn: list[str] = []
+    for w in (
+        _warn_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0),
+        _warn_interior_open_deg("α", alpha_deg_check, 0.0, 90.0),
+    ):
+        if w is not None:
+            geom_warn.append(w)
 
     return PlungingConcentricFoldResult(
         true_stratigraphic_thickness=t6,
@@ -652,13 +672,14 @@ def compute_plunging_concentric_fold(
         ub_vector=ub,
         ndp_vector=ndp,
         c_vector=c,
+        geometry_warnings=tuple(geom_warn),
     )
 
 
 def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
     """
     Top-normal (wedging) bed: M is measured normal to the top bed.
-    M' from Berg (2011) projection onto the plane of Ud1 and Ud2 (eq. 22 with N_dp).
+    M' from Berg (2011) projection onto the plane of Ud1 and Ud2 with N_dp.
     Thickness = M' cos(α ∓ η)/cos(η) (paper T7) with S = N_dp · U'b selecting the branch.
     """
     _validate_survey_angles(
@@ -721,7 +742,8 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
         uses_positive = False
 
     eta_deg_check = eta_rad * 180.0 / pi
-    _assert_interior_open_deg("η (between U_d1 and U_d2)", eta_deg_check, 0.0, 180.0)
+    gw = _warn_interior_open_deg("η (angle between U_d1 and U_d2)", eta_deg_check, 0.0, 180.0)
+    geom_warn: tuple[str, ...] = (gw,) if gw is not None else ()
 
     return TopNormalResult(
         true_stratigraphic_thickness=t_top_normal,
@@ -735,13 +757,14 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
         ub_vector=ub,
         ndp_vector=ndp,
         ub_prime_vector=ub_prime,
+        geometry_warnings=geom_warn,
     )
 
 
 def compute_equal_angle(inputs: EqualAngleInputs) -> EqualAngleResult:
     """
     Equal-angle method: T8 = T_top cos(η/2) where T_top is the top-normal thickness
-    and η = arccos(Ud1 · Ud2) (eq. 33, 38).
+    and η = arccos(Ud1 · Ud2) as in the top-normal geometry.
     """
     tn = compute_top_normal(
         TopNormalInputs(
@@ -769,4 +792,5 @@ def compute_equal_angle(inputs: EqualAngleInputs) -> EqualAngleResult:
         ub_vector=tn.ub_vector,
         ndp_vector=tn.ndp_vector,
         ub_prime_vector=tn.ub_prime_vector,
+        geometry_warnings=tn.geometry_warnings,
     )

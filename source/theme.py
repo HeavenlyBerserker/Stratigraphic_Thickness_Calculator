@@ -6,6 +6,21 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QApplication
 
+# QTextEdit / QPlainTextEdit in Output and logs — keep in sync with rules below.
+OUTPUT_TEXTEDIT_BACKGROUND_LIGHT = "#ffffff"
+OUTPUT_TEXTEDIT_BACKGROUND_DARK = "#1e1e1e"
+
+
+def geometry_warning_callout_colors(*, dark: bool) -> tuple[str, str]:
+    """
+    (background, border) for rich-text warning boxes in the output panel.
+    Background matches the themed QTextEdit so the call-out does not look pasted-on.
+    """
+    if dark:
+        return (OUTPUT_TEXTEDIT_BACKGROUND_DARK, "#b91c1c")
+    return (OUTPUT_TEXTEDIT_BACKGROUND_LIGHT, "#fca5a5")
+
+
 LIGHT_STYLESHEET = """
     QWidget {
         background-color: #ffffff;

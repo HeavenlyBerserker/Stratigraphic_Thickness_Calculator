@@ -32,8 +32,8 @@ Currently implemented:
 - Mixed Average model with:
   - `T₄ = (T₂ + T₃) / 2`
 - Concentric Fold model (Xu et al., 2007, 2010; bed azimuth fixed along strike; Berg, 2011 for M’):
-  - `β'₂ = arctan(tanβ₂ |cos(φd₁ - φd₂)|)` (eq. 10)
-  - Smallest `|φd₁ - φd₂|` ≤ 90°: `U'd₂` from `φd₁` (eq. 12); else from `φd₁ + 180°` (eq. 13); `U_d1` as before with `β₁`
+  - `β'₂ = arctan(tanβ₂ |cos(φd₁ - φd₂)|)`
+  - Smallest `|φd₁ - φd₂|` ≤ 90°: `U'd₂` from `φd₁`; else from `φd₁ + 180°`; `U_d1` as before with `β₁`
   - `N_dc = (U_d1 × U'd₂) / ||U_d1 × U'd₂||`; `M' = ||M_b - N_dc(N_dc · M_b)||` with `M_b = M U_b`
   - `U_c = (U_d1 - U'd₂) / ||U_d1 - U'd₂||`; `γ = arccos(U_c · U'_b)`, `η = arccos(U_d1 · U'd₂)`, `α = 90° - η/2` where `U'_b = M'_b / ||M'_b||`
   - `T₅ = M' sinγ / cos(η/2)` (equiv. `M' sinγ / sinα` with `sinα = cos(η/2)`)
@@ -42,9 +42,9 @@ Currently implemented:
   - `U_c = (U_d1 - U_d2) / ||U_d1 - U_d2||`; `γ = arccos(U_c · U'_b)`, `α = arccos(U_d1 · U_c)` with `U'_b = M'_b / ||M'_b||`
   - `T₆ = M' (sinγ / sinα)`
 - Top-normal model (`M` measured normal to the top bed; Berg, 2011):
-  - Same `N_dp`, `M'`, `U'_b` as eq. (22)–(24); `α = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)` (eq. 33)
+  - Same `N_dp`, `M'`, `U'_b` as Berg (2011) projection; `α = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)`
   - **Top-normal** (paper `T₇`): `S = N_dp · U'_b`; if `S < 0`: `M' cos(α − η) / cos(η)`; if `S ≥ 0`: `M' cos(α + η) / cos(η)` (also `M' (sinγ / sinμ)`)
-- Equal-angle (`T₈`) tab: same inputs as Top-normal; `T₈ =` Top-normal `× cos(η/2)` (eq. 38)
+- Equal-angle (`T₈`) tab: same inputs as Top-normal; `T₈ =` Top-normal `× cos(η/2)` (equal-angle method)
 - Computed vectors:
   - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector
   - `U_d2` (written as `U<sub>d2</sub>` in the app): downward dip-pole unit vector at lower contact
