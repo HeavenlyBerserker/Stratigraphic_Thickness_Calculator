@@ -214,6 +214,9 @@ def _downward_dip_pole_vector(
 ) -> tuple[float, float, float]:
     """
     Dip-pole direction represented as downward normal to the bedding plane.
+
+    For the base contact vector U_d2, call this with (formation_dip2_deg, dip_azimuth2_deg),
+    i.e., use beta2 with phi_d2 (never beta1 with phi_d2).
     """
     beta_rad = radians(formation_dip_deg)
     az_rad = radians(dip_azimuth_deg)

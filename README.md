@@ -46,8 +46,8 @@ Currently implemented:
   - **Top-normal** (paper `T₇`): `S = N_dp · U'_b`; if `S < 0`: `M' cos(α − η) / cos(η)`; if `S ≥ 0`: `M' cos(α + η) / cos(η)` (also `M' (sinγ / sinμ)`)
 - Equal-angle (`T₈`) tab: same inputs as Top-normal; `T₈ =` Top-normal `× cos(η/2)` (equal-angle method)
 - Computed vectors:
-  - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector
-  - `U_d2` (written as `U<sub>d2</sub>` in the app): downward dip-pole unit vector at lower contact
+  - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector at top contact (`beta1`, `phi_d1`)
+  - `U_d2` (written as `U<sub>d2</sub>` in the app): downward dip-pole unit vector at lower contact (`beta2`, `phi_d2`)
   - `U_av` (written as `U<sub>av</sub>` in the app): normalized average dip-pole vector
   - `Uᵦ` (written as `U<sub>b</sub>` in the app): borehole direction unit vector
 
