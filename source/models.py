@@ -570,8 +570,8 @@ def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResul
     for w in (
         _warn_intermediate_closed_deg("β′₂ (corrected base dip)", beta2_prime_deg, 0.0, 90.0),
         _warn_interior_open_deg("η (angle between U_d1 and U′d2)", eta_deg_check, 0.0, 180.0),
-        _warn_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0),
-        _warn_interior_open_deg("α (90° − η/2)", alpha_deg_check, 0.0, 90.0),
+        _warn_interior_open_deg("γ", gamma_deg_check, 0.0, 180.0),
+        _warn_interior_open_deg("α (90° − η/2)", alpha_deg_check, 0.0, 180.0),
     ):
         if w is not None:
             geom_warn.append(w)
@@ -659,8 +659,8 @@ def compute_plunging_concentric_fold(
     alpha_deg_check = alpha_rad * 180.0 / pi
     geom_warn: list[str] = []
     for w in (
-        _warn_interior_open_deg("γ", gamma_deg_check, 0.0, 90.0),
-        _warn_interior_open_deg("α", alpha_deg_check, 0.0, 90.0),
+        _warn_interior_open_deg("γ", gamma_deg_check, 0.0, 180.0),
+        _warn_interior_open_deg("α", alpha_deg_check, 0.0, 180.0),
     ):
         if w is not None:
             geom_warn.append(w)

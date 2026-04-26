@@ -3,7 +3,7 @@ Calculates true stratigraphic thickness using 3D borehole data.
 
 ## Windows Desktop App (PySide6)
 
-**Input angle conventions:** dip azimuths φ and wellbore azimuth φ_b are clockwise from north with **0° ≤ φ ≤ 360°**; bed dips β with **0° ≤ β ≤ 90°**; borehole inclination δ is the angle from vertical down with **0° ≤ δ ≤ 180°**. Intermediate angles in the fold models satisfy **0° ≤ β′ ≤ 90°**, **0° < α < 90°**, **0° < γ < 90°**, and **0° < η < 180°** where those quantities appear.
+**Input angle conventions:** dip azimuths φ and wellbore azimuth φ_b are clockwise from north with **0° ≤ φ ≤ 360°**; bed dips β with **0° ≤ β ≤ 90°**; borehole inclination δ is the angle from vertical down with **0° ≤ δ ≤ 180°**. Intermediate angles in the fold models satisfy **0° ≤ β′ ≤ 90°**, **0° < α < 180°**, **0° < γ < 180°**, and **0° < η < 180°** where those quantities appear.
 
 Code lives in `source/` and provides tabs for:
 - One-dip
