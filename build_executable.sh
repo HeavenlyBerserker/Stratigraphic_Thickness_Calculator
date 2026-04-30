@@ -15,10 +15,17 @@ if [[ ! -f "$LOGO_FILE" ]]; then
   exit 1
 fi
 
-if ! command -v conda >/dev/null 2>&1; then
-  echo "Error: conda command not found."
-  echo "Install Miniconda/Anaconda and ensure conda is on PATH."
-  exit 1
+if command -v conda >/dev/null 2>&1; then
+  ACTIVE_ENV="${CONDA_DEFAULT_ENV:-}"
+  if [[ -n "$ACTIVE_ENV" && "$ACTIVE_ENV" != "geo_stc" ]]; then
+    echo "Warning: active conda environment is '$ACTIVE_ENV' (not geo_stc). Proceeding anyway."
+  elif [[ -z "$ACTIVE_ENV" ]]; then
+    echo "Warning: no active conda environment detected. Proceeding with current Python environment."
+  else
+    echo "Using conda environment: geo_stc"
+  fi
+else
+  echo "Warning: conda command not found. Proceeding with current Python environment."
 fi
 
 OS_NAME="$(uname -s)"
@@ -43,13 +50,12 @@ case "$OS_NAME" in
     ;;
 esac
 
-echo "Using conda environment: geo_stc"
 echo "Detected OS: $OS_NAME"
 echo "Executable name: $APP_NAME"
 echo "Bundling asset: $LOGO_FILE"
 
-conda run -n geo_stc python -m pip install -r requirements.txt
-conda run -n geo_stc python -m PyInstaller \
+python -m pip install -r requirements.txt
+python -m PyInstaller \
   --noconfirm \
   --onefile \
   --windowed \

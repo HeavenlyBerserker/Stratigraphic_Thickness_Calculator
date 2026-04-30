@@ -179,6 +179,28 @@ pip install -r requirements.txt
 python -m source.main
 ```
 
+If you already maintain other Conda environments, you can install `requirements.txt` into one of those instead (if you are comfortable mixing project dependencies in that environment).
+
+If you prefer not to use Conda, you can run with a standard Python virtual environment (`venv`) instead.
+
+Windows (PowerShell):
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m source.main
+```
+
+Linux/macOS (bash):
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m source.main
+```
+
 ### Build Portable Executables
 
 Scripts:
@@ -186,7 +208,8 @@ Scripts:
 - Linux/macOS (shell): `build_executable.sh`
 
 This script:
-- Uses Conda env `geo_stc`
+- Uses the currently active Python environment (Conda or `venv`)
+- Warns if a non-`geo_stc` Conda environment is active, but does not block builds
 - Installs `requirements.txt`
 - Runs PyInstaller with `--onefile --windowed --icon logo.png`
 - Detects OS and uses the correct executable name

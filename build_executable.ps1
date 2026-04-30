@@ -12,20 +12,28 @@ if (-not (Test-Path $logoFile)) {
     throw "Error: $logoFile not found. Put logo.png in project root."
 }
 
-if (-not (Get-Command conda -ErrorAction SilentlyContinue)) {
-    throw "Error: conda command not found. Install Miniconda/Anaconda and ensure conda is on PATH."
+if (Get-Command conda -ErrorAction SilentlyContinue) {
+    $activeEnv = $env:CONDA_DEFAULT_ENV
+    if ($activeEnv -and $activeEnv -ne "geo_stc") {
+        Write-Warning "Active conda environment is '$activeEnv' (not geo_stc). Proceeding anyway."
+    } elseif (-not $activeEnv) {
+        Write-Warning "No active conda environment detected. Proceeding with current Python environment."
+    } else {
+        Write-Host "Using conda environment: geo_stc"
+    }
+} else {
+    Write-Warning "conda command not found. Proceeding with current Python environment."
 }
 
-Write-Host "Using conda environment: geo_stc"
 Write-Host "Executable name: $appName"
 Write-Host "Bundling asset: $logoFile"
 
-conda run -n geo_stc python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) {
     throw "Dependency installation failed."
 }
 
-conda run -n geo_stc python -m PyInstaller `
+python -m PyInstaller `
     --noconfirm `
     --onefile `
     --windowed `
