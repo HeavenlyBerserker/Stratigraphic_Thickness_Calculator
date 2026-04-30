@@ -91,9 +91,31 @@
     .section-title { font-weight: bold; margin-top: 8px; }
     .actions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 10px;
     }
+    .icon-btn {
+      width: auto;
+      min-width: 26px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #6b7280;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+    .help-dialog {
+      border: 1px solid #4b5563;
+      border-radius: 10px;
+      background: #1f2937;
+      color: #f3f4f6;
+      max-width: 540px;
+      width: calc(100% - 32px);
+      padding: 14px;
+    }
+    .help-dialog::backdrop {
+      background: rgba(0, 0, 0, 0.6);
+    }
+    .help-dialog a { color: #93c5fd; }
     .exports {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -135,6 +157,7 @@
       <div class="actions">
         <button id="btnCalc">Calculate</button>
         <button id="btnReset" class="secondary">Reset Defaults</button>
+        <button id="btnHelp" class="secondary">Help</button>
       </div>
     </div>
 
@@ -149,6 +172,20 @@
       </div>
     </div>
   </div>
+  <dialog id="helpDialog" class="help-dialog">
+    <h3 style="margin:0 0 8px 0;">Help</h3>
+    <ol style="margin:0 0 10px 20px; padding:0;">
+      <li style="margin-bottom:6px;">Choose the model that matches your geometry assumptions.</li>
+      <li style="margin-bottom:6px;">Enter measured values and angles using the documented conventions in the README.</li>
+      <li style="margin-bottom:6px;">Optional: enter non-zero standard deviations (σ) to enable Monte Carlo outputs (leave σ = 0 for deterministic runs). Click the `?` icon for a quick cheatsheet of what to do with σ.</li>
+      <li style="margin-bottom:6px;">Review geometry warnings in fold models before final interpretation.</li>
+      <li style="margin-bottom:0;">Export results/plots when needed for reporting and auditability.</li>
+    </ol>
+    <p style="margin:0 0 12px 0;">
+      Visit <a href="https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator" target="_blank" rel="noopener noreferrer">the repository</a> for additional instructions, or <a href="#" title="Paper link coming soon">the paper (coming soon)</a> for yet more details.
+    </p>
+    <button id="btnCloseHelp" class="secondary">Close</button>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -193,6 +230,9 @@
     const output = document.getElementById("output");
     const mcPlot = document.getElementById("mcPlot");
     const btnCalc = document.getElementById("btnCalc");
+    const btnHelp = document.getElementById("btnHelp");
+    const helpDialog = document.getElementById("helpDialog");
+    const btnCloseHelp = document.getElementById("btnCloseHelp");
     const btnXlsx = document.getElementById("btnXlsx");
     const btnPng = document.getElementById("btnPng");
     const btnSvg = document.getElementById("btnSvg");
@@ -232,8 +272,24 @@
       updateExportVisibility();
       const head = document.createElement("div");
       head.className = "row headings";
-      head.innerHTML = "<div></div><div>Value (μ)</div><div>Std Dev (σ)</div>";
+      head.innerHTML = "<div></div><div>Value (μ) and</div><div>Std Dev (σ) <button type=\"button\" id=\"sigmaInfoBtn\" class=\"icon-btn\" title=\"What is sigma?\">?</button></div>";
       fieldsRoot.appendChild(head);
+      const sigmaInfoBtn = document.getElementById("sigmaInfoBtn");
+      if (sigmaInfoBtn) {
+        sigmaInfoBtn.addEventListener("click", () => {
+          alert(
+            "If your instrument quotes ±ε for this reading (e.g. ±2°), it is\n" +
+            "common to use σ = ε ÷ 2. While σ = 0 yields a single thickness output,\n" +
+            "non-zero σ explores a range of possible values accounting for the\n" +
+            "inaccuracies resulting from instrument errors.\n\n" +
+            "For more accurate calculations, use the confidence level stated in\n" +
+            "your manual (most field instruments quote ±ε for a 95% interval).\n" +
+            "Then set σ = ε ÷ z, where z is the z-score for that level:\n" +
+            "z ≈ 1.645 (90%), 1.960 (95%), 2.576 (99%). The rule σ = ε ÷ 2\n" +
+            "above is the 95% case rounded, since z for 95% is close to 2."
+          );
+        });
+      }
       m.fields.forEach((f) => {
         const row = document.createElement("div");
         row.className = "row";
@@ -662,6 +718,23 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
 
     modelSelect.addEventListener("change", () => renderFields(modelSelect.value));
     document.getElementById("btnReset").addEventListener("click", () => renderFields(modelSelect.value));
+    btnHelp.addEventListener("click", () => {
+      if (typeof helpDialog.showModal === "function") {
+        helpDialog.showModal();
+      } else {
+        alert(
+          "1) Choose the model that matches your geometry assumptions.\n" +
+          "2) Enter measured values and angles using the documented conventions in the README.\n" +
+          "3) Optional: enter non-zero standard deviations (σ) to enable Monte Carlo outputs (leave σ = 0 for deterministic runs). Click the ? icon for a quick cheatsheet of what to do with σ.\n" +
+          "4) Review geometry warnings in fold models before final interpretation.\n" +
+          "5) Export results/plots when needed for reporting and auditability.\n\n" +
+          "Visit the repository for additional instructions:\n" +
+          "https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator\n\n" +
+          "Paper link: coming soon."
+        );
+      }
+    });
+    btnCloseHelp.addEventListener("click", () => helpDialog.close());
     btnXlsx.addEventListener("click", exportXlsx);
     btnPng.addEventListener("click", exportPlotPng);
     btnSvg.addEventListener("click", exportPlotSvg);
