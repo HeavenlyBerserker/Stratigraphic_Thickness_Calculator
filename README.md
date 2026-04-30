@@ -1,5 +1,6 @@
 # Stratigraphic_Thickness_Calculator
 Calculates true stratigraphic thickness using 3D borehole data.
+The web app can be accessed at [https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) in computer or phone browsers, but the desktop program has the full functionality (including saving files).
 
 ## Windows Desktop App (PySide6)
 
