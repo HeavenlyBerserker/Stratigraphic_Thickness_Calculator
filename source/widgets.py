@@ -55,7 +55,6 @@ class ModelTab(QWidget):
         self.export_basename = export_basename
         self.inputs: dict[str, QDoubleSpinBox] = {}
         self.std_inputs: dict[str, QDoubleSpinBox] = {}
-        self._input_labels: dict[str, str] = {}
         self._mc_thicknesses: list[float] | None = None
         self._mc_title: str = ""
         self._xlsx_input_columns: list[tuple[str, float, float]] | None = None
@@ -158,11 +157,7 @@ class ModelTab(QWidget):
 
         self.inputs[key] = value_box
         self.std_inputs[key] = std_box
-        self._input_labels[key] = label
         self.input_form.addRow(label, row_widget)
-
-    def input_label_html(self, key: str) -> str:
-        return self._input_labels[key]
 
     def apply_theme(self, dark: bool) -> None:
         self._log_normal_fg = (

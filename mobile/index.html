@@ -137,6 +137,13 @@
       font-size: 0.95rem;
     }
     #output.output-html b { font-weight: 700; }
+    #mcPlotAnchor {
+      margin: 0.35em 0;
+      max-width: 100%;
+    }
+    #mcPlotAnchor canvas#mcPlot {
+      margin-top: 0;
+    }
     .warn { color: var(--warn); }
     @media (max-width: 640px) {
       .row, .actions { grid-template-columns: 1fr; }
@@ -205,116 +212,58 @@
       dip_azimuth2_deg: 150
     };
 
+    const labels = {
+      measured_thickness: "M (Measured Thickness)",
+      wellbore_inclination_deg: "δ (Wellbore Inclination, deg)",
+      wellbore_azimuth_deg: "φᵦ (Wellbore Azimuth, deg)",
+      formation_dip_deg: "β (Formation Dip, deg)",
+      dip_azimuth_deg: "φd (Dip Azimuth, deg)",
+      formation_dip1_deg: "β₁ (Top Dip, deg)",
+      dip_azimuth1_deg: "φd₁ (Top Dip Azimuth, deg)",
+      formation_dip2_deg: "β₂ (Base Dip, deg)",
+      dip_azimuth2_deg: "φd₂ (Base Dip Azimuth, deg)",
+    };
+
     const modelSpecs = {
       t1: {
         label: "One-dip (T1)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "formation_dip_deg", "wellbore_azimuth_deg", "dip_azimuth_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "β<sub>1</sub> (Formation Dip, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "φ<sub>d1</sub> (Dip Azimuth, deg)",
-        ],
       },
       t2: {
         label: "Average-vector (T2)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "β<sub>1</sub> (Upper Formation Dip, deg)",
-          "φ<sub>d1</sub> (Upper Dip Azimuth, deg)",
-          "β<sub>2</sub> (Lower Formation Dip, deg)",
-          "φ<sub>d2</sub> (Lower Dip Azimuth, deg)",
-        ],
       },
       t3: {
         label: "Average-thickness (T3)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "β<sub>1</sub> (Upper Formation Dip, deg)",
-          "φ<sub>d1</sub> (Upper Dip Azimuth, deg)",
-          "β<sub>2</sub> (Lower Formation Dip, deg)",
-          "φ<sub>d2</sub> (Lower Dip Azimuth, deg)",
-        ],
       },
       t4: {
         label: "Mixed Average (T4)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "β<sub>1</sub> (Upper Formation Dip, deg)",
-          "φ<sub>d1</sub> (Upper Dip Azimuth, deg)",
-          "β<sub>2</sub> (Lower Formation Dip, deg)",
-          "φ<sub>d2</sub> (Lower Dip Azimuth, deg)",
-        ],
       },
       t5: {
         label: "Concentric Fold (T5)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "β<sub>1</sub> (Top Dip, deg)",
-          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
-          "β<sub>2</sub> (Base Dip, deg)",
-          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
-        ],
       },
       t6: {
         label: "Plunging Concentric Fold (T6)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "β<sub>1</sub> (Top Dip, deg)",
-          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
-          "β<sub>2</sub> (Base Dip, deg)",
-          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
-        ],
       },
       t7: {
         label: "Top-normal (T7)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "β<sub>1</sub> (Top Dip, deg)",
-          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
-          "β<sub>2</sub> (Base Dip, deg)",
-          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
-        ],
       },
       t8: {
         label: "Equal-angle (T8)",
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
-        inputLabelsHtml: [
-          "M (Measured Thickness)",
-          "δ (Wellbore Inclination, deg)",
-          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
-          "β<sub>1</sub> (Top Dip, deg)",
-          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
-          "β<sub>2</sub> (Base Dip, deg)",
-          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
-        ],
       },
     };
 
@@ -322,6 +271,23 @@
     const fieldsRoot = document.getElementById("fields");
     const output = document.getElementById("output");
     const mcPlot = document.getElementById("mcPlot");
+    /** Move canvas out of #output before innerHTML/textContent so it is not destroyed. */
+    function detachMcPlotCanvas() {
+      if (mcPlot.parentNode) mcPlot.parentNode.removeChild(mcPlot);
+    }
+    function attachMcPlotBeforeExports() {
+      const card = output.parentElement;
+      if (!card) return;
+      const exportsDiv = card.querySelector(".exports");
+      if (exportsDiv) card.insertBefore(mcPlot, exportsDiv);
+      else card.appendChild(mcPlot);
+    }
+    /** After #output.innerHTML is set: inline plot under Monte Carlo title, or fallback slot. */
+    function mountMcPlotAfterOutputHtml() {
+      const anchor = output.querySelector("#mcPlotAnchor");
+      if (anchor) anchor.appendChild(mcPlot);
+      else attachMcPlotBeforeExports();
+    }
     const btnCalc = document.getElementById("btnCalc");
     const btnHelp = document.getElementById("btnHelp");
     const helpDialog = document.getElementById("helpDialog");
@@ -376,11 +342,11 @@
           );
         });
       }
-      m.fields.forEach((f, idx) => {
+      m.fields.forEach((f) => {
         const row = document.createElement("div");
         row.className = "row";
         const label = document.createElement("label");
-        label.innerHTML = m.inputLabelsHtml[idx] || f;
+        label.textContent = labels[f] || f;
         label.className = "cell-label";
         const input = document.createElement("input");
         input.id = "v_" + f;
@@ -574,8 +540,14 @@
     function formatMonteCarloHtml(mc) {
       if (!mc) return "";
       const n = Math.round(Number(mc.n));
+      const showPlot =
+        Array.isArray(mc.thicknesses) && mc.thicknesses.length > 1;
+      const plotAnchor = showPlot
+        ? '<div id="mcPlotAnchor"></div>'
+        : "";
       return (
         "<b>Monte Carlo Distribution</b><br>" +
+        plotAnchor +
         `N = ${n}<br>` +
         `Mean = ${fmtNum(mc.mean)}<br>` +
         `Std = ${fmtNum(mc.std)}<br>` +
@@ -585,19 +557,6 @@
         `P75 = ${fmtNum(mc.p75)}<br>` +
         `P90 = ${fmtNum(mc.p90)}<br><br>`
       );
-    }
-
-    function formatInputsSectionHtml(spec, payload) {
-      let h = "<b>Inputs (value, σ)</b><br>";
-      for (let i = 0; i < spec.fields.length; i++) {
-        const f = spec.fields[i];
-        const lab = spec.inputLabelsHtml[i];
-        const v = Number(payload.inputs[f]);
-        const s = Number(payload.stds[f] ?? 0);
-        h += `${lab}: ${fmtNum(v)} &nbsp; (σ = ${fmtNum(s)})<br>`;
-      }
-      h += "<br>";
-      return h;
     }
 
     function branchNoteHtml(usesPositive) {
@@ -899,18 +858,21 @@
       const res = payload.result;
       const fw = globalThis.STC_FORMULA_WHERE && globalThis.STC_FORMULA_WHERE[modelId];
       if (!fw) {
+        detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Missing desktop formula/where template (desktop-formula-where.js).";
+        attachMcPlotBeforeExports();
         return;
       }
       const html =
         buildResultHtml(modelId, res) +
-        formatInputsSectionHtml(activeSpec, payload) +
         buildQuantitiesHtml(modelId, res) +
         formatMonteCarloHtml(payload.monte_carlo) +
         fw;
+      detachMcPlotCanvas();
       output.classList.remove("warn");
       output.innerHTML = html;
+      mountMcPlotAfterOutputHtml();
       drawHistogram(payload.monte_carlo ? payload.monte_carlo.thicknesses : null);
       lastPayload = payload;
       lastSpec = activeSpec;
@@ -934,8 +896,10 @@
 
     function exportXlsx() {
       if (!lastPayload || !lastSpec) {
+        detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Run Calculate first, then export.";
+        attachMcPlotBeforeExports();
         return;
       }
       const rows = [];
@@ -979,8 +943,10 @@
 
     function exportPlotPng() {
       if (!lastPayload || !lastPayload.monte_carlo || mcPlot.style.display === "none") {
+        detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Run Monte Carlo first, then export PNG.";
+        attachMcPlotBeforeExports();
         return;
       }
       mcPlot.toBlob((blob) => {
@@ -991,8 +957,10 @@
 
     function exportPlotSvg() {
       if (!lastPayload || !lastPayload.monte_carlo || mcPlot.style.display === "none") {
+        detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Run Monte Carlo first, then export SVG.";
+        attachMcPlotBeforeExports();
         return;
       }
       const pngData = mcPlot.toDataURL("image/png");
@@ -1167,8 +1135,10 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
       } catch (err) {
         lastPayload = null;
         lastSpec = null;
+        detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Calculation failed:\n" + err.message;
+        attachMcPlotBeforeExports();
         mcPlot.style.display = "none";
         updateExportVisibility();
       }
@@ -1192,8 +1162,10 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         runtimeReady = false;
         btnCalc.disabled = false;
         btnCalc.textContent = "Calculate";
+        detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Failed to initialize app:\n" + err.message;
+        attachMcPlotBeforeExports();
         lastPayload = null;
         lastSpec = null;
         mcPlot.style.display = "none";

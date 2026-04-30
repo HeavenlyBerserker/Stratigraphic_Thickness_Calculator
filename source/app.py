@@ -778,16 +778,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"P90 = {stats['p90']:.6f}<br><br>"
         )
 
-    def _format_inputs_section_html(self, tab: ModelTab, keys: list[str]) -> str:
-        parts: list[str] = ["<b>Inputs (value, σ)</b><br>"]
-        for key in keys:
-            parts.append(
-                f"{tab.input_label_html(key)}: {tab.value(key):.6f} &nbsp; "
-                f"(σ = {tab.std(key):.6f})<br>"
-            )
-        parts.append("<br>")
-        return "".join(parts)
-
     def _compute_one_dip(self, tab: ModelTab) -> None:
         inputs = OneDipInputs(
             measured_thickness=tab.value("m"),
@@ -815,7 +805,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "<b>Result</b><br>"
             f"T<sub>1</sub> (True Stratigraphic Thickness): "
             f"{result.true_stratigraphic_thickness:.6f}<br><br>"
-            f"{self._format_inputs_section_html(tab, ['m', 'delta', 'beta1', 'phib', 'phid1'])}"
             "<b>Quantities</b><br>"
             "U<sub>d1</sub> (x,y,z) : "
             f"({result.ud1_vector[0]:.6f}, {result.ud1_vector[1]:.6f}, "
@@ -891,7 +880,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "<b>Result</b><br>"
             f"T<sub>2</sub> (True Stratigraphic Thickness): "
             f"{result.true_stratigraphic_thickness:.6f}<br><br>"
-            f"{self._format_inputs_section_html(tab, ['m2', 'delta2', 'phib2', 'beta1_2', 'phid1_2', 'beta2_2', 'phid2_2'])}"
             "<b>Quantities</b><br>"
             "U<sub>d1</sub> (x,y,z) : "
             f"({result.ud1_vector[0]:.6f}, {result.ud1_vector[1]:.6f}, "
@@ -974,7 +962,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "<b>Result</b><br>"
             f"T<sub>3</sub> (True Stratigraphic Thickness): "
             f"{result.true_stratigraphic_thickness:.6f}<br><br>"
-            f"{self._format_inputs_section_html(tab, ['m3', 'delta3', 'phib3', 'beta1_3', 'phid1_3', 'beta2_3', 'phid2_3'])}"
             "<b>Quantities</b><br>"
             "U<sub>d1</sub> (x,y,z) : "
             f"({result.ud1_vector[0]:.6f}, {result.ud1_vector[1]:.6f}, "
@@ -1058,7 +1045,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "<b>Result</b><br>"
             f"T<sub>4</sub> (True Stratigraphic Thickness): "
             f"{result.true_stratigraphic_thickness:.6f}<br><br>"
-            f"{self._format_inputs_section_html(tab, ['m4', 'delta4', 'phib4', 'beta1_4', 'phid1_4', 'beta2_4', 'phid2_4'])}"
             "<b>Quantities</b><br>"
             f"T<sub>2</sub> = {result.t2_value:.6f}<br>"
             f"T<sub>3</sub> = {result.t3_value:.6f}<br>"
@@ -1148,7 +1134,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.true_stratigraphic_thickness:.6f}<br>"
             f"{warn_html}"
             "<br>"
-            f"{self._format_inputs_section_html(tab, ['m5', 'delta5', 'phib5', 'beta1_5', 'phid1_5', 'beta2_5', 'phid2_5'])}"
             "<b>Quantities</b><br>"
             f"β'<sub>2</sub> = {result.beta2_prime_deg:.6f} deg<br>"
             f"M' = {result.m_prime:.6f}<br>"
@@ -1269,7 +1254,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.true_stratigraphic_thickness:.6f}<br>"
             f"{warn_html}"
             "<br>"
-            f"{self._format_inputs_section_html(tab, ['m6', 'delta6', 'phib6', 'beta1_6', 'phid1_6', 'beta2_6', 'phid2_6'])}"
             "<b>Quantities</b><br>"
             f"M' = {result.m_prime:.6f}<br>"
             f"γ = {result.gamma_deg:.6f} deg<br>"
@@ -1380,7 +1364,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.true_stratigraphic_thickness:.6f}<br>"
             f"{warn_html}"
             "<br>"
-            f"{self._format_inputs_section_html(tab, ['m7', 'delta7', 'phib7', 'beta1_7', 'phid1_7', 'beta2_7', 'phid2_7'])}"
             "<b>Quantities</b><br>"
             f"M' = {result.m_prime:.6f}<br>"
             f"α = {result.alpha_deg:.6f} deg<br>"
@@ -1494,7 +1477,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"Top-normal (intermediate): {result.top_normal_thickness:.6f}<br>"
             f"{warn_html}"
             "<br>"
-            f"{self._format_inputs_section_html(tab, ['m8', 'delta8', 'phib8', 'beta1_8', 'phid1_8', 'beta2_8', 'phid2_8'])}"
             "<b>Quantities</b><br>"
             f"M' = {result.m_prime:.6f}<br>"
             f"α = {result.alpha_deg:.6f} deg<br>"
