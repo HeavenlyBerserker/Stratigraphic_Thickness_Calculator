@@ -198,7 +198,7 @@
 
   <script src="./desktop-formula-where.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script>
     const defaults = {
       measured_thickness: 100,
@@ -227,41 +227,119 @@
     const modelSpecs = {
       t1: {
         label: "One-dip (T1)",
+        exportBasename: "One-dip (T₁)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["formation_dip_deg", "beta1_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["dip_azimuth_deg", "phid1_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "formation_dip_deg", "wellbore_azimuth_deg", "dip_azimuth_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth_deg"],
       },
       t2: {
         label: "Average-vector (T2)",
+        exportBasename: "Average-vector (T₂)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["formation_dip1_deg", "beta1_deg"],
+          ["dip_azimuth1_deg", "phid1_deg"],
+          ["formation_dip2_deg", "beta2_deg"],
+          ["dip_azimuth2_deg", "phid2_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
       },
       t3: {
         label: "Average-thickness (T3)",
+        exportBasename: "Average-thickness (T₃)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["formation_dip1_deg", "beta1_deg"],
+          ["dip_azimuth1_deg", "phid1_deg"],
+          ["formation_dip2_deg", "beta2_deg"],
+          ["dip_azimuth2_deg", "phid2_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
       },
       t4: {
         label: "Mixed Average (T4)",
+        exportBasename: "Mixed Average (T₄)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["formation_dip1_deg", "beta1_deg"],
+          ["dip_azimuth1_deg", "phid1_deg"],
+          ["formation_dip2_deg", "beta2_deg"],
+          ["dip_azimuth2_deg", "phid2_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
       },
       t5: {
         label: "Concentric Fold (T5)",
+        exportBasename: "Concentric Fold (T₅)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["formation_dip1_deg", "beta1_deg"],
+          ["dip_azimuth1_deg", "phid1_deg"],
+          ["formation_dip2_deg", "beta2_deg"],
+          ["dip_azimuth2_deg", "phid2_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
       },
       t6: {
         label: "Plunging Concentric Fold (T6)",
+        exportBasename: "Plunging Concentric Fold (T₆)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["formation_dip1_deg", "beta1_deg"],
+          ["dip_azimuth1_deg", "phid1_deg"],
+          ["formation_dip2_deg", "beta2_deg"],
+          ["dip_azimuth2_deg", "phid2_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
       },
       t7: {
         label: "Top-normal (T7)",
+        exportBasename: "Top-normal (T₇)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["formation_dip1_deg", "beta1_deg"],
+          ["dip_azimuth1_deg", "phid1_deg"],
+          ["formation_dip2_deg", "beta2_deg"],
+          ["dip_azimuth2_deg", "phid2_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
       },
       t8: {
         label: "Equal-angle (T8)",
+        exportBasename: "Equal-angle (T₈)",
+        xlsxInputColumns: [
+          ["measured_thickness", "M"],
+          ["wellbore_inclination_deg", "delta_deg"],
+          ["wellbore_azimuth_deg", "phib_deg"],
+          ["formation_dip1_deg", "beta1_deg"],
+          ["dip_azimuth1_deg", "phid1_deg"],
+          ["formation_dip2_deg", "beta2_deg"],
+          ["dip_azimuth2_deg", "phid2_deg"],
+        ],
         fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
         wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
       },
@@ -299,9 +377,10 @@
     let runtimeReady = false;
     let lastPayload = null;
     let lastSpec = null;
+    let lastModelId = null;
 
     function updateExportVisibility() {
-      const hasResult = !!(lastPayload && lastSpec);
+      const hasResult = !!(lastPayload && lastSpec && lastModelId);
       const hasPlot = !!(
         hasResult &&
         lastPayload.monte_carlo &&
@@ -320,6 +399,7 @@
       if (!m) return;
       lastPayload = null;
       lastSpec = null;
+      lastModelId = null;
       mcPlot.style.display = "none";
       updateExportVisibility();
       const head = document.createElement("div");
@@ -876,11 +956,8 @@
       drawHistogram(payload.monte_carlo ? payload.monte_carlo.thicknesses : null);
       lastPayload = payload;
       lastSpec = activeSpec;
+      lastModelId = modelId;
       updateExportVisibility();
-    }
-
-    function safeName(text) {
-      return text.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
     }
 
     function downloadBlob(blob, filename) {
@@ -894,51 +971,209 @@
       URL.revokeObjectURL(url);
     }
 
+    function xlsxVec3Rows(prefix, v) {
+      if (!v || v.length < 3) return [];
+      return [
+        [`${prefix}_x`, Number(v[0])],
+        [`${prefix}_y`, Number(v[1])],
+        [`${prefix}_z`, Number(v[2])],
+      ];
+    }
+
+    function xlsxSBranchFlag(usesPositive) {
+      return usesPositive ? 1.0 : 0.0;
+    }
+
+    function buildXlsxOutputRows(modelId, res) {
+      const rows = [];
+      switch (modelId) {
+        case "t1":
+          rows.push(["T1", res.true_stratigraphic_thickness]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          break;
+        case "t2":
+          rows.push(["T2", res.true_stratigraphic_thickness]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ud2", res.ud2_vector));
+          rows.push(...xlsxVec3Rows("Uav", res.uav_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          break;
+        case "t3":
+          rows.push(["T3", res.true_stratigraphic_thickness]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ud2", res.ud2_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          rows.push(["Ud1_dot_Ub", res.ud1_dot_ub]);
+          rows.push(["Ud2_dot_Ub", res.ud2_dot_ub]);
+          break;
+        case "t4":
+          rows.push(["T4", res.true_stratigraphic_thickness]);
+          rows.push(["T2_component", res.t2_value]);
+          rows.push(["T3_component", res.t3_value]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ud2", res.ud2_vector));
+          rows.push(...xlsxVec3Rows("Uav", res.uav_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          break;
+        case "t5":
+          rows.push(["T5", res.true_stratigraphic_thickness]);
+          rows.push(["beta2_prime_deg", res.beta2_prime_deg]);
+          rows.push(["M_prime", res.m_prime]);
+          rows.push(["gamma_deg", res.gamma_deg]);
+          rows.push(["eta_deg", res.eta_deg]);
+          rows.push(["alpha_deg", res.alpha_deg]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ud2_prime", res.ud2_prime_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          rows.push(...xlsxVec3Rows("Ndc", res.ndc_vector));
+          rows.push(...xlsxVec3Rows("Uc", res.c_vector));
+          break;
+        case "t6":
+          rows.push(["T6", res.true_stratigraphic_thickness]);
+          rows.push(["M_prime", res.m_prime]);
+          rows.push(["gamma_deg", res.gamma_deg]);
+          rows.push(["alpha_deg", res.alpha_deg]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ud2", res.ud2_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          rows.push(...xlsxVec3Rows("Ndp", res.ndp_vector));
+          rows.push(...xlsxVec3Rows("Uc", res.c_vector));
+          break;
+        case "t7":
+          rows.push(["Top_normal_T7", res.true_stratigraphic_thickness]);
+          rows.push(["M_prime", res.m_prime]);
+          rows.push(["alpha_deg", res.alpha_deg]);
+          rows.push(["eta_deg", res.eta_deg]);
+          rows.push(["S_Ndp_dot_Ub_prime", res.s_value]);
+          rows.push(["Top_normal_positive_S_branch", xlsxSBranchFlag(res.uses_positive_s_branch)]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ud2", res.ud2_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          rows.push(...xlsxVec3Rows("Ndp", res.ndp_vector));
+          rows.push(...xlsxVec3Rows("Ub_prime", res.ub_prime_vector));
+          break;
+        case "t8":
+          rows.push(["T8_equal_angle", res.true_stratigraphic_thickness]);
+          rows.push(["Top_normal_intermediate", res.top_normal_thickness]);
+          rows.push(["M_prime", res.m_prime]);
+          rows.push(["alpha_deg", res.alpha_deg]);
+          rows.push(["eta_deg", res.eta_deg]);
+          rows.push(["S_Ndp_dot_Ub_prime", res.s_value]);
+          rows.push(["Top_normal_positive_S_branch", xlsxSBranchFlag(res.uses_positive_s_branch)]);
+          rows.push(...xlsxVec3Rows("Ud1", res.ud1_vector));
+          rows.push(...xlsxVec3Rows("Ud2", res.ud2_vector));
+          rows.push(...xlsxVec3Rows("Ub", res.ub_vector));
+          rows.push(...xlsxVec3Rows("Ndp", res.ndp_vector));
+          rows.push(...xlsxVec3Rows("Ub_prime", res.ub_prime_vector));
+          break;
+        default:
+          break;
+      }
+      return rows;
+    }
+
+    function buildXlsxMcRows(mc) {
+      if (!mc) return null;
+      return [
+        ["MC_N", Math.round(Number(mc.n))],
+        ["MC_mean", Number(mc.mean)],
+        ["MC_std", Number(mc.std)],
+        ["MC_P10", Number(mc.p10)],
+        ["MC_P25", Number(mc.p25)],
+        ["MC_P50", Number(mc.p50)],
+        ["MC_P75", Number(mc.p75)],
+        ["MC_P90", Number(mc.p90)],
+      ];
+    }
+
+    /** Bold one cell (0-based row/col). Requires xlsx-js-style for .s to persist. */
+    function xlsxSetCellBold(ws, r, c) {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr];
+      if (!cell) return;
+      cell.s = { font: { bold: true } };
+    }
+
+    /**
+     * Match desktop ModelTab._write_results_xlsx: bold Model row, section titles,
+     * and Field/Value(/Sigma) header rows only (not data rows).
+     */
+    function applyDesktopResultsSheetBold(ws, nInputs, nOutputs, hasMc) {
+      xlsxSetCellBold(ws, 0, 0);
+      xlsxSetCellBold(ws, 0, 1);
+      xlsxSetCellBold(ws, 2, 0);
+      xlsxSetCellBold(ws, 3, 0);
+      xlsxSetCellBold(ws, 3, 1);
+      xlsxSetCellBold(ws, 3, 2);
+      const outputsTitleRow = 4 + nInputs + 1;
+      const outputsHeaderRow = outputsTitleRow + 1;
+      xlsxSetCellBold(ws, outputsTitleRow, 0);
+      xlsxSetCellBold(ws, outputsHeaderRow, 0);
+      xlsxSetCellBold(ws, outputsHeaderRow, 1);
+      if (hasMc) {
+        const mcTitleRow = outputsHeaderRow + nOutputs + 2;
+        const mcHeaderRow = mcTitleRow + 1;
+        xlsxSetCellBold(ws, mcTitleRow, 0);
+        xlsxSetCellBold(ws, mcHeaderRow, 0);
+        xlsxSetCellBold(ws, mcHeaderRow, 1);
+      }
+    }
+
     function exportXlsx() {
-      if (!lastPayload || !lastSpec) {
+      if (!lastPayload || !lastSpec || !lastModelId) {
         detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Run Calculate first, then export.";
         attachMcPlotBeforeExports();
         return;
       }
+      const xspec = modelSpecs[lastModelId];
+      if (!xspec || !Array.isArray(xspec.xlsxInputColumns)) {
+        detachMcPlotCanvas();
+        output.classList.add("warn");
+        output.textContent = "Missing model export layout; recalculate and try again.";
+        attachMcPlotBeforeExports();
+        return;
+      }
+      const inputs = lastPayload.inputs;
+      const stds = lastPayload.stds || {};
+      const outRows = buildXlsxOutputRows(lastModelId, lastPayload.result);
+      const mcRows = buildXlsxMcRows(lastPayload.monte_carlo);
+
       const rows = [];
-      rows.push(["Model", lastSpec.label]);
+      rows.push(["Model", xspec.exportBasename]);
       rows.push([]);
       rows.push(["Inputs"]);
-      rows.push(["Field", "Value (mu)", "Std Dev (sigma)"]);
-      for (const [k, v] of Object.entries(lastPayload.inputs)) {
-        rows.push([k, Number(v), Number(lastPayload.stds[k] ?? 0)]);
+      rows.push(["Field", "Value", "Sigma"]);
+      for (const [fieldKey, colName] of xspec.xlsxInputColumns) {
+        rows.push([colName, Number(inputs[fieldKey]), Number(stds[fieldKey] ?? 0)]);
       }
       rows.push([]);
       rows.push(["Outputs"]);
       rows.push(["Field", "Value"]);
-      for (const [k, v] of Object.entries(lastPayload.result)) {
-        if (Array.isArray(v)) {
-          rows.push([k, v.join(", ")]);
-        } else {
-          rows.push([k, v]);
-        }
+      for (const pair of outRows) {
+        rows.push(pair);
       }
-      if (lastPayload.monte_carlo) {
-        const mc = lastPayload.monte_carlo;
+      if (mcRows && mcRows.length) {
         rows.push([]);
         rows.push(["Monte Carlo"]);
         rows.push(["Field", "Value"]);
-        rows.push(["N", Number(mc.n)]);
-        rows.push(["Mean", Number(mc.mean)]);
-        rows.push(["Std", Number(mc.std)]);
-        rows.push(["P10", Number(mc.p10)]);
-        rows.push(["P25", Number(mc.p25)]);
-        rows.push(["P50", Number(mc.p50)]);
-        rows.push(["P75", Number(mc.p75)]);
-        rows.push(["P90", Number(mc.p90)]);
+        for (const pair of mcRows) {
+          rows.push(pair);
+        }
       }
 
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(rows);
+      applyDesktopResultsSheetBold(
+        ws,
+        xspec.xlsxInputColumns.length,
+        outRows.length,
+        !!(mcRows && mcRows.length)
+      );
       XLSX.utils.book_append_sheet(wb, ws, "Results");
-      XLSX.writeFile(wb, `${safeName(lastSpec.label)}_results.xlsx`);
+      XLSX.writeFile(wb, `${xspec.exportBasename}.xlsx`);
     }
 
     function exportPlotPng() {
@@ -949,9 +1184,13 @@
         attachMcPlotBeforeExports();
         return;
       }
+      const plotBase =
+        lastModelId && modelSpecs[lastModelId]
+          ? modelSpecs[lastModelId].exportBasename
+          : "Monte Carlo";
       mcPlot.toBlob((blob) => {
         if (!blob) return;
-        downloadBlob(blob, `${safeName(lastSpec.label)}_mc_plot.png`);
+        downloadBlob(blob, `${plotBase}.png`);
       }, "image/png");
     }
 
@@ -963,6 +1202,10 @@
         attachMcPlotBeforeExports();
         return;
       }
+      const plotBase =
+        lastModelId && modelSpecs[lastModelId]
+          ? modelSpecs[lastModelId].exportBasename
+          : "Monte Carlo";
       const pngData = mcPlot.toDataURL("image/png");
       const w = mcPlot.width / (window.devicePixelRatio || 1);
       const h = mcPlot.height / (window.devicePixelRatio || 1);
@@ -971,7 +1214,7 @@
         `<image href="${pngData}" width="${w}" height="${h}" />`,
         `</svg>`
       ].join("");
-      downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), `${safeName(lastSpec.label)}_mc_plot.svg`);
+      downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), `${plotBase}.svg`);
     }
 
     async function initPyodideRuntime() {
@@ -1135,6 +1378,7 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
       } catch (err) {
         lastPayload = null;
         lastSpec = null;
+        lastModelId = null;
         detachMcPlotCanvas();
         output.classList.add("warn");
         output.textContent = "Calculation failed:\n" + err.message;
@@ -1168,6 +1412,7 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         attachMcPlotBeforeExports();
         lastPayload = null;
         lastSpec = null;
+        lastModelId = null;
         mcPlot.style.display = "none";
         updateExportVisibility();
       }

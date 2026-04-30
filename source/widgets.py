@@ -262,6 +262,7 @@ class ModelTab(QWidget):
         try:
             self._write_results_xlsx(
                 path,
+                self.export_basename,
                 self._xlsx_input_columns,
                 self._xlsx_output_rows,
                 self._xlsx_mc_rows,
@@ -279,6 +280,7 @@ class ModelTab(QWidget):
     @staticmethod
     def _write_results_xlsx(
         path: str,
+        model_basename: str,
         input_columns: list[tuple[str, float, float]] | None,
         output_rows: list[tuple[str, float | int]] | None,
         mc_rows: list[tuple[str, float | int]] | None,
@@ -294,6 +296,10 @@ class ModelTab(QWidget):
         ws.title = "Results"
         bold = Font(bold=True)
         r = 1
+
+        ws.cell(row=r, column=1, value="Model").font = bold
+        ws.cell(row=r, column=2, value=model_basename).font = bold
+        r += 2  # row 2 blank; Inputs start on row 3
 
         ws.cell(row=r, column=1, value="Inputs").font = bold
         r += 1
