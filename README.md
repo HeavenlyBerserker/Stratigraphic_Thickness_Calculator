@@ -1,14 +1,24 @@
 # Stratigraphic_Thickness_Calculator
-Calculates true stratigraphic thickness using 3D borehole data, with both desktop and mobile/web interfaces that support result export workflows (including figures/plots). Desktop binaries are available on the [latest GitHub release](https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator/releases/latest).
-The web app can be accessed at [Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) in computer or phone browsers; it can be used when internet service is available or when the site is already cached on the device. The desktop app is portable and can be used anywhere after download (and unzip if needed), without requiring active internet access.
+Calculates true stratigraphic thickness using 3D borehole data. Two versions are available:
 
-This software is based on and intended as a companion to a coming-soon paper ([paper link coming soon](#)). Most users should use either the hosted **Mobile App (PWA)** or downloadable **GitHub Releases** binaries. The **Build from Source** section is intended for code-savvy users who want to inspect/modify code, run from source, or build release artifacts themselves.
+**The Web App:** Use [Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) to access and run the app directly in computer or phone browsers. *On mobile, you can use your browser's "Add to Home Screen" option to install it like an app for faster access and offline/cached use.*
+
+**The Desktop App:** Use the [latest GitHub release](https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator/releases/latest) to download portable desktop binaries for Windows, macOS, and Linux. The desktop app can be used anywhere after download, without requiring active internet access. Linux note: the Ubuntu build is generally intended for modern glibc-based Linux distributions (including Ubuntu/Debian families and many others), but it is not guaranteed on every Linux variant (for example Alpine/musl or much older glibc systems).
+
+This software is based on and intended as a companion to a coming-soon paper ([paper link coming soon](#)). Most users should use either the hosted web app via **Web App Link** or downloadable binaries from the **latest GitHub release**. The **Build Desktop App from Source** and **Developing on Mobile App (PWA)** sections are intended for code-savvy users who want to inspect/modify code, run from source, or build release artifacts themselves.
 
 ## Index
 
 - [README (Top)](#stratigraphic_thickness_calculator)
 - [Software Guidelines](#software-guidelines)
-- [Mobile App (PWA)](#mobile-app-pwa)
+  - [Instructions](#instructions)
+  - [About This Software Package](#about-this-software-package)
+  - [Why These Calculations Matter](#why-these-calculations-matter)
+  - [Model Scope, Assumptions, and Limits](#model-scope-assumptions-and-limits)
+  - [Monte Carlo and Uncertainty Guidance](#monte-carlo-and-uncertainty-guidance)
+  - [Recommended Best Practices](#recommended-best-practices)
+  - [Intended Users and Purpose](#intended-users-and-purpose)
+- [Developing on Mobile App (PWA)](#developing-on-mobile-app-pwa)
 - [Build Desktop App from Source](#build-desktop-app-from-source)
   - [Windows Desktop App (PySide6)](#windows-desktop-app-pyside6)
   - [Run Locally (Conda: `geo_stc`)](#run-locally-conda-geo_stc)
@@ -19,11 +29,21 @@ This software is based on and intended as a companion to a coming-soon paper ([p
 
 ## Software Guidelines
 
+### Instructions
+
+1. Choose the model that matches your geometry assumptions.
+2. Enter measured values and angles using the documented conventions in this README.
+3. Optional: for uncertainty analysis, enter non-zero `σ` values to enable Monte Carlo outputs (leave `σ = 0` for deterministic runs). Click the `?` icon for a quick cheatsheet of what to do with `σ`.
+4. Review geometry warnings in fold models before final interpretation.
+5. Export results/plots when needed for reporting and auditability.
+
+For best results, use high-quality field or interpreted inputs (e.g., calibrated dip/azimuth measurements and validated structural picks).
+
 ### About This Software Package
 
 This software package provides a full set of stratigraphic-thickness workflows for dipping and folded beds, including one-dip, average-vector, average-thickness, mixed-average, concentric-fold, plunging-fold, top-normal, and equal-angle methods. It includes:
 
-- A full-featured desktop app (PySide6) with exports (Excel, MC plot PNG/SVG) and detailed outputs.
+- A full-featured desktop app (PySide6).
 - A static mobile/web app (PWA) that runs calculations in-browser using the same model logic from `source/models.py` via Pyodide.
 
 The software is designed for practical geology and petroleum/mining workflows where true stratigraphic thickness is needed for mapping, planning, and volumetric interpretation.
@@ -39,16 +59,6 @@ Accurate thickness correction is central to:
 
 Apparent-thickness-only workflows can overstate or understate true layer thickness, especially in moderate-to-steep dip settings and folded geometries.
 
-### How To Use It Correctly
-
-1. Choose the model that matches your geometry assumptions.
-2. Enter measured values and angles using the documented conventions in this README.
-3. Optional: for uncertainty analysis, enter non-zero `σ` values to enable Monte Carlo outputs (leave `σ = 0` for deterministic runs). Click the `?` icon for a quick cheatsheet of what to do with `σ`.
-4. Review geometry warnings in fold models before final interpretation.
-5. Export results/plots when needed for reporting and auditability.
-
-For best results, use high-quality field or interpreted inputs (e.g., calibrated dip/azimuth measurements and validated structural picks).
-
 ### Model Scope, Assumptions, and Limits
 
 - Models assume idealized geometric conditions documented in each formula section.
@@ -60,7 +70,7 @@ For best results, use high-quality field or interpreted inputs (e.g., calibrated
 
 - Use `σ = 0` for deterministic runs.
 - Use non-zero `σ` for uncertainty propagation.
-- Desktop Monte Carlo uses higher sample counts; mobile uses 2,500 samples for responsiveness.
+- Desktop Monte Carlo uses 10K samples; mobile uses 2,500 samples for responsiveness.
 - Treat Monte Carlo distributions as input-quality dependent; poor inputs produce misleading confidence.
 
 ### Recommended Best Practices
@@ -76,7 +86,7 @@ This package is intended for students, geoscientists, engineers, and technical t
 
 The purpose is to bridge field/interpretation measurements and quantitative thickness correction with scientifically grounded, reproducible computations.
 
-## Mobile App (PWA)
+## Developing on Mobile App (PWA)
 
 `mobile/index.html` is now fully static and runs computations in-browser with Pyodide.
 
