@@ -71,12 +71,34 @@
       gap: 10px;
       margin-bottom: 10px;
     }
+    .row.headings {
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
     .cell-label { align-self: center; }
+    .sigma-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sigma-prefix {
+      color: var(--muted);
+      min-width: 18px;
+      text-align: right;
+      font-size: 0.92rem;
+    }
     .section-title { font-weight: bold; margin-top: 8px; }
     .actions {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
+    }
+    .exports {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
     }
     button {
       background: #2563eb;
@@ -120,10 +142,16 @@
       <label>Output</label>
       <pre id="output">Ready.</pre>
       <canvas id="mcPlot" style="display:none; width:100%; max-width:100%; margin-top:10px; background:#0b1220; border-radius:8px;"></canvas>
+      <div class="exports">
+        <button id="btnXlsx" class="secondary">Save Results (.xlsx)</button>
+        <button id="btnPng" class="secondary">Save MC Plot (PNG)</button>
+        <button id="btnSvg" class="secondary">Save MC Plot (SVG)</button>
+      </div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const defaults = {
       measured_thickness: 15,
@@ -165,8 +193,27 @@
     const output = document.getElementById("output");
     const mcPlot = document.getElementById("mcPlot");
     const btnCalc = document.getElementById("btnCalc");
+    const btnXlsx = document.getElementById("btnXlsx");
+    const btnPng = document.getElementById("btnPng");
+    const btnSvg = document.getElementById("btnSvg");
     let pyodide = null;
     let runtimeReady = false;
+    let lastPayload = null;
+    let lastSpec = null;
+
+    function updateExportVisibility() {
+      const hasResult = !!(lastPayload && lastSpec);
+      const hasPlot = !!(
+        hasResult &&
+        lastPayload.monte_carlo &&
+        Array.isArray(lastPayload.monte_carlo.thicknesses) &&
+        lastPayload.monte_carlo.thicknesses.length > 1 &&
+        mcPlot.style.display !== "none"
+      );
+      btnXlsx.style.display = hasResult ? "block" : "none";
+      btnPng.style.display = hasPlot ? "block" : "none";
+      btnSvg.style.display = hasPlot ? "block" : "none";
+    }
 
     function formatVal(v) {
       if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(6);
@@ -179,6 +226,14 @@
       const m = modelSpecs[modelId];
       fieldsRoot.innerHTML = "";
       if (!m) return;
+      lastPayload = null;
+      lastSpec = null;
+      mcPlot.style.display = "none";
+      updateExportVisibility();
+      const head = document.createElement("div");
+      head.className = "row headings";
+      head.innerHTML = "<div></div><div>Value (μ)</div><div>Std Dev (σ)</div>";
+      fieldsRoot.appendChild(head);
       m.fields.forEach((f) => {
         const row = document.createElement("div");
         row.className = "row";
@@ -201,7 +256,14 @@
         const col2 = document.createElement("div");
         col2.appendChild(input);
         const col3 = document.createElement("div");
-        col3.appendChild(sigma);
+        const sigmaWrap = document.createElement("div");
+        sigmaWrap.className = "sigma-wrap";
+        const sigmaPrefix = document.createElement("span");
+        sigmaPrefix.className = "sigma-prefix";
+        sigmaPrefix.textContent = "σ=";
+        sigmaWrap.appendChild(sigmaPrefix);
+        sigmaWrap.appendChild(sigma);
+        col3.appendChild(sigmaWrap);
         row.appendChild(col1);
         row.appendChild(col2);
         row.appendChild(col3);
@@ -382,6 +444,98 @@
       output.classList.toggle("warn", Array.isArray(res.geometry_warnings) && res.geometry_warnings.length > 0);
       output.textContent = lines.join("\n");
       drawHistogram(payload.monte_carlo ? payload.monte_carlo.thicknesses : null);
+      lastPayload = payload;
+      lastSpec = activeSpec;
+      updateExportVisibility();
+    }
+
+    function safeName(text) {
+      return text.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
+    }
+
+    function downloadBlob(blob, filename) {
+      const a = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportXlsx() {
+      if (!lastPayload || !lastSpec) {
+        output.classList.add("warn");
+        output.textContent = "Run Calculate first, then export.";
+        return;
+      }
+      const rows = [];
+      rows.push(["Model", lastSpec.label]);
+      rows.push([]);
+      rows.push(["Inputs"]);
+      rows.push(["Field", "Value (mu)", "Std Dev (sigma)"]);
+      for (const [k, v] of Object.entries(lastPayload.inputs)) {
+        rows.push([k, Number(v), Number(lastPayload.stds[k] ?? 0)]);
+      }
+      rows.push([]);
+      rows.push(["Outputs"]);
+      rows.push(["Field", "Value"]);
+      for (const [k, v] of Object.entries(lastPayload.result)) {
+        if (Array.isArray(v)) {
+          rows.push([k, v.join(", ")]);
+        } else {
+          rows.push([k, v]);
+        }
+      }
+      if (lastPayload.monte_carlo) {
+        const mc = lastPayload.monte_carlo;
+        rows.push([]);
+        rows.push(["Monte Carlo"]);
+        rows.push(["Field", "Value"]);
+        rows.push(["N", Number(mc.n)]);
+        rows.push(["Mean", Number(mc.mean)]);
+        rows.push(["Std", Number(mc.std)]);
+        rows.push(["P10", Number(mc.p10)]);
+        rows.push(["P25", Number(mc.p25)]);
+        rows.push(["P50", Number(mc.p50)]);
+        rows.push(["P75", Number(mc.p75)]);
+        rows.push(["P90", Number(mc.p90)]);
+      }
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Results");
+      XLSX.writeFile(wb, `${safeName(lastSpec.label)}_results.xlsx`);
+    }
+
+    function exportPlotPng() {
+      if (!lastPayload || !lastPayload.monte_carlo || mcPlot.style.display === "none") {
+        output.classList.add("warn");
+        output.textContent = "Run Monte Carlo first, then export PNG.";
+        return;
+      }
+      mcPlot.toBlob((blob) => {
+        if (!blob) return;
+        downloadBlob(blob, `${safeName(lastSpec.label)}_mc_plot.png`);
+      }, "image/png");
+    }
+
+    function exportPlotSvg() {
+      if (!lastPayload || !lastPayload.monte_carlo || mcPlot.style.display === "none") {
+        output.classList.add("warn");
+        output.textContent = "Run Monte Carlo first, then export SVG.";
+        return;
+      }
+      const pngData = mcPlot.toDataURL("image/png");
+      const w = mcPlot.width / (window.devicePixelRatio || 1);
+      const h = mcPlot.height / (window.devicePixelRatio || 1);
+      const svg = [
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`,
+        `<image href="${pngData}" width="${w}" height="${h}" />`,
+        `</svg>`
+      ].join("");
+      downloadBlob(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }), `${safeName(lastSpec.label)}_mc_plot.svg`);
     }
 
     async function initPyodideRuntime() {
@@ -503,10 +657,15 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         modelSelect.appendChild(o);
       });
       renderFields(modelSelect.value);
+      updateExportVisibility();
     }
 
     modelSelect.addEventListener("change", () => renderFields(modelSelect.value));
     document.getElementById("btnReset").addEventListener("click", () => renderFields(modelSelect.value));
+    btnXlsx.addEventListener("click", exportXlsx);
+    btnPng.addEventListener("click", exportPlotPng);
+    btnSvg.addEventListener("click", exportPlotSvg);
+    updateExportVisibility();
     btnCalc.addEventListener("click", async () => {
       try {
         if (!runtimeReady) {
@@ -521,9 +680,12 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         output.classList.remove("warn");
         renderResult(j, spec);
       } catch (err) {
+        lastPayload = null;
+        lastSpec = null;
         output.classList.add("warn");
         output.textContent = "Calculation failed:\n" + err.message;
         mcPlot.style.display = "none";
+        updateExportVisibility();
       }
     });
 
@@ -547,6 +709,10 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         btnCalc.textContent = "Calculate";
         output.classList.add("warn");
         output.textContent = "Failed to initialize app:\n" + err.message;
+        lastPayload = null;
+        lastSpec = null;
+        mcPlot.style.display = "none";
+        updateExportVisibility();
       }
     })();
   </script>
