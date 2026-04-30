@@ -1,6 +1,6 @@
 # Stratigraphic_Thickness_Calculator
 Calculates true stratigraphic thickness using 3D borehole data, with both desktop and mobile/web interfaces that support result export workflows (including figures/plots). Desktop binaries are available on the [latest GitHub release](https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator/releases/latest).
-The web app can be accessed at [https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) in computer or phone browsers; it can be used when internet service is available or when the site is already cached on the device. The desktop app is portable and can be used anywhere after download (and unzip if needed), without requiring active internet access.
+The web app can be accessed at [Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) in computer or phone browsers; it can be used when internet service is available or when the site is already cached on the device. The desktop app is portable and can be used anywhere after download (and unzip if needed), without requiring active internet access.
 
 This software is based on and intended as a companion to a coming-soon paper ([paper link coming soon](#)). Most users should use either the hosted **Mobile App (PWA)** or downloadable **GitHub Releases** binaries. The **Build from Source** section is intended for code-savvy users who want to inspect/modify code, run from source, or build release artifacts themselves.
 
@@ -109,7 +109,7 @@ python -m http.server 8787
 This section is for developers and technical users who want to run the app from source code, inspect implementation details, or produce release binaries.
 
 If you only want to use the calculator, prefer:
-- Mobile web app (no install): [https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html)
+- Mobile web app (no install): [Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html)
 - Desktop binaries from GitHub Releases [latest GitHub release](https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator/releases/latest)
 
 ### Windows Desktop App (PySide6)
