@@ -129,12 +129,14 @@
       cursor: pointer;
     }
     button.secondary { background: #4b5563; }
-    pre {
+    #output.output-html {
       margin: 0;
       white-space: pre-wrap;
       word-break: break-word;
       line-height: 1.35;
+      font-size: 0.95rem;
     }
+    #output.output-html b { font-weight: 700; }
     .warn { color: var(--warn); }
     @media (max-width: 640px) {
       .row, .actions { grid-template-columns: 1fr; }
@@ -163,7 +165,7 @@
 
     <div class="card">
       <label>Output</label>
-      <pre id="output">Ready.</pre>
+      <div id="output" class="output-html">Ready.</div>
       <canvas id="mcPlot" style="display:none; width:100%; max-width:100%; margin-top:10px; background:#0b1220; border-radius:8px;"></canvas>
       <div class="exports">
         <button id="btnXlsx" class="secondary">Save Results (.xlsx)</button>
@@ -187,42 +189,133 @@
     <button id="btnCloseHelp" class="secondary">Close</button>
   </dialog>
 
+  <script src="./desktop-formula-where.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const defaults = {
-      measured_thickness: 15,
-      wellbore_inclination_deg: 40,
-      wellbore_azimuth_deg: 130,
-      formation_dip_deg: 20,
-      dip_azimuth_deg: 110,
-      formation_dip1_deg: 20,
-      dip_azimuth1_deg: 110,
+      measured_thickness: 100,
+      wellbore_inclination_deg: 20,
+      wellbore_azimuth_deg: 120,
+      formation_dip_deg: 15,
+      dip_azimuth_deg: 140,
+      formation_dip1_deg: 15,
+      dip_azimuth1_deg: 140,
       formation_dip2_deg: 18,
       dip_azimuth2_deg: 150
     };
 
-    const labels = {
-      measured_thickness: "M (Measured Thickness)",
-      wellbore_inclination_deg: "δ (Wellbore Inclination, deg)",
-      wellbore_azimuth_deg: "φᵦ (Wellbore Azimuth, deg)",
-      formation_dip_deg: "β (Formation Dip, deg)",
-      dip_azimuth_deg: "φd (Dip Azimuth, deg)",
-      formation_dip1_deg: "β₁ (Top Dip, deg)",
-      dip_azimuth1_deg: "φd₁ (Top Dip Azimuth, deg)",
-      formation_dip2_deg: "β₂ (Base Dip, deg)",
-      dip_azimuth2_deg: "φd₂ (Base Dip Azimuth, deg)"
-    };
-
     const modelSpecs = {
-      t1: { label: "One-dip (T1)", fields: ["measured_thickness","wellbore_inclination_deg","formation_dip_deg","wellbore_azimuth_deg","dip_azimuth_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth_deg"], formula: ["T1 = M(cosδ - sinδ cos(φd - φb) tanβ) cosβ"], where: ["T1: one-dip true stratigraphic thickness"] },
-      t2: { label: "Average-vector (T2)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["Uav = (Ud1 + Ud2) / ||Ud1 + Ud2||", "T2 = M (Uav · Ub)"], where: ["T2: average-vector thickness"] },
-      t3: { label: "Average-thickness (T3)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["T3 = (M Ud1·Ub + M Ud2·Ub) / 2", "T3 = M (Ud1 + Ud2)·Ub / 2"], where: ["T3: average-thickness model output"] },
-      t4: { label: "Mixed Average (T4)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["T4 = (T2 + T3) / 2"], where: ["T4: mean of T2 and T3"] },
-      t5: { label: "Concentric Fold (T5)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["β'2 = arctan(tanβ2 |cos(φd1−φd2)|)", "T5 = M' sinγ / cos(η/2)"], where: ["T5: concentric-fold thickness"] },
-      t6: { label: "Plunging Concentric Fold (T6)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["T6 = M' (sinγ / sinα)"], where: ["T6: plunging-fold thickness"] },
-      t7: { label: "Top-normal (T7)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["If S < 0: T7 = M' cos(α−η) / cosη", "If S ≥ 0: T7 = M' cos(α+η) / cosη"], where: ["T7: top-normal thickness"] },
-      t8: { label: "Equal-angle (T8)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["Top-normal intermediate from T7 branch rule", "T8 = Top-normal × cos(η/2)"], where: ["T8: equal-angle thickness"] }
+      t1: {
+        label: "One-dip (T1)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "formation_dip_deg", "wellbore_azimuth_deg", "dip_azimuth_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "β<sub>1</sub> (Formation Dip, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "φ<sub>d1</sub> (Dip Azimuth, deg)",
+        ],
+      },
+      t2: {
+        label: "Average-vector (T2)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "β<sub>1</sub> (Upper Formation Dip, deg)",
+          "φ<sub>d1</sub> (Upper Dip Azimuth, deg)",
+          "β<sub>2</sub> (Lower Formation Dip, deg)",
+          "φ<sub>d2</sub> (Lower Dip Azimuth, deg)",
+        ],
+      },
+      t3: {
+        label: "Average-thickness (T3)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "β<sub>1</sub> (Upper Formation Dip, deg)",
+          "φ<sub>d1</sub> (Upper Dip Azimuth, deg)",
+          "β<sub>2</sub> (Lower Formation Dip, deg)",
+          "φ<sub>d2</sub> (Lower Dip Azimuth, deg)",
+        ],
+      },
+      t4: {
+        label: "Mixed Average (T4)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "β<sub>1</sub> (Upper Formation Dip, deg)",
+          "φ<sub>d1</sub> (Upper Dip Azimuth, deg)",
+          "β<sub>2</sub> (Lower Formation Dip, deg)",
+          "φ<sub>d2</sub> (Lower Dip Azimuth, deg)",
+        ],
+      },
+      t5: {
+        label: "Concentric Fold (T5)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "β<sub>1</sub> (Top Dip, deg)",
+          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
+          "β<sub>2</sub> (Base Dip, deg)",
+          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
+        ],
+      },
+      t6: {
+        label: "Plunging Concentric Fold (T6)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "β<sub>1</sub> (Top Dip, deg)",
+          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
+          "β<sub>2</sub> (Base Dip, deg)",
+          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
+        ],
+      },
+      t7: {
+        label: "Top-normal (T7)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "β<sub>1</sub> (Top Dip, deg)",
+          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
+          "β<sub>2</sub> (Base Dip, deg)",
+          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
+        ],
+      },
+      t8: {
+        label: "Equal-angle (T8)",
+        fields: ["measured_thickness", "wellbore_inclination_deg", "wellbore_azimuth_deg", "formation_dip1_deg", "dip_azimuth1_deg", "formation_dip2_deg", "dip_azimuth2_deg"],
+        wrap_fields: ["wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"],
+        inputLabelsHtml: [
+          "M (Measured Thickness)",
+          "δ (Wellbore Inclination, deg)",
+          "φ<sub>b</sub> (Wellbore Azimuth, deg)",
+          "β<sub>1</sub> (Top Dip, deg)",
+          "φ<sub>d1</sub> (Top Dip Azimuth, deg)",
+          "β<sub>2</sub> (Base Dip, deg)",
+          "φ<sub>d2</sub> (Base Dip Azimuth, deg)",
+        ],
+      },
     };
 
     const modelSelect = document.getElementById("model");
@@ -255,13 +348,6 @@
       btnSvg.style.display = hasPlot ? "block" : "none";
     }
 
-    function formatVal(v) {
-      if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(6);
-      if (Array.isArray(v)) return "(" + v.map(formatVal).join(", ") + ")";
-      if (v && typeof v === "object") return JSON.stringify(v, null, 2);
-      return String(v);
-    }
-
     function renderFields(modelId) {
       const m = modelSpecs[modelId];
       fieldsRoot.innerHTML = "";
@@ -290,11 +376,11 @@
           );
         });
       }
-      m.fields.forEach((f) => {
+      m.fields.forEach((f, idx) => {
         const row = document.createElement("div");
         row.className = "row";
         const label = document.createElement("label");
-        label.textContent = labels[f] || f;
+        label.innerHTML = m.inputLabelsHtml[idx] || f;
         label.className = "cell-label";
         const input = document.createElement("input");
         input.id = "v_" + f;
@@ -453,52 +539,378 @@
       mcPlot.style.display = "block";
     }
 
-    function renderResult(payload, activeSpec) {
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function geometryWarningsHtml(warnings) {
+      if (!warnings || !warnings.length) return "";
+      const items = warnings.map((w) => "<li>" + escapeHtml(w) + "</li>").join("");
+      return (
+        '<div class="geometry-warnings" style="border:1px solid #b91c1c;background:#1e1e1e;padding:8px 10px;margin:0.4em 0 0.85em 0;border-radius:6px;color:#b91c1c;">' +
+        '<b style="color:#b91c1c;">⚠ Warning: intermediate angles</b><br>' +
+        '<span style="color:#b91c1c;">The thickness value(s) above were still computed, ' +
+        "but the following depart from the usual ranges for this model; verify inputs " +
+        'and interpret with caution:</span>' +
+        '<ul style="margin:6px 0 0 1.1em;color:#b91c1c;">' +
+        items +
+        "</ul></div>"
+      );
+    }
+
+    function fmtNum(v) {
+      return Number(v).toFixed(6);
+    }
+
+    function fmtVecCoords(v) {
+      if (!Array.isArray(v)) return String(v);
+      return fmtNum(v[0]) + ", " + fmtNum(v[1]) + ", " + fmtNum(v[2]);
+    }
+
+    function formatMonteCarloHtml(mc) {
+      if (!mc) return "";
+      const n = Math.round(Number(mc.n));
+      return (
+        "<b>Monte Carlo Distribution</b><br>" +
+        `N = ${n}<br>` +
+        `Mean = ${fmtNum(mc.mean)}<br>` +
+        `Std = ${fmtNum(mc.std)}<br>` +
+        `P10 = ${fmtNum(mc.p10)}<br>` +
+        `P25 = ${fmtNum(mc.p25)}<br>` +
+        `P50 = ${fmtNum(mc.p50)}<br>` +
+        `P75 = ${fmtNum(mc.p75)}<br>` +
+        `P90 = ${fmtNum(mc.p90)}<br><br>`
+      );
+    }
+
+    function formatInputsSectionHtml(spec, payload) {
+      let h = "<b>Inputs (value, σ)</b><br>";
+      for (let i = 0; i < spec.fields.length; i++) {
+        const f = spec.fields[i];
+        const lab = spec.inputLabelsHtml[i];
+        const v = Number(payload.inputs[f]);
+        const s = Number(payload.stds[f] ?? 0);
+        h += `${lab}: ${fmtNum(v)} &nbsp; (σ = ${fmtNum(s)})<br>`;
+      }
+      h += "<br>";
+      return h;
+    }
+
+    function branchNoteHtml(usesPositive) {
+      return usesPositive
+        ? "Top-normal = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
+        : "Top-normal = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)";
+    }
+
+    function buildResultHtml(modelId, res) {
+      const gw = geometryWarningsHtml(res.geometry_warnings || []);
+      if (modelId === "t1") {
+        return (
+          "<b>Result</b><br>" +
+          "T<sub>1</sub> (True Stratigraphic Thickness): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br><br>"
+        );
+      }
+      if (modelId === "t2") {
+        return (
+          "<b>Result</b><br>" +
+          "T<sub>2</sub> (True Stratigraphic Thickness): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br><br>"
+        );
+      }
+      if (modelId === "t3") {
+        return (
+          "<b>Result</b><br>" +
+          "T<sub>3</sub> (True Stratigraphic Thickness): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br><br>"
+        );
+      }
+      if (modelId === "t4") {
+        return (
+          "<b>Result</b><br>" +
+          "T<sub>4</sub> (True Stratigraphic Thickness): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br><br>"
+        );
+      }
+      if (modelId === "t5") {
+        return (
+          "<b>Result</b><br>" +
+          "T<sub>5</sub> (True Stratigraphic Thickness): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br>" +
+          gw +
+          "<br>"
+        );
+      }
+      if (modelId === "t6") {
+        return (
+          "<b>Result</b><br>" +
+          "T<sub>6</sub> (True Stratigraphic Thickness): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br>" +
+          gw +
+          "<br>"
+        );
+      }
+      if (modelId === "t7") {
+        return (
+          "<b>Result</b><br>" +
+          "Top-normal (stratigraphic thickness, normal to top bed): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br>" +
+          gw +
+          "<br>"
+        );
+      }
+      if (modelId === "t8") {
+        return (
+          "<b>Result</b><br>" +
+          "T<sub>8</sub> (equal-angle): " +
+          fmtNum(res.true_stratigraphic_thickness) +
+          "<br>" +
+          "Top-normal (intermediate): " +
+          fmtNum(res.top_normal_thickness) +
+          "<br>" +
+          gw +
+          "<br>"
+        );
+      }
+      return "";
+    }
+
+    function buildQuantitiesHtml(modelId, res) {
+      if (modelId === "t1") {
+        return (
+          "<b>Quantities</b><br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br><br>"
+        );
+      }
+      if (modelId === "t2") {
+        return (
+          "<b>Quantities</b><br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U<sub>d2</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud2_vector) +
+          ")<br>" +
+          "U<sub>av</sub> (x,y,z) : (" +
+          fmtVecCoords(res.uav_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br><br>"
+        );
+      }
+      if (modelId === "t3") {
+        return (
+          "<b>Quantities</b><br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U<sub>d2</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud2_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br>" +
+          "U<sub>d1</sub> . U<sub>b</sub> = " +
+          fmtNum(res.ud1_dot_ub) +
+          "<br>" +
+          "U<sub>d2</sub> . U<sub>b</sub> = " +
+          fmtNum(res.ud2_dot_ub) +
+          "<br><br>"
+        );
+      }
+      if (modelId === "t4") {
+        return (
+          "<b>Quantities</b><br>" +
+          "T<sub>2</sub> = " +
+          fmtNum(res.t2_value) +
+          "<br>" +
+          "T<sub>3</sub> = " +
+          fmtNum(res.t3_value) +
+          "<br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U<sub>d2</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud2_vector) +
+          ")<br>" +
+          "U<sub>av</sub> (x,y,z) : (" +
+          fmtVecCoords(res.uav_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br><br>"
+        );
+      }
+      if (modelId === "t5") {
+        return (
+          "<b>Quantities</b><br>" +
+          "β'<sub>2</sub> = " +
+          fmtNum(res.beta2_prime_deg) +
+          " deg<br>" +
+          "M' = " +
+          fmtNum(res.m_prime) +
+          "<br>" +
+          "γ = " +
+          fmtNum(res.gamma_deg) +
+          " deg<br>" +
+          "η = " +
+          fmtNum(res.eta_deg) +
+          " deg<br>" +
+          "α = 90° − η/2 = " +
+          fmtNum(res.alpha_deg) +
+          " deg<br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U'<sub>d2</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud2_prime_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br>" +
+          "N<sub>dc</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ndc_vector) +
+          ")<br>" +
+          "U<sub>c</sub> (x,y,z) : (" +
+          fmtVecCoords(res.c_vector) +
+          ")<br><br>"
+        );
+      }
+      if (modelId === "t6") {
+        return (
+          "<b>Quantities</b><br>" +
+          "M' = " +
+          fmtNum(res.m_prime) +
+          "<br>" +
+          "γ = " +
+          fmtNum(res.gamma_deg) +
+          " deg<br>" +
+          "α = " +
+          fmtNum(res.alpha_deg) +
+          " deg<br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U<sub>d2</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud2_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br>" +
+          "N<sub>dp</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ndp_vector) +
+          ")<br>" +
+          "U<sub>c</sub> (x,y,z) : (" +
+          fmtVecCoords(res.c_vector) +
+          ")<br><br>"
+        );
+      }
+      if (modelId === "t7") {
+        return (
+          "<b>Quantities</b><br>" +
+          "M' = " +
+          fmtNum(res.m_prime) +
+          "<br>" +
+          "α = " +
+          fmtNum(res.alpha_deg) +
+          " deg<br>" +
+          "η = " +
+          fmtNum(res.eta_deg) +
+          " deg<br>" +
+          "S = N<sub>dp</sub> . U'<sub>b</sub> = " +
+          fmtNum(res.s_value) +
+          "<br>" +
+          "Branch: " +
+          branchNoteHtml(res.uses_positive_s_branch) +
+          "<br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U<sub>d2</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud2_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br>" +
+          "N<sub>dp</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ndp_vector) +
+          ")<br>" +
+          "U'<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_prime_vector) +
+          ")<br><br>"
+        );
+      }
+      if (modelId === "t8") {
+        return (
+          "<b>Quantities</b><br>" +
+          "M' = " +
+          fmtNum(res.m_prime) +
+          "<br>" +
+          "α = " +
+          fmtNum(res.alpha_deg) +
+          " deg<br>" +
+          "η = " +
+          fmtNum(res.eta_deg) +
+          " deg<br>" +
+          "S = N<sub>dp</sub> . U'<sub>b</sub> = " +
+          fmtNum(res.s_value) +
+          "<br>" +
+          "Branch: " +
+          branchNoteHtml(res.uses_positive_s_branch) +
+          "<br>" +
+          "U<sub>d1</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud1_vector) +
+          ")<br>" +
+          "U<sub>d2</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ud2_vector) +
+          ")<br>" +
+          "U<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_vector) +
+          ")<br>" +
+          "N<sub>dp</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ndp_vector) +
+          ")<br>" +
+          "U'<sub>b</sub> (x,y,z) : (" +
+          fmtVecCoords(res.ub_prime_vector) +
+          ")<br><br>"
+        );
+      }
+      return "";
+    }
+
+    function renderResult(payload, activeSpec, modelId) {
       const res = payload.result;
-      const lines = [];
-      lines.push("Result");
-      lines.push("True Stratigraphic Thickness: " + res.true_stratigraphic_thickness.toFixed(6));
-      lines.push("");
-      lines.push("Inputs (μ, σ)");
-      for (const [k, v] of Object.entries(payload.inputs)) {
-        lines.push(`${k}: ${formatVal(v)}  (σ=${formatVal(payload.stds[k])})`);
+      const fw = globalThis.STC_FORMULA_WHERE && globalThis.STC_FORMULA_WHERE[modelId];
+      if (!fw) {
+        output.classList.add("warn");
+        output.textContent = "Missing desktop formula/where template (desktop-formula-where.js).";
+        return;
       }
-      lines.push("");
-      lines.push("Quantities");
-      for (const [k, v] of Object.entries(res)) {
-        if (k === "true_stratigraphic_thickness" || k === "geometry_warnings") continue;
-        lines.push(k + ": " + formatVal(v));
-      }
-      if (Array.isArray(res.geometry_warnings) && res.geometry_warnings.length > 0) {
-        lines.push("");
-        lines.push("Warning: intermediate angles");
-        for (const w of res.geometry_warnings) lines.push("- " + w);
-      }
-      if (payload.monte_carlo) {
-        const mc = payload.monte_carlo;
-        lines.push("");
-        lines.push("Monte Carlo Distribution");
-        lines.push("N = " + Number(mc.n));
-        lines.push("Mean = " + formatVal(mc.mean));
-        lines.push("Std = " + formatVal(mc.std));
-        lines.push("P10 = " + formatVal(mc.p10));
-        lines.push("P25 = " + formatVal(mc.p25));
-        lines.push("P50 = " + formatVal(mc.p50));
-        lines.push("P75 = " + formatVal(mc.p75));
-        lines.push("P90 = " + formatVal(mc.p90));
-      }
-      if (Array.isArray(activeSpec.formula) && activeSpec.formula.length > 0) {
-        lines.push("");
-        lines.push("Formula");
-        for (const f of activeSpec.formula) lines.push("- " + f);
-      }
-      if (Array.isArray(activeSpec.where) && activeSpec.where.length > 0) {
-        lines.push("");
-        lines.push("Where");
-        for (const w of activeSpec.where) lines.push("- " + w);
-      }
-      output.classList.toggle("warn", Array.isArray(res.geometry_warnings) && res.geometry_warnings.length > 0);
-      output.textContent = lines.join("\n");
+      const html =
+        buildResultHtml(modelId, res) +
+        formatInputsSectionHtml(activeSpec, payload) +
+        buildQuantitiesHtml(modelId, res) +
+        formatMonteCarloHtml(payload.monte_carlo) +
+        fw;
+      output.classList.remove("warn");
+      output.innerHTML = html;
       drawHistogram(payload.monte_carlo ? payload.monte_carlo.thicknesses : null);
       lastPayload = payload;
       lastSpec = activeSpec;
@@ -751,7 +1163,7 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         );
         const j = JSON.parse(jTxt);
         output.classList.remove("warn");
-        renderResult(j, spec);
+        renderResult(j, spec, modelSelect.value);
       } catch (err) {
         lastPayload = null;
         lastSpec = null;

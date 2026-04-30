@@ -1,5 +1,11 @@
-const CACHE_NAME = "stc-mobile-v1";
-const ASSETS = ["./index.html", "./manifest.json", "../logo.png", "../source/models.py"];
+const CACHE_NAME = "stc-mobile-v2";
+const ASSETS = [
+  "./index.html",
+  "./desktop-formula-where.js",
+  "./manifest.json",
+  "../logo.png",
+  "../source/models.py",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
