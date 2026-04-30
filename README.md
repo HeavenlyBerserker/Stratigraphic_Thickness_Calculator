@@ -33,7 +33,7 @@ This software is based on and intended as a companion to a coming-soon paper ([p
 
 1. Choose the model that matches your geometry assumptions.
 2. Enter measured values and angles using the documented conventions in this README.
-3. Optional: for uncertainty analysis, enter non-zero `σ` values to enable Monte Carlo outputs (leave `σ = 0` for deterministic runs). Click the `?` icon for a quick cheatsheet of what to do with `σ`.
+3. Optional: for uncertainty analysis, enter non-zero `σ` values to enable Monte Carlo outputs (leave `σ = 0` for deterministic runs). Click the `?` icon in the web app or hover over a `σ`value box for a quick cheatsheet of what to do with `σ`.
 4. Review geometry warnings in fold models before final interpretation.
 5. Export results/plots when needed for reporting and auditability.
 
