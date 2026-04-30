@@ -104,3 +104,31 @@ bash build_executable.sh
 
 Built artifact:
 - `StratigraphicThicknessCalculator` (project root)
+
+## Mobile App (PWA)
+
+`mobile/index.html` is now fully static and runs computations in-browser with Pyodide.
+
+### Test mobile app on PC
+
+```powershell
+conda activate geo_stc
+pip install -r requirements.txt
+python -m http.server 8787
+```
+
+Then open `http://localhost:8787/mobile/index.html` in your browser.
+Mobile Monte Carlo uses 2,500 samples for faster response on phone-class devices.
+
+### Test on Android / iOS (same network, no app store deploy)
+
+1. Start server on PC:
+
+```powershell
+python -m http.server 8787
+```
+
+2. Find your PC LAN IP (for example `192.168.1.25`).
+3. On phone connected to the same Wi-Fi, open:
+   - `http://<PC-LAN-IP>:8787/mobile/index.html`
+4. Optional: use browser "Add to Home Screen" to install as PWA.

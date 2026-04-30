@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <title>Stratigraphic Thickness Mobile</title>
+  <link rel="manifest" href="./manifest.json" />
+  <style>
+    :root {
+      --bg: #111827;
+      --panel: #1f2937;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #22c55e;
+      --warn: #ef4444;
+      --input: #374151;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      flex: 0 0 auto;
+    }
+    h1 {
+      margin: 0 0 8px 0;
+      font-size: 1.2rem;
+    }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.92rem;
+    }
+    input, select, button, textarea {
+      width: 100%;
+      border: 1px solid #4b5563;
+      border-radius: 8px;
+      background: var(--input);
+      color: var(--text);
+      padding: 10px;
+      font-size: 16px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .cell-label { align-self: center; }
+    .section-title { font-weight: bold; margin-top: 8px; }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    button {
+      background: #2563eb;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button.secondary { background: #4b5563; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.35;
+    }
+    .warn { color: var(--warn); }
+    @media (max-width: 640px) {
+      .row, .actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="title-row">
+        <img class="logo" src="../logo.png" alt="Stratigraphic Thickness Calculator logo" />
+        <h1>Stratigraphic Thickness Calculator</h1>
+      </div>
+    </div>
+
+    <div class="card">
+      <label for="model">Model</label>
+      <select id="model"></select>
+      <div id="fields" style="margin-top:10px;"></div>
+      <div class="actions">
+        <button id="btnCalc">Calculate</button>
+        <button id="btnReset" class="secondary">Reset Defaults</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Output</label>
+      <pre id="output">Ready.</pre>
+      <canvas id="mcPlot" style="display:none; width:100%; max-width:100%; margin-top:10px; background:#0b1220; border-radius:8px;"></canvas>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
+  <script>
+    const defaults = {
+      measured_thickness: 15,
+      wellbore_inclination_deg: 40,
+      wellbore_azimuth_deg: 130,
+      formation_dip_deg: 20,
+      dip_azimuth_deg: 110,
+      formation_dip1_deg: 20,
+      dip_azimuth1_deg: 110,
+      formation_dip2_deg: 18,
+      dip_azimuth2_deg: 150
+    };
+
+    const labels = {
+      measured_thickness: "M (Measured Thickness)",
+      wellbore_inclination_deg: "δ (Wellbore Inclination, deg)",
+      wellbore_azimuth_deg: "φᵦ (Wellbore Azimuth, deg)",
+      formation_dip_deg: "β (Formation Dip, deg)",
+      dip_azimuth_deg: "φd (Dip Azimuth, deg)",
+      formation_dip1_deg: "β₁ (Top Dip, deg)",
+      dip_azimuth1_deg: "φd₁ (Top Dip Azimuth, deg)",
+      formation_dip2_deg: "β₂ (Base Dip, deg)",
+      dip_azimuth2_deg: "φd₂ (Base Dip Azimuth, deg)"
+    };
+
+    const modelSpecs = {
+      t1: { label: "One-dip (T1)", fields: ["measured_thickness","wellbore_inclination_deg","formation_dip_deg","wellbore_azimuth_deg","dip_azimuth_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth_deg"], formula: ["T1 = M(cosδ - sinδ cos(φd - φb) tanβ) cosβ"], where: ["T1: one-dip true stratigraphic thickness"] },
+      t2: { label: "Average-vector (T2)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["Uav = (Ud1 + Ud2) / ||Ud1 + Ud2||", "T2 = M (Uav · Ub)"], where: ["T2: average-vector thickness"] },
+      t3: { label: "Average-thickness (T3)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["T3 = (M Ud1·Ub + M Ud2·Ub) / 2", "T3 = M (Ud1 + Ud2)·Ub / 2"], where: ["T3: average-thickness model output"] },
+      t4: { label: "Mixed Average (T4)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["T4 = (T2 + T3) / 2"], where: ["T4: mean of T2 and T3"] },
+      t5: { label: "Concentric Fold (T5)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["β'2 = arctan(tanβ2 |cos(φd1−φd2)|)", "T5 = M' sinγ / cos(η/2)"], where: ["T5: concentric-fold thickness"] },
+      t6: { label: "Plunging Concentric Fold (T6)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["T6 = M' (sinγ / sinα)"], where: ["T6: plunging-fold thickness"] },
+      t7: { label: "Top-normal (T7)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["If S < 0: T7 = M' cos(α−η) / cosη", "If S ≥ 0: T7 = M' cos(α+η) / cosη"], where: ["T7: top-normal thickness"] },
+      t8: { label: "Equal-angle (T8)", fields: ["measured_thickness","wellbore_inclination_deg","wellbore_azimuth_deg","formation_dip1_deg","dip_azimuth1_deg","formation_dip2_deg","dip_azimuth2_deg"], wrap_fields: ["wellbore_azimuth_deg","dip_azimuth1_deg","dip_azimuth2_deg"], formula: ["Top-normal intermediate from T7 branch rule", "T8 = Top-normal × cos(η/2)"], where: ["T8: equal-angle thickness"] }
+    };
+
+    const modelSelect = document.getElementById("model");
+    const fieldsRoot = document.getElementById("fields");
+    const output = document.getElementById("output");
+    const mcPlot = document.getElementById("mcPlot");
+    const btnCalc = document.getElementById("btnCalc");
+    let pyodide = null;
+    let runtimeReady = false;
+
+    function formatVal(v) {
+      if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(6);
+      if (Array.isArray(v)) return "(" + v.map(formatVal).join(", ") + ")";
+      if (v && typeof v === "object") return JSON.stringify(v, null, 2);
+      return String(v);
+    }
+
+    function renderFields(modelId) {
+      const m = modelSpecs[modelId];
+      fieldsRoot.innerHTML = "";
+      if (!m) return;
+      m.fields.forEach((f) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        const label = document.createElement("label");
+        label.textContent = labels[f] || f;
+        label.className = "cell-label";
+        const input = document.createElement("input");
+        input.id = "v_" + f;
+        input.type = "number";
+        input.step = "any";
+        input.value = defaults[f] ?? 0;
+        const sigma = document.createElement("input");
+        sigma.id = "s_" + f;
+        sigma.type = "number";
+        sigma.step = "any";
+        sigma.min = "0";
+        sigma.value = "0";
+        const col1 = document.createElement("div");
+        col1.appendChild(label);
+        const col2 = document.createElement("div");
+        col2.appendChild(input);
+        const col3 = document.createElement("div");
+        col3.appendChild(sigma);
+        row.appendChild(col1);
+        row.appendChild(col2);
+        row.appendChild(col3);
+        fieldsRoot.appendChild(row);
+      });
+    }
+
+    function readValuesAndStds(modelId) {
+      const m = modelSpecs[modelId];
+      const vals = {};
+      const stds = {};
+      for (const f of m.fields) {
+        const v = document.getElementById("v_" + f).value;
+        const s = document.getElementById("s_" + f).value;
+        vals[f] = Number(v);
+        stds[f] = Math.max(0, Number(s));
+      }
+      return { vals, stds };
+    }
+
+    function drawHistogram(values) {
+      if (!Array.isArray(values) || values.length < 2) {
+        mcPlot.style.display = "none";
+        return;
+      }
+      const bins = 40;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const width = max - min || 1;
+      const counts = new Array(bins).fill(0);
+      for (const v of values) {
+        let i = Math.floor(((v - min) / width) * bins);
+        if (i < 0) i = 0;
+        if (i >= bins) i = bins - 1;
+        counts[i] += 1;
+      }
+      const dpr = window.devicePixelRatio || 1;
+      const cssW = mcPlot.clientWidth || 600;
+      const cssH = 280;
+      mcPlot.width = Math.floor(cssW * dpr);
+      mcPlot.height = Math.floor(cssH * dpr);
+      mcPlot.style.height = cssH + "px";
+      const ctx = mcPlot.getContext("2d");
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, cssW, cssH);
+      const margin = { top: 34, right: 18, bottom: 52, left: 58 };
+      const plotW = cssW - margin.left - margin.right;
+      const plotH = cssH - margin.top - margin.bottom;
+      const maxC = Math.max(...counts);
+      const pctPerCount = 100.0 / values.length;
+      const maxPct = maxC * pctPerCount;
+
+      // Background for plot area
+      ctx.fillStyle = "#0b1220";
+      ctx.fillRect(margin.left, margin.top, plotW, plotH);
+
+      // Bars
+      ctx.fillStyle = "#4C78A8";
+      for (let i = 0; i < bins; i++) {
+        const barW = plotW / bins;
+        const h = maxC ? (counts[i] / maxC) * plotH : 0;
+        const x = margin.left + i * barW;
+        const y = margin.top + (plotH - h);
+        ctx.fillRect(x + 1, y, Math.max(1, barW - 2), h);
+      }
+
+      // Axes
+      ctx.strokeStyle = "#9ca3af";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(margin.left, margin.top);
+      ctx.lineTo(margin.left, margin.top + plotH);
+      ctx.lineTo(margin.left + plotW, margin.top + plotH);
+      ctx.stroke();
+
+      // Y ticks and labels (percentage)
+      ctx.fillStyle = "#d1d5db";
+      ctx.font = "12px Arial";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      const yTicks = 5;
+      for (let i = 0; i <= yTicks; i++) {
+        const t = i / yTicks;
+        const y = margin.top + plotH - t * plotH;
+        const val = (t * maxPct).toFixed(1);
+        ctx.strokeStyle = "#334155";
+        ctx.beginPath();
+        ctx.moveTo(margin.left, y);
+        ctx.lineTo(margin.left + plotW, y);
+        ctx.stroke();
+        ctx.fillStyle = "#d1d5db";
+        ctx.fillText(val, margin.left - 8, y);
+      }
+
+      // X ticks and labels (thickness)
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const xTicks = 4;
+      for (let i = 0; i <= xTicks; i++) {
+        const t = i / xTicks;
+        const x = margin.left + t * plotW;
+        const val = (min + t * width).toFixed(3);
+        ctx.strokeStyle = "#334155";
+        ctx.beginPath();
+        ctx.moveTo(x, margin.top + plotH);
+        ctx.lineTo(x, margin.top + plotH + 6);
+        ctx.stroke();
+        ctx.fillStyle = "#d1d5db";
+        ctx.fillText(val, x, margin.top + plotH + 8);
+      }
+
+      // Axis labels + title
+      ctx.fillStyle = "#f3f4f6";
+      ctx.font = "bold 13px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("Thickness", margin.left + plotW / 2, cssH - 20);
+
+      ctx.save();
+      ctx.translate(16, margin.top + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("Frequency (%)", 0, 0);
+      ctx.restore();
+
+      ctx.font = "bold 14px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("Monte Carlo Thickness Distribution", margin.left + plotW / 2, 10);
+      mcPlot.style.display = "block";
+    }
+
+    function renderResult(payload, activeSpec) {
+      const res = payload.result;
+      const lines = [];
+      lines.push("Result");
+      lines.push("True Stratigraphic Thickness: " + res.true_stratigraphic_thickness.toFixed(6));
+      lines.push("");
+      lines.push("Inputs (μ, σ)");
+      for (const [k, v] of Object.entries(payload.inputs)) {
+        lines.push(`${k}: ${formatVal(v)}  (σ=${formatVal(payload.stds[k])})`);
+      }
+      lines.push("");
+      lines.push("Quantities");
+      for (const [k, v] of Object.entries(res)) {
+        if (k === "true_stratigraphic_thickness" || k === "geometry_warnings") continue;
+        lines.push(k + ": " + formatVal(v));
+      }
+      if (Array.isArray(res.geometry_warnings) && res.geometry_warnings.length > 0) {
+        lines.push("");
+        lines.push("Warning: intermediate angles");
+        for (const w of res.geometry_warnings) lines.push("- " + w);
+      }
+      if (payload.monte_carlo) {
+        const mc = payload.monte_carlo;
+        lines.push("");
+        lines.push("Monte Carlo Distribution");
+        lines.push("N = " + Number(mc.n));
+        lines.push("Mean = " + formatVal(mc.mean));
+        lines.push("Std = " + formatVal(mc.std));
+        lines.push("P10 = " + formatVal(mc.p10));
+        lines.push("P25 = " + formatVal(mc.p25));
+        lines.push("P50 = " + formatVal(mc.p50));
+        lines.push("P75 = " + formatVal(mc.p75));
+        lines.push("P90 = " + formatVal(mc.p90));
+      }
+      if (Array.isArray(activeSpec.formula) && activeSpec.formula.length > 0) {
+        lines.push("");
+        lines.push("Formula");
+        for (const f of activeSpec.formula) lines.push("- " + f);
+      }
+      if (Array.isArray(activeSpec.where) && activeSpec.where.length > 0) {
+        lines.push("");
+        lines.push("Where");
+        for (const w of activeSpec.where) lines.push("- " + w);
+      }
+      output.classList.toggle("warn", Array.isArray(res.geometry_warnings) && res.geometry_warnings.length > 0);
+      output.textContent = lines.join("\n");
+      drawHistogram(payload.monte_carlo ? payload.monte_carlo.thicknesses : null);
+    }
+
+    async function initPyodideRuntime() {
+      if (runtimeReady) return;
+      btnCalc.disabled = true;
+      btnCalc.textContent = "Initializing...";
+      pyodide = await loadPyodide();
+      const modelSource = await (await fetch("../source/models.py")).text();
+      pyodide.FS.mkdir("/source");
+      pyodide.FS.writeFile("/source/__init__.py", "");
+      pyodide.FS.writeFile("/source/models.py", modelSource);
+      await pyodide.runPythonAsync(`
+import json, random
+import sys, types
+from dataclasses import asdict
+from statistics import mean, pstdev
+
+source_pkg = types.ModuleType("source")
+source_pkg.__path__ = []  # mark as package
+sys.modules["source"] = source_pkg
+models_mod = types.ModuleType("source.models")
+models_mod.__name__ = "source.models"
+models_mod.__package__ = "source"
+sys.modules["source.models"] = models_mod
+with open("/source/models.py", "r", encoding="utf-8") as f:
+    exec(compile(f.read(), "/source/models.py", "exec"), models_mod.__dict__)
+_ns = models_mod.__dict__
+
+OneDipInputs = _ns["OneDipInputs"]
+AverageVectorInputs = _ns["AverageVectorInputs"]
+AverageThicknessInputs = _ns["AverageThicknessInputs"]
+MixedAverageInputs = _ns["MixedAverageInputs"]
+ConcentricFoldInputs = _ns["ConcentricFoldInputs"]
+PlungingConcentricFoldInputs = _ns["PlungingConcentricFoldInputs"]
+TopNormalInputs = _ns["TopNormalInputs"]
+EqualAngleInputs = _ns["EqualAngleInputs"]
+compute_one_dip = _ns["compute_one_dip"]
+compute_average_vector = _ns["compute_average_vector"]
+compute_average_thickness = _ns["compute_average_thickness"]
+compute_mixed_average = _ns["compute_mixed_average"]
+compute_concentric_fold = _ns["compute_concentric_fold"]
+compute_plunging_concentric_fold = _ns["compute_plunging_concentric_fold"]
+compute_top_normal = _ns["compute_top_normal"]
+compute_equal_angle = _ns["compute_equal_angle"]
+
+_MAP = {
+    "t1": (OneDipInputs, compute_one_dip),
+    "t2": (AverageVectorInputs, compute_average_vector),
+    "t3": (AverageThicknessInputs, compute_average_thickness),
+    "t4": (MixedAverageInputs, compute_mixed_average),
+    "t5": (ConcentricFoldInputs, compute_concentric_fold),
+    "t6": (PlungingConcentricFoldInputs, compute_plunging_concentric_fold),
+    "t7": (TopNormalInputs, compute_top_normal),
+    "t8": (EqualAngleInputs, compute_equal_angle),
+}
+
+def _pct(vals, p):
+    sv = sorted(vals)
+    if len(sv) == 1: return sv[0]
+    i = (len(sv)-1)*p
+    lo = int(i); hi = min(lo+1, len(sv)-1); f = i-lo
+    return sv[lo]*(1-f)+sv[hi]*f
+
+def _bounds(name):
+    if "azimuth" in name: return (0.0, 360.0)
+    if "inclination" in name: return (0.0, 180.0)
+    if "dip" in name: return (0.0, 90.0)
+    return (-1e9, 1e9)
+
+def _sample(mu, sigma, lo, hi, wrap):
+    if sigma <= 0.0: return mu
+    raw = random.gauss(mu, sigma)
+    if wrap:
+        w = hi - lo
+        return ((raw - lo) % w) + lo
+    return min(max(raw, lo), hi)
+
+def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
+    C, fn = _MAP[model_id]
+    vals = {k: float(v) for k, v in values.items()}
+    sds = {k: max(0.0, float(stds.get(k, 0.0))) for k in vals.keys()}
+    result = fn(C(**vals))
+    mc = None
+    if any(s > 1e-12 for s in sds.values()):
+        ts = []
+        keys = list(vals.keys())
+        wrap = set(wrap_fields)
+        for _ in range(sample_count):
+            cur = {}
+            for k in keys:
+                lo, hi = _bounds(k)
+                cur[k] = _sample(vals[k], sds[k], lo, hi, k in wrap)
+            r = fn(C(**cur))
+            ts.append(float(r.true_stratigraphic_thickness))
+        mc = {
+            "n": float(sample_count),
+            "mean": mean(ts),
+            "std": pstdev(ts),
+            "p10": _pct(ts, 0.10),
+            "p25": _pct(ts, 0.25),
+            "p50": _pct(ts, 0.50),
+            "p75": _pct(ts, 0.75),
+            "p90": _pct(ts, 0.90),
+            "thicknesses": ts,
+        }
+    return json.dumps({"result": asdict(result), "inputs": vals, "stds": sds, "monte_carlo": mc})
+      `);
+      runtimeReady = true;
+      btnCalc.disabled = false;
+      btnCalc.textContent = "Calculate";
+    }
+
+    function loadModels() {
+      modelSelect.innerHTML = "";
+      Object.entries(modelSpecs).forEach(([id, m]) => {
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = m.label;
+        modelSelect.appendChild(o);
+      });
+      renderFields(modelSelect.value);
+    }
+
+    modelSelect.addEventListener("change", () => renderFields(modelSelect.value));
+    document.getElementById("btnReset").addEventListener("click", () => renderFields(modelSelect.value));
+    btnCalc.addEventListener("click", async () => {
+      try {
+        if (!runtimeReady) {
+          await initPyodideRuntime();
+        }
+        const { vals, stds } = readValuesAndStds(modelSelect.value);
+        const spec = modelSpecs[modelSelect.value];
+        const jTxt = await pyodide.runPythonAsync(
+          `compute_payload(${JSON.stringify(modelSelect.value)}, ${JSON.stringify(vals)}, ${JSON.stringify(stds)}, ${JSON.stringify(spec.wrap_fields || [])}, 2500)`
+        );
+        const j = JSON.parse(jTxt);
+        output.classList.remove("warn");
+        renderResult(j, spec);
+      } catch (err) {
+        output.classList.add("warn");
+        output.textContent = "Calculation failed:\n" + err.message;
+        mcPlot.style.display = "none";
+      }
+    });
+
+    if ("serviceWorker" in navigator) {
+      // Disable SW in this build to avoid stale cached JS/Python during rapid iteration.
+      window.addEventListener("load", async () => {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        } catch (_) {}
+      });
+    }
+
+    (async () => {
+      try {
+        loadModels();
+        await initPyodideRuntime();
+      } catch (err) {
+        runtimeReady = false;
+        btnCalc.disabled = false;
+        btnCalc.textContent = "Calculate";
+        output.classList.add("warn");
+        output.textContent = "Failed to initialize app:\n" + err.message;
+      }
+    })();
+  </script>
+</body>
+</html>
+

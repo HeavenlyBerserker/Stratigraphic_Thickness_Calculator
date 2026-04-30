@@ -1,0 +1,12 @@
+{
+  "name": "Stratigraphic Thickness Calculator",
+  "short_name": "STC Mobile",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "description": "Mobile PWA for stratigraphic thickness computations.",
+  "icons": []
+}
+
