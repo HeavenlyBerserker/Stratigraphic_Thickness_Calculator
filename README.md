@@ -2,7 +2,7 @@
 Calculates true stratigraphic thickness using 3D borehole data, with both desktop and mobile/web interfaces that support result export workflows (including figures/plots).
 The web app can be accessed at [https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) in computer or phone browsers; it can be used when internet service is available or when the site is already cached on the device. The desktop app can be used anywhere after download/install, without requiring active internet access.
 
-This software is based on and intended as a companion to a coming-soon paper ([paper link coming soon](#)). Use the **Index** below as a navigation guide: go to **Windows Desktop App** for model formulas/conventions and outputs, **Run Locally** for desktop setup, **Build Portable Executables** for release binaries, **Mobile App (PWA)** for browser deployment/use, and **Software Guidelines** for methodological guidance, assumptions, limits, and best practices.
+This software is based on and intended as a companion to a coming-soon paper ([paper link coming soon](#)). Most users should use either the hosted **Mobile App (PWA)** or downloadable **GitHub Releases** binaries. The **Build from Source** section is intended for code-savvy users who want to inspect/modify code, run from source, or build release artifacts themselves.
 
 ## Index
 
@@ -106,6 +106,12 @@ python -m http.server 8787
 
 ## Build from Source
 
+This section is for developers and technical users who want to run the app from source code, inspect implementation details, or produce release binaries.
+
+If you only want to use the calculator, prefer:
+- Mobile web app (no install): [https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html)
+- Desktop binaries from GitHub Releases (when published)
+
 ### Windows Desktop App (PySide6)
 
 **Input angle conventions:** dip azimuths φ and wellbore azimuth φ_b are clockwise from north with **0° ≤ φ ≤ 360°**; bed dips β with **0° ≤ β ≤ 90°**; borehole inclination δ is the angle from vertical down with **0° ≤ δ ≤ 180°**. Intermediate angles in the fold models satisfy **0° ≤ β′ ≤ 90°**, **0° < α < 180°**, **0° < γ < 180°**, and **0° < η < 180°** where those quantities appear.
@@ -158,9 +164,16 @@ Currently implemented:
 
 ### Run Locally (Conda: `geo_stc`)
 
-This project assumes your default Conda environment is `geo_stc`.
+Conda is a package and environment manager for Python that helps install compatible dependencies in isolated environments.
+
+If Conda is not installed, install one of:
+- Miniconda: [https://docs.conda.io/en/latest/miniconda.html](https://docs.conda.io/en/latest/miniconda.html)
+- Anaconda Distribution: [https://www.anaconda.com/download](https://www.anaconda.com/download)
+
+Then create and use a dedicated Conda environment named `geo_stc`:
 
 ```powershell
+conda create -n geo_stc python=3.12 -y
 conda activate geo_stc
 pip install -r requirements.txt
 python -m source.main
