@@ -36,6 +36,24 @@ MONTE_CARLO_SIGMA_TOOLTIP = (
 )
 
 
+class _DoubleSpinBoxNoTrailingZeros(QDoubleSpinBox):
+    """
+    Same precision and stepping as QDoubleSpinBox, but the line edit does not
+    pad with trailing zeros (e.g. 20 instead of 20.0000).
+    """
+
+    def textFromValue(self, value: float) -> str:
+        if value != value:  # NaN
+            return super().textFromValue(value)
+        if value == 0.0:
+            return "0"
+        d = self.decimals()
+        s = f"{value:.{d}f}".rstrip("0").rstrip(".")
+        if s in ("", "-", "-0"):
+            return "0"
+        return s
+
+
 class ModelTab(QWidget):
     """
     Generic tab layout:
@@ -135,13 +153,13 @@ class ModelTab(QWidget):
         step: float = 0.1,
         default: float = 0.0,
     ) -> None:
-        value_box = QDoubleSpinBox()
+        value_box = _DoubleSpinBoxNoTrailingZeros()
         value_box.setDecimals(decimals)
         value_box.setRange(minimum, maximum)
         value_box.setSingleStep(step)
         value_box.setValue(default)
 
-        std_box = QDoubleSpinBox()
+        std_box = _DoubleSpinBoxNoTrailingZeros()
         std_box.setDecimals(decimals)
         std_box.setRange(0.0, maximum - minimum)
         std_box.setSingleStep(step)
