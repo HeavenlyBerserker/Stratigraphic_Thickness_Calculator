@@ -88,6 +88,8 @@ The purpose is to bridge field/interpretation measurements and quantitative thic
 
 ## Developing on Mobile App (PWA)
 
+A **PWA** (**P**rogressive **W**eb **A**pp) is a website that behaves like a lightweight installable app: you run it in the browser, and on phones or tablets you can often use **Add to Home Screen** (or similar) to pin it with an icon and open it full screen, without going through an app store. It is still served as ordinary web pages and assets.
+
 `mobile/index.html` is now fully static and runs computations in-browser with Pyodide.
 
 ### Test mobile app on PC
