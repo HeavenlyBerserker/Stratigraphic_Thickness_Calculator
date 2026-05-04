@@ -1,7 +1,7 @@
 /**
  * Web-only 3D geometry schematic: left = bed volume + borehole + T + axes;
  * right = separate legend ("vane"). Bed volumes are 3D solids (slab, single
- * bed with two dips, wedge, or folded shells) per model.
+ * bed with two dips, wedging tetrahedron (Fig. 6), or folded shells) per model.
  */
 (function (global) {
   const V = {
@@ -125,19 +125,58 @@
   }
 
   /**
-   * Wedge: two slanted slabs (top / base beds) slightly separated along bisector for clarity.
+   * Wedging bed (paper §2.2.6 / Fig. 6): upper and lower boundaries are planes ⊥ Ud1 and ⊥ Ud2;
+   * they intersect along hinge H ∥ N_dp = Ud1 × Ud2. Solid is a tetrahedron with one edge on the
+   * hinge and two triangular faces on the top and base beds — a literal wedge pinching to the hinge.
+   * T7 uses thickness ⊥ top; T8 uses the equal-angle construction on the same geometry (tDir differs).
    */
-  function buildWedgeMesh(n1, n2, size, thick, fillA, strokeA, fillB, strokeB) {
-    const a1 = V.unit(n1);
-    const a2 = V.unit(n2);
-    const sum = V.add(a1, a2);
-    const spread =
-      V.norm(sum) < 1e-5 ? { x: 0, y: 0, z: 0 } : V.scale(size * 0.07, V.unit(sum));
-    const s = size * 0.85;
-    const t = thick * 0.92;
+  function buildWedgingBedMesh(ud1, ud2, ndpHint, charLen, slabThick, fillTop, strokeTop, fillBase, strokeBase) {
+    const u1 = V.unit(ud1);
+    const u2 = V.unit(ud2);
+    let Hraw = ndpHint && V.norm(ndpHint) > 1e-10 ? ndpHint : V.cross(u1, u2);
+    if (V.norm(Hraw) < 1e-8) {
+      const sum = V.add(u1, u2);
+      const tDir = V.norm(sum) < 1e-10 ? u1 : V.unit(sum);
+      return buildSingleBedTwoSlantsMesh(
+        { x: 0, y: 0, z: 0 },
+        u1,
+        u2,
+        Math.max(charLen, 1) * 0.72,
+        slabThick * 1.05,
+        tDir,
+        fillTop,
+        strokeTop,
+        fillBase,
+        strokeBase
+      );
+    }
+    const H = V.unit(Hraw);
+    const L = Math.max(Number(charLen) || 1, 1e-6);
+    const hingeLen = L * 0.96;
+    const radial = L * 0.74;
+    const eTop = V.unit(V.cross(H, u1));
+    const eBase = V.unit(V.cross(H, u2));
+    let V0 = V.scale(-hingeLen * 0.5, H);
+    let V1 = V.scale(hingeLen * 0.5, H);
+    let V2 = V.add(V0, V.scale(radial, eTop));
+    let V3 = V.add(V0, V.scale(radial, eBase));
+    const ctr = centroid3([V0, V1, V2, V3]);
+    const shift = { x: -ctr.x, y: -ctr.y, z: -ctr.z };
+    V0 = V.add(V0, shift);
+    V1 = V.add(V1, shift);
+    V2 = V.add(V2, shift);
+    V3 = V.add(V3, shift);
+
+    const fillSide = "rgba(45, 170, 125, 0.28)";
+    const strokeSide = "rgba(45, 170, 125, 0.65)";
+    const fillEnd = "rgba(52, 160, 118, 0.24)";
+    const strokeEnd = "rgba(52, 160, 118, 0.6)";
+    const tri = (a, b, c, fill, stroke) => ({ verts: [a, b, c], fill, stroke });
     return [
-      ...buildSlabMesh(V.scale(-0.5, spread), a1, s, t, fillA, strokeA),
-      ...buildSlabMesh(V.scale(0.5, spread), a2, s, t, fillB, strokeB),
+      tri(V0, V1, V2, fillTop, strokeTop),
+      tri(V0, V1, V3, fillBase, strokeBase),
+      tri(V0, V2, V3, fillSide, strokeSide),
+      tri(V1, V2, V3, fillEnd, strokeEnd),
     ];
   }
 
@@ -305,10 +344,17 @@
         tDir = V.unit(ud1);
         break;
       case "t7":
-      case "t8":
         bedNormals = [V.from(res.ud1_vector), V.from(res.ud2_vector)];
         tDir = V.unit(ud1);
         break;
+      case "t8": {
+        const ua = V.from(res.ud1_vector);
+        const ub2 = V.from(res.ud2_vector);
+        bedNormals = [ua, ub2];
+        const sum = V.add(ua, ub2);
+        tDir = V.norm(sum) < 1e-10 ? V.unit(ua) : V.unit(sum);
+        break;
+      }
       default:
         return null;
     }
@@ -364,11 +410,18 @@
       const u2 = V.from(res.ud2_vector);
       const hint = res.ndp_vector ? V.from(res.ndp_vector) : null;
       meshFaces = buildSemiArchFoldMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
-    } else if (modelId === "t7" || modelId === "t8") {
-      volumeKind = "Wedge (two-bed cut)";
+    } else if (modelId === "t7") {
+      volumeKind = "Wedging bed (top-normal, Fig. 6a)";
       const u1 = V.from(res.ud1_vector);
       const u2 = V.from(res.ud2_vector);
-      meshFaces = buildWedgeMesh(u1, u2, planeSize, slabThick * 1.05, fillTop, strokeTop, fillBase, strokeBase);
+      const hint = res.ndp_vector ? V.from(res.ndp_vector) : null;
+      meshFaces = buildWedgingBedMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
+    } else if (modelId === "t8") {
+      volumeKind = "Wedging bed (equal-angle, Fig. 6b)";
+      const u1 = V.from(res.ud1_vector);
+      const u2 = V.from(res.ud2_vector);
+      const hint = res.ndp_vector ? V.from(res.ndp_vector) : null;
+      meshFaces = buildWedgingBedMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
     }
 
     return {
@@ -380,6 +433,7 @@
       tDir,
       meshFaces,
       volumeKind,
+      wedgeFootnote: modelId === "t8" ? "T8 = T7 cos(η/2); η = angle between U_d1 and U_d2." : null,
     };
   }
 
@@ -636,6 +690,15 @@
     for (const ln of volLines) {
       ctx.fillText(ln, lx, ly);
       ly += 12;
+    }
+    if (scene.wedgeFootnote) {
+      ly += 6;
+      ctx.font = "8px Arial";
+      ctx.fillStyle = "#78716c";
+      for (const ln of wordWrap(scene.wedgeFootnote, legendW - 20)) {
+        ctx.fillText(ln, lx, ly);
+        ly += 11;
+      }
     }
     if (modelId === "t5" || modelId === "t6") {
       ly += 6;
