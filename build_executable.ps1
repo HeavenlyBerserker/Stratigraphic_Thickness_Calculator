@@ -26,7 +26,7 @@ if (Get-Command conda -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "Executable name: $appName"
-Write-Host "Bundling asset: $logoFile"
+Write-Host "Bundling assets: $logoFile, mobile/geometry_embed.html, mobile/geometry-schematic.js"
 
 python -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) {
@@ -39,6 +39,10 @@ python -m PyInstaller `
     --windowed `
     --icon "$logoFile" `
     --add-data "$logoFile;." `
+    --add-data "mobile/geometry_embed.html;mobile" `
+    --add-data "mobile/geometry-schematic.js;mobile" `
+    --hidden-import PySide6.QtWebEngineWidgets `
+    --hidden-import PySide6.QtWebEngineCore `
     --name "$appName" `
     "$appMain"
 

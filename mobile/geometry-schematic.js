@@ -492,7 +492,6 @@
       });
     };
 
-    const legendH = STC_LEGEND_H;
     /** Use pointer position in **canvas** space (not viewport). Viewport X was wrong on desktop when the page is centered. */
     const inMainPlot = (clientX, clientY) => {
       const rect = canvas.getBoundingClientRect();
@@ -502,7 +501,9 @@
       const h = rect.height;
       if (w < 1 || h < 1) return false;
       if (lx < 0 || ly < 0 || lx >= w || ly >= h) return false;
-      const splitY = h - legendH;
+      const lh =
+        canvas._stcLegendH != null ? canvas._stcLegendH : STC_LEGEND_H;
+      const splitY = h - lh;
       return ly < splitY - 2;
     };
 
@@ -631,6 +632,15 @@
       }
     });
     canvas.style.touchAction = "none";
+
+    if (!canvas._stcResizeObserved) {
+      canvas._stcResizeObserved = true;
+      const ro = new ResizeObserver(() => {
+        schedulePaint();
+      });
+      ro.observe(canvas);
+      if (canvas.parentElement) ro.observe(canvas.parentElement);
+    }
   }
 
   function paintGeometry(canvas) {
@@ -665,10 +675,36 @@
       cssW = canvas.parentElement.clientWidth;
     }
     if (!cssW) cssW = 600;
-    const cssH = 320;
+
+    let cssH = canvas.clientHeight || canvas.offsetHeight;
+    if (!cssH && canvas.parentElement) {
+      cssH = canvas.parentElement.clientHeight;
+    }
+    if (!cssH) {
+      const br = canvas.getBoundingClientRect();
+      if (br.height > 1) cssH = br.height;
+    }
+    if (!cssH || cssH < 32) cssH = 320;
+
+    const refW = 600;
+    const refH = 320;
+    const layoutS = Math.max(0.5, Math.min(2.5, Math.min(cssW / refW, cssH / refH)));
+    const fs = (px) => Math.round(px * layoutS) + "px Arial";
+    const fsBold = (px) => "bold " + Math.round(px * layoutS) + "px Arial";
+
+    let legendH = Math.round(STC_LEGEND_H * layoutS);
+    legendH = Math.min(legendH, Math.floor(cssH * 0.38));
+    legendH = Math.max(48, legendH);
+    let splitY = cssH - legendH;
+    const minPlot = Math.max(64, Math.round(90 * layoutS));
+    if (splitY < minPlot) {
+      legendH = Math.max(40, cssH - minPlot);
+      splitY = cssH - legendH;
+    }
+    canvas._stcLegendH = legendH;
+
     canvas.width = Math.floor(cssW * dpr);
     canvas.height = Math.floor(cssH * dpr);
-    canvas.style.height = cssH + "px";
     canvas.style.cursor = "grab";
     canvas.title = "Drag to orbit · wheel zoom (desktop) · pinch zoom (mobile) · double-click reset";
 
@@ -677,11 +713,8 @@
     ctx.fillStyle = "#0b1220";
     ctx.fillRect(0, 0, cssW, cssH);
 
-    const legendH = STC_LEGEND_H;
-    const splitY = cssH - legendH;
-
     ctx.strokeStyle = "#334155";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = Math.max(1, layoutS);
     ctx.beginPath();
     ctx.moveTo(0, splitY + 0.5);
     ctx.lineTo(cssW, splitY + 0.5);
@@ -690,7 +723,12 @@
     ctx.fillStyle = "#0f172a";
     ctx.fillRect(0, splitY + 1, cssW, legendH - 1);
 
-    const margin = { left: 24, right: 24, top: 34, bottom: 20 };
+    const margin = {
+      left: Math.round(24 * layoutS),
+      right: Math.round(24 * layoutS),
+      top: Math.round(34 * layoutS),
+      bottom: Math.round(20 * layoutS),
+    };
     const plotW = cssW - margin.left - margin.right;
     const plotH = splitY - margin.top - margin.bottom;
     const cx = margin.left + plotW / 2;
@@ -724,12 +762,12 @@
 
     const bb = bboxProjected(pts2);
     const span = Math.max(bb.maxX - bb.minX, bb.maxY - bb.minY, 1e-6);
-    const scale = (Math.min(plotW, plotH) / (span * 1.18)) * cam.zoom;
+    const projScale = (Math.min(plotW, plotH) / (span * 1.18)) * cam.zoom;
 
     function toCanvas(p2) {
       return {
-        x: cx + p2.x * scale,
-        y: cy - p2.y * scale,
+        x: cx + p2.x * projScale,
+        y: cy - p2.y * projScale,
       };
     }
 
@@ -760,7 +798,7 @@
       ctx.fillStyle = f.fill;
       ctx.fill();
       ctx.strokeStyle = f.stroke;
-      ctx.lineWidth = 1.45;
+      ctx.lineWidth = Math.max(1, 1.45 * layoutS);
       ctx.stroke();
       ctx.restore();
     }
@@ -774,14 +812,18 @@
 
     function drawAxisArrow(from, vec, color, label) {
       const tip = V.add(from, vec);
-      drawLine3(from, tip, color, 2.2);
+      drawLine3(from, tip, color, Math.max(1.2, 2.2 * layoutS));
       const end = toCanvas(projectCam(tip));
       ctx.save();
       ctx.fillStyle = color;
-      ctx.font = "11px Arial";
+      ctx.font = fs(11);
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, Math.min(end.x + 4, cssW - 72), end.y);
+      ctx.fillText(
+        label,
+        Math.min(end.x + Math.round(4 * layoutS), cssW - Math.round(72 * layoutS)),
+        end.y
+      );
       ctx.restore();
     }
 
@@ -791,79 +833,89 @@
 
     ctx.save();
     ctx.strokeStyle = "#64748b";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = Math.max(1, layoutS);
+    ctx.setLineDash([Math.round(3 * layoutS), Math.round(3 * layoutS)]);
     const AO = toCanvas(projectCam(axisOrigin));
     ctx.beginPath();
-    ctx.arc(AO.x, AO.y, 3.5, 0, Math.PI * 2);
+    ctx.arc(AO.x, AO.y, Math.max(2, 3.5 * layoutS), 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = "#64748b";
-    ctx.font = "9px Arial";
+    ctx.font = fs(9);
     ctx.textAlign = "center";
-    ctx.fillText("axes", AO.x, AO.y + 14);
+    ctx.fillText("axes", AO.x, AO.y + Math.round(14 * layoutS));
     ctx.restore();
 
-    drawLine3(origin, scene.boreholeEnd, "#38bdf8", 3.5);
-    drawLine3(origin, scene.tEnd, "#fbbf24", 3.5);
+    drawLine3(origin, scene.boreholeEnd, "#38bdf8", Math.max(2, 3.5 * layoutS));
+    drawLine3(origin, scene.tEnd, "#fbbf24", Math.max(2, 3.5 * layoutS));
 
     ctx.save();
     ctx.strokeStyle = "#475569";
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = Math.max(1, layoutS);
+    ctx.setLineDash([Math.round(4 * layoutS), Math.round(4 * layoutS)]);
     ctx.beginPath();
-    ctx.arc(O.x, O.y, 4, 0, Math.PI * 2);
+    ctx.arc(O.x, O.y, Math.max(2.5, 4 * layoutS), 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "10px Arial";
+    ctx.font = fs(10);
     ctx.textAlign = "center";
-    ctx.fillText("O", O.x, O.y + 18);
+    ctx.fillText("O", O.x, O.y + Math.round(18 * layoutS));
     ctx.restore();
 
     ctx.save();
     ctx.fillStyle = "#cbd5e1";
-    ctx.font = "bold 12px Arial";
+    ctx.font = fsBold(12);
     ctx.textAlign = "center";
-    ctx.fillText("3D view — drag to orbit · wheel/pinch zoom · dbl-click reset", cssW / 2, 16);
+    ctx.fillText(
+      "3D view — drag to orbit · wheel/pinch zoom · dbl-click reset",
+      cssW / 2,
+      Math.max(Math.round(14 * layoutS), 12)
+    );
     ctx.restore();
 
-    const lx = 12;
-    let ly = splitY + 16;
+    const lx = Math.round(12 * layoutS);
+    const seg = Math.round(18 * layoutS);
+    const sw = Math.max(6, Math.round(9 * layoutS));
+    let ly = splitY + Math.round(16 * layoutS);
     ctx.save();
     ctx.textAlign = "left";
     ctx.fillStyle = "#e2e8f0";
-    ctx.font = "bold 11px Arial";
+    ctx.font = fsBold(11);
     ctx.fillText("Legend", lx, ly);
-    ly += 14;
-    ctx.font = "9px Arial";
+    ly += Math.round(14 * layoutS);
+    ctx.font = fs(9);
     ctx.fillStyle = "#94a3b8";
     const legendLine = (x, y, color, text, isSeg) => {
       if (isSeg) {
         ctx.strokeStyle = color;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = Math.max(2, 3 * layoutS);
         ctx.beginPath();
-        ctx.moveTo(x, y - 3);
-        ctx.lineTo(x + 18, y - 3);
+        ctx.moveTo(x, y - Math.round(3 * layoutS));
+        ctx.lineTo(x + seg, y - Math.round(3 * layoutS));
         ctx.stroke();
       } else {
         ctx.fillStyle = color;
-        ctx.fillRect(x, y - 9, 9, 9);
+        ctx.fillRect(x, y - sw, sw, sw);
       }
       ctx.fillStyle = "#e2e8f0";
-      ctx.fillText(text, x + 24, y);
+      ctx.fillText(text, x + Math.round(24 * layoutS), y);
     };
     legendLine(lx, ly, "#f87171", "x axis (North)", false);
-    legendLine(lx + 122, ly, "#4ade80", "y axis (East)", false);
-    legendLine(lx + 238, ly, "#93c5fd", "z axis (down)", false);
-    legendLine(lx + 348, ly, "#38bdf8", "M", true);
-    legendLine(lx + 398, ly, "#fbbf24", "T", true);
-    ly += 16;
+    legendLine(lx + Math.round(122 * layoutS), ly, "#4ade80", "y axis (East)", false);
+    legendLine(lx + Math.round(238 * layoutS), ly, "#93c5fd", "z axis (down)", false);
+    legendLine(lx + Math.round(348 * layoutS), ly, "#38bdf8", "M", true);
+    legendLine(lx + Math.round(398 * layoutS), ly, "#fbbf24", "T", true);
+    ly += Math.round(16 * layoutS);
     ctx.fillStyle = "#64748b";
-    ctx.font = "8px Arial";
-    ctx.fillText("Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.", lx, ly);
-    ly += 12;
-    ly += 2;
+    ctx.font = fs(8);
+    ctx.fillText(
+      "Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.",
+      lx,
+      ly
+    );
+    ly += Math.round(14 * layoutS);
+    ly += Math.round(2 * layoutS);
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "8px Arial";
+    ctx.font = fs(8);
     const wordWrap = (txt, maxW) => {
       const words = txt.split(" ");
       const lines = [];
@@ -880,39 +932,46 @@
       if (line) lines.push(line);
       return lines;
     };
-    const volLines = wordWrap("Bed volume: " + scene.volumeKind, cssW - 24);
+    const textPad = Math.round(24 * layoutS);
+    const lineGap = Math.round(12 * layoutS);
+    const lineGapS = Math.round(11 * layoutS);
+    const volLines = wordWrap("Bed volume: " + scene.volumeKind, cssW - textPad);
     for (const ln of volLines) {
       ctx.fillText(ln, lx, ly);
-      ly += 12;
+      ly += lineGap;
     }
     if (scene.wedgeFootnote) {
-      ly += 6;
-      ctx.font = "8px Arial";
+      ly += Math.round(6 * layoutS);
+      ctx.font = fs(8);
       ctx.fillStyle = "#78716c";
-      for (const ln of wordWrap(scene.wedgeFootnote, cssW - 24)) {
+      for (const ln of wordWrap(scene.wedgeFootnote, cssW - textPad)) {
         ctx.fillText(ln, lx, ly);
-        ly += 11;
+        ly += lineGapS;
       }
     }
     if (modelId === "t5" || modelId === "t6") {
-      ly += 6;
-      ctx.font = "8px Arial";
+      ly += Math.round(6 * layoutS);
+      ctx.font = fs(8);
       ctx.fillStyle = "#78716c";
       for (const ln of wordWrap(
         "If η (between poles) is small, the drawn arc opens to ≥28° for visibility.",
-        cssW - 24
+        cssW - textPad
       )) {
         ctx.fillText(ln, lx, ly);
-        ly += 11;
+        ly += lineGapS;
       }
     }
     ctx.restore();
 
     ctx.save();
-    ctx.font = "9px Arial";
+    ctx.font = fs(9);
     ctx.fillStyle = "#64748b";
     ctx.textAlign = "center";
-    ctx.fillText("Schematic only — not to scale.", cssW / 2, splitY - 6);
+    ctx.fillText(
+      "Schematic only — not to scale.",
+      cssW / 2,
+      splitY - Math.round(6 * layoutS)
+    );
     ctx.restore();
   }
 

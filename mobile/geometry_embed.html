@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>STC geometry schematic</title>
+    <script src="geometry-schematic.js"></script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0b1220;
+      }
+      canvas#geometryCanvas {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        min-height: 120px;
+        background: #0b1220;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="geometryCanvas" style="display: none"></canvas>
+  </body>
+</html>
