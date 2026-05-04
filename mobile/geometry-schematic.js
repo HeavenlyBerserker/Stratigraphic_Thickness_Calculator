@@ -1,5 +1,5 @@
 /**
- * Web-only 3D geometry schematic: left = bed volume + borehole + T + axes;
+ * Web-only 3D geometry schematic: left = interactive orbit/zoom view (bed + borehole + T + axes);
  * right = separate legend ("vane"). Bed volumes are 3D solids (slab, single
  * bed with two dips, wedging tetrahedron (Fig. 6), or folded shells) per model.
  */
@@ -43,6 +43,28 @@
     return {
       x: (p.x - p.y) * ISO_C,
       y: (p.x + p.y) * ISO_S - p.z,
+    };
+  }
+
+  /** World ENU, z down: orbit yaw about +z, then pitch about +x (east). */
+  function rotatePointWorld(p, yaw, pitch) {
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+    const x0 = cy * p.x - sy * p.y;
+    const y0 = sy * p.x + cy * p.y;
+    const z0 = p.z;
+    return {
+      x: x0,
+      y: cp * y0 - sp * z0,
+      z: sp * y0 + cp * z0,
+    };
+  }
+
+  function makeProjectCam(yaw, pitch) {
+    return function projectCam(p) {
+      return project(rotatePointWorld(p, yaw, pitch));
     };
   }
 
@@ -306,8 +328,8 @@
     return { x: x / n, y: y / n, z: z / n };
   }
 
-  function faceDepth(f) {
-    const c = centroid3(f.verts);
+  function faceDepthRotated(f, yaw, pitch) {
+    const c = centroid3(f.verts.map((v) => rotatePointWorld(v, yaw, pitch)));
     return c.x + c.y - c.z * 0.9;
   }
 
@@ -451,7 +473,114 @@
     return { minX, maxX, minY, maxY };
   }
 
-  function drawGeometry(canvas, modelId, payload) {
+  const STC_PITCH_LIM = (85 * Math.PI) / 180;
+  const STC_ZOOM_MIN = 0.4;
+  const STC_ZOOM_MAX = 4.5;
+
+  function bindStcCamera(canvas) {
+    let raf = 0;
+    const schedulePaint = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        if (canvas._stcPayload && canvas._stcModelId !== undefined) {
+          paintGeometry(canvas);
+        }
+      });
+    };
+
+    const legendW = 134;
+    /** Use pointer position in **canvas** space (not viewport). Viewport X was wrong on desktop when the page is centered. */
+    const inMainPlot = (clientX, clientY) => {
+      const rect = canvas.getBoundingClientRect();
+      const lx = clientX - rect.left;
+      const ly = clientY - rect.top;
+      const w = rect.width;
+      const h = rect.height;
+      if (w < 1 || h < 1) return false;
+      if (lx < 0 || ly < 0 || lx >= w || ly >= h) return false;
+      const splitX = w - legendW;
+      return lx < splitX - 2;
+    };
+
+    const onPointerMove = (e) => {
+      if (!canvas._stcDragging || e.pointerId !== canvas._stcActivePointerId) return;
+      const cam = canvas._stcCam;
+      if (!cam) return;
+      const dx = e.clientX - canvas._stcLastX;
+      const dy = e.clientY - canvas._stcLastY;
+      canvas._stcLastX = e.clientX;
+      canvas._stcLastY = e.clientY;
+      cam.yaw += dx * 0.007;
+      cam.pitch += dy * 0.007;
+      cam.pitch = Math.max(-STC_PITCH_LIM, Math.min(STC_PITCH_LIM, cam.pitch));
+      schedulePaint();
+    };
+
+    const endPointerDrag = (e) => {
+      if (e.pointerId !== canvas._stcActivePointerId) return;
+      canvas._stcDragging = false;
+      canvas._stcActivePointerId = undefined;
+      canvas.style.cursor = "grab";
+      try {
+        canvas.releasePointerCapture(e.pointerId);
+      } catch (_) {
+        /* not captured */
+      }
+    };
+
+    canvas.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if (!inMainPlot(e.clientX, e.clientY)) return;
+        if (e.pointerType === "touch") {
+          e.preventDefault();
+        }
+        try {
+          canvas.setPointerCapture(e.pointerId);
+        } catch (_) {
+          /* ignore */
+        }
+        canvas._stcActivePointerId = e.pointerId;
+        canvas._stcDragging = true;
+        canvas._stcLastX = e.clientX;
+        canvas._stcLastY = e.clientY;
+        canvas.style.cursor = "grabbing";
+      },
+      { passive: false }
+    );
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", endPointerDrag);
+    canvas.addEventListener("pointercancel", endPointerDrag);
+    canvas.addEventListener(
+      "wheel",
+      (e) => {
+        if (!inMainPlot(e.clientX, e.clientY)) return;
+        e.preventDefault();
+        const cam = canvas._stcCam;
+        if (!cam) return;
+        const f = e.deltaY > 0 ? 0.92 : 1.09;
+        cam.zoom = Math.max(STC_ZOOM_MIN, Math.min(STC_ZOOM_MAX, cam.zoom * f));
+        schedulePaint();
+      },
+      { passive: false }
+    );
+    canvas.addEventListener("dblclick", (e) => {
+      if (!inMainPlot(e.clientX, e.clientY)) return;
+      if (canvas._stcCam) {
+        canvas._stcCam.yaw = 0;
+        canvas._stcCam.pitch = 0;
+        canvas._stcCam.zoom = 1;
+        schedulePaint();
+      }
+    });
+    canvas.style.touchAction = "none";
+  }
+
+  function paintGeometry(canvas) {
+    const payload = canvas._stcPayload;
+    const modelId = canvas._stcModelId;
     if (!canvas || !payload || !payload.result || !payload.inputs) {
       if (canvas) canvas.style.display = "none";
       return;
@@ -470,6 +599,10 @@
       return;
     }
 
+    const cam = canvas._stcCam || { yaw: 0, pitch: 0, zoom: 1 };
+    canvas._stcCam = cam;
+    const projectCam = makeProjectCam(cam.yaw, cam.pitch);
+
     canvas.style.display = "block";
     const dpr = window.devicePixelRatio || 1;
     let cssW = canvas.clientWidth || canvas.offsetWidth;
@@ -481,6 +614,8 @@
     canvas.width = Math.floor(cssW * dpr);
     canvas.height = Math.floor(cssH * dpr);
     canvas.style.height = cssH + "px";
+    canvas.style.cursor = "grab";
+    canvas.title = "Drag to rotate · wheel zoom · double-click reset view";
 
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -488,7 +623,6 @@
     ctx.fillRect(0, 0, cssW, cssH);
 
     const legendW = 134;
-    const mainW = Math.max(cssW - legendW, cssW * 0.58);
     const splitX = cssW - legendW;
 
     ctx.strokeStyle = "#334155";
@@ -511,7 +645,7 @@
     const pts2 = [];
 
     function addPt(p) {
-      pts2.push(project(p));
+      pts2.push(projectCam(p));
     }
 
     addPt(origin);
@@ -535,7 +669,7 @@
 
     const bb = bboxProjected(pts2);
     const span = Math.max(bb.maxX - bb.minX, bb.maxY - bb.minY, 1e-6);
-    const scale = Math.min(plotW, plotH) / (span * 1.18);
+    const scale = (Math.min(plotW, plotH) / (span * 1.18)) * cam.zoom;
 
     function toCanvas(p2) {
       return {
@@ -545,8 +679,8 @@
     }
 
     function drawLine3(a, b, color, width, dash) {
-      const pa = toCanvas(project(a));
-      const pb = toCanvas(project(b));
+      const pa = toCanvas(projectCam(a));
+      const pb = toCanvas(projectCam(b));
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
@@ -561,10 +695,10 @@
     function fillFace3(f) {
       ctx.save();
       ctx.beginPath();
-      const p0 = toCanvas(project(f.verts[0]));
+      const p0 = toCanvas(projectCam(f.verts[0]));
       ctx.moveTo(p0.x, p0.y);
       for (let i = 1; i < f.verts.length; i++) {
-        const pi = toCanvas(project(f.verts[i]));
+        const pi = toCanvas(projectCam(f.verts[i]));
         ctx.lineTo(pi.x, pi.y);
       }
       ctx.closePath();
@@ -576,15 +710,17 @@
       ctx.restore();
     }
 
-    const sortedFaces = [...scene.meshFaces].sort((a, b) => faceDepth(a) - faceDepth(b));
+    const sortedFaces = [...scene.meshFaces].sort(
+      (a, b) => faceDepthRotated(a, cam.yaw, cam.pitch) - faceDepthRotated(b, cam.yaw, cam.pitch)
+    );
     for (const f of sortedFaces) fillFace3(f);
 
-    const O = toCanvas(project(origin));
+    const O = toCanvas(projectCam(origin));
 
     function drawAxisArrow(from, vec, color, label) {
       const tip = V.add(from, vec);
       drawLine3(from, tip, color, 2.2);
-      const end = toCanvas(project(tip));
+      const end = toCanvas(projectCam(tip));
       ctx.save();
       ctx.fillStyle = color;
       ctx.font = "11px Arial";
@@ -602,7 +738,7 @@
     ctx.strokeStyle = "#64748b";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
-    const AO = toCanvas(project(axisOrigin));
+    const AO = toCanvas(projectCam(axisOrigin));
     ctx.beginPath();
     ctx.arc(AO.x, AO.y, 3.5, 0, Math.PI * 2);
     ctx.stroke();
@@ -632,7 +768,7 @@
     ctx.fillStyle = "#cbd5e1";
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("3D cross-section (x East, y North, z Down)", splitX / 2, 16);
+    ctx.fillText("3D view — drag to rotate · wheel zoom · dbl-click reset", splitX / 2, 16);
     ctx.restore();
 
     const lx = splitX + 12;
@@ -667,7 +803,13 @@
     ly += 4;
     legendLine("#38bdf8", "M (wellbore path)", true);
     legendLine("#fbbf24", "T (stratigraphic)", true);
-    ly += 8;
+    ly += 10;
+    ctx.fillStyle = "#64748b";
+    ctx.font = "8px Arial";
+    ctx.fillText("Left panel: drag to orbit", lx, ly);
+    ly += 12;
+    ctx.fillText("Wheel zoom · dbl-click reset", lx, ly);
+    ly += 14;
     ctx.fillStyle = "#94a3b8";
     ctx.font = "9px Arial";
     const wordWrap = (txt, maxW) => {
@@ -720,6 +862,37 @@
     ctx.textAlign = "center";
     ctx.fillText("Schematic only — not to scale.", splitX / 2, cssH - 12);
     ctx.restore();
+  }
+
+  function drawGeometry(canvas, modelId, payload) {
+    if (!canvas || !payload || !payload.result || !payload.inputs) {
+      if (canvas) canvas.style.display = "none";
+      return;
+    }
+    const res = payload.result;
+    const M = Number(payload.inputs.measured_thickness);
+    const Tval = Number(res.true_stratigraphic_thickness);
+    if (!Number.isFinite(M) || !Number.isFinite(Tval)) {
+      canvas.style.display = "none";
+      return;
+    }
+
+    canvas._stcPayload = payload;
+    canvas._stcModelId = modelId;
+    if (canvas._stcLastModelId !== modelId) {
+      canvas._stcCam = { yaw: 0, pitch: 0, zoom: 1 };
+      canvas._stcLastModelId = modelId;
+    }
+    if (!canvas._stcCam) {
+      canvas._stcCam = { yaw: 0, pitch: 0, zoom: 1 };
+    }
+
+    if (!canvas._stcCameraBound) {
+      canvas._stcCameraBound = true;
+      bindStcCamera(canvas);
+    }
+
+    paintGeometry(canvas);
   }
 
   global.STC_DRAW_GEOMETRY = drawGeometry;
