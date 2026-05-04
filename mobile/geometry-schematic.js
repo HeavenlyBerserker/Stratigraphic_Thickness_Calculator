@@ -46,25 +46,25 @@
     };
   }
 
-  /** World ENU, z down: orbit yaw about +z, then pitch about +x (east). */
-  function rotatePointWorld(p, yaw, pitch) {
+  /** No-roll turntable camera basis from yaw/pitch. */
+  function makeCameraBasis(yaw, pitch) {
     const cy = Math.cos(yaw);
     const sy = Math.sin(yaw);
     const cp = Math.cos(pitch);
     const sp = Math.sin(pitch);
-    const x0 = cy * p.x - sy * p.y;
-    const y0 = sy * p.x + cy * p.y;
-    const z0 = p.z;
-    return {
-      x: x0,
-      y: cp * y0 - sp * z0,
-      z: sp * y0 + cp * z0,
-    };
+    const right = { x: cy, y: sy, z: 0 };
+    const up = { x: -sy * sp, y: cy * sp, z: -cp };
+    const forward = { x: -sy * cp, y: cy * cp, z: sp };
+    return { right, up, forward };
   }
 
   function makeProjectCam(yaw, pitch) {
+    const basis = makeCameraBasis(yaw, pitch);
     return function projectCam(p) {
-      return project(rotatePointWorld(p, yaw, pitch));
+      return {
+        x: V.dot(p, basis.right),
+        y: V.dot(p, basis.up),
+      };
     };
   }
 
@@ -329,8 +329,9 @@
   }
 
   function faceDepthRotated(f, yaw, pitch) {
-    const c = centroid3(f.verts.map((v) => rotatePointWorld(v, yaw, pitch)));
-    return c.x + c.y - c.z * 0.9;
+    const basis = makeCameraBasis(yaw, pitch);
+    const c = centroid3(f.verts);
+    return V.dot(c, basis.forward);
   }
 
   function collectScene(modelId, res, M, Tval) {
@@ -476,6 +477,8 @@
   const STC_PITCH_LIM = (85 * Math.PI) / 180;
   const STC_ZOOM_MIN = 0.4;
   const STC_ZOOM_MAX = 4.5;
+  const STC_LEGEND_H = 96;
+  const STC_ROT_SENS = 0.006;
 
   function bindStcCamera(canvas) {
     let raf = 0;
@@ -489,7 +492,7 @@
       });
     };
 
-    const legendW = 134;
+    const legendH = STC_LEGEND_H;
     /** Use pointer position in **canvas** space (not viewport). Viewport X was wrong on desktop when the page is centered. */
     const inMainPlot = (clientX, clientY) => {
       const rect = canvas.getBoundingClientRect();
@@ -499,29 +502,71 @@
       const h = rect.height;
       if (w < 1 || h < 1) return false;
       if (lx < 0 || ly < 0 || lx >= w || ly >= h) return false;
-      const splitX = w - legendW;
-      return lx < splitX - 2;
+      const splitY = h - legendH;
+      return ly < splitY - 2;
+    };
+
+    const touchPoints = new Map();
+    const updateTouchPoint = (e) => {
+      if (e.pointerType !== "touch") return;
+      touchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    };
+    const removeTouchPoint = (e) => {
+      if (e.pointerType !== "touch") return;
+      touchPoints.delete(e.pointerId);
+    };
+    const touchDistance = () => {
+      const pts = Array.from(touchPoints.values());
+      if (pts.length < 2) return null;
+      return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    };
+    const rotationSensPx = () => {
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(260, Math.min(960, rect.width || canvas.clientWidth || 600));
+      return STC_ROT_SENS * (480 / w);
     };
 
     const onPointerMove = (e) => {
-      if (!canvas._stcDragging || e.pointerId !== canvas._stcActivePointerId) return;
       const cam = canvas._stcCam;
       if (!cam) return;
+
+      if (e.pointerType === "touch") {
+        if (touchPoints.has(e.pointerId)) touchPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touchPoints.size === 2) {
+          const d = touchDistance();
+          if (d && canvas._stcPinchStartDist) {
+            const ratio = d / Math.max(canvas._stcPinchStartDist, 1e-6);
+            cam.zoom = Math.max(STC_ZOOM_MIN, Math.min(STC_ZOOM_MAX, canvas._stcPinchStartZoom * ratio));
+            schedulePaint();
+          }
+          return;
+        }
+      }
+
+      if (!canvas._stcDragging || e.pointerId !== canvas._stcActivePointerId) return;
       const dx = e.clientX - canvas._stcLastX;
       const dy = e.clientY - canvas._stcLastY;
       canvas._stcLastX = e.clientX;
       canvas._stcLastY = e.clientY;
-      cam.yaw += dx * 0.007;
-      cam.pitch += dy * 0.007;
+      const sens = rotationSensPx();
+      // Turntable: horizontal drag controls yaw only; vertical drag controls pitch only.
+      cam.yaw -= dx * sens;
+      cam.pitch -= dy * sens;
       cam.pitch = Math.max(-STC_PITCH_LIM, Math.min(STC_PITCH_LIM, cam.pitch));
       schedulePaint();
     };
 
     const endPointerDrag = (e) => {
-      if (e.pointerId !== canvas._stcActivePointerId) return;
-      canvas._stcDragging = false;
-      canvas._stcActivePointerId = undefined;
-      canvas.style.cursor = "grab";
+      removeTouchPoint(e);
+      if (touchPoints.size < 2) {
+        canvas._stcPinchStartDist = null;
+        canvas._stcPinchStartZoom = null;
+      }
+      if (e.pointerId === canvas._stcActivePointerId) {
+        canvas._stcDragging = false;
+        canvas._stcActivePointerId = undefined;
+        canvas.style.cursor = "grab";
+      }
       try {
         canvas.releasePointerCapture(e.pointerId);
       } catch (_) {
@@ -536,6 +581,14 @@
         if (!inMainPlot(e.clientX, e.clientY)) return;
         if (e.pointerType === "touch") {
           e.preventDefault();
+          updateTouchPoint(e);
+          if (touchPoints.size === 2) {
+            canvas._stcDragging = false;
+            canvas._stcActivePointerId = undefined;
+            canvas._stcPinchStartDist = touchDistance();
+            canvas._stcPinchStartZoom = (canvas._stcCam && canvas._stcCam.zoom) || 1;
+            return;
+          }
         }
         try {
           canvas.setPointerCapture(e.pointerId);
@@ -572,6 +625,8 @@
         canvas._stcCam.yaw = 0;
         canvas._stcCam.pitch = 0;
         canvas._stcCam.zoom = 1;
+        canvas._stcPinchStartDist = null;
+        canvas._stcPinchStartZoom = null;
         schedulePaint();
       }
     });
@@ -615,29 +670,29 @@
     canvas.height = Math.floor(cssH * dpr);
     canvas.style.height = cssH + "px";
     canvas.style.cursor = "grab";
-    canvas.title = "Drag to rotate · wheel zoom · double-click reset view";
+    canvas.title = "Drag to orbit · wheel zoom (desktop) · pinch zoom (mobile) · double-click reset";
 
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = "#0b1220";
     ctx.fillRect(0, 0, cssW, cssH);
 
-    const legendW = 134;
-    const splitX = cssW - legendW;
+    const legendH = STC_LEGEND_H;
+    const splitY = cssH - legendH;
 
     ctx.strokeStyle = "#334155";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(splitX + 0.5, 0);
-    ctx.lineTo(splitX + 0.5, cssH);
+    ctx.moveTo(0, splitY + 0.5);
+    ctx.lineTo(cssW, splitY + 0.5);
     ctx.stroke();
 
     ctx.fillStyle = "#0f172a";
-    ctx.fillRect(splitX + 1, 0, legendW - 1, cssH);
+    ctx.fillRect(0, splitY + 1, cssW, legendH - 1);
 
-    const margin = { left: 36, right: 14, top: 34, bottom: 44 };
-    const plotW = splitX - margin.left - margin.right;
-    const plotH = cssH - margin.top - margin.bottom;
+    const margin = { left: 24, right: 24, top: 34, bottom: 20 };
+    const plotW = cssW - margin.left - margin.right;
+    const plotH = splitY - margin.top - margin.bottom;
     const cx = margin.left + plotW / 2;
     const cy = margin.top + plotH / 2;
 
@@ -726,12 +781,12 @@
       ctx.font = "11px Arial";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, Math.min(end.x + 4, splitX - 72), end.y);
+      ctx.fillText(label, Math.min(end.x + 4, cssW - 72), end.y);
       ctx.restore();
     }
 
-    drawAxisArrow(axisOrigin, scene.axes.ex, "#f87171", "x (E)");
-    drawAxisArrow(axisOrigin, scene.axes.ey, "#4ade80", "y (N)");
+    drawAxisArrow(axisOrigin, scene.axes.ex, "#f87171", "x (N)");
+    drawAxisArrow(axisOrigin, scene.axes.ey, "#4ade80", "y (E)");
     drawAxisArrow(axisOrigin, scene.axes.ez, "#93c5fd", "z (↓)");
 
     ctx.save();
@@ -768,50 +823,47 @@
     ctx.fillStyle = "#cbd5e1";
     ctx.font = "bold 12px Arial";
     ctx.textAlign = "center";
-    ctx.fillText("3D view — drag to rotate · wheel zoom · dbl-click reset", splitX / 2, 16);
+    ctx.fillText("3D view — drag to orbit · wheel/pinch zoom · dbl-click reset", cssW / 2, 16);
     ctx.restore();
 
-    const lx = splitX + 12;
-    let ly = 28;
+    const lx = 12;
+    let ly = splitY + 16;
     ctx.save();
     ctx.textAlign = "left";
     ctx.fillStyle = "#e2e8f0";
-    ctx.font = "bold 12px Arial";
+    ctx.font = "bold 11px Arial";
     ctx.fillText("Legend", lx, ly);
-    ly += 22;
-    ctx.font = "10px Arial";
+    ly += 14;
+    ctx.font = "9px Arial";
     ctx.fillStyle = "#94a3b8";
-    const legendLine = (color, text, isSeg) => {
+    const legendLine = (x, y, color, text, isSeg) => {
       if (isSeg) {
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(lx, ly - 3);
-        ctx.lineTo(lx + 28, ly - 3);
+        ctx.moveTo(x, y - 3);
+        ctx.lineTo(x + 18, y - 3);
         ctx.stroke();
       } else {
         ctx.fillStyle = color;
-        ctx.fillRect(lx, ly - 9, 10, 10);
+        ctx.fillRect(x, y - 9, 9, 9);
       }
       ctx.fillStyle = "#e2e8f0";
-      ctx.fillText(text, lx + 36, ly);
-      ly += 18;
+      ctx.fillText(text, x + 24, y);
     };
-    legendLine("#f87171", "x axis (East)", false);
-    legendLine("#4ade80", "y axis (North)", false);
-    legendLine("#93c5fd", "z axis (down)", false);
-    ly += 4;
-    legendLine("#38bdf8", "M (wellbore path)", true);
-    legendLine("#fbbf24", "T (stratigraphic)", true);
-    ly += 10;
+    legendLine(lx, ly, "#f87171", "x axis (North)", false);
+    legendLine(lx + 122, ly, "#4ade80", "y axis (East)", false);
+    legendLine(lx + 238, ly, "#93c5fd", "z axis (down)", false);
+    legendLine(lx + 348, ly, "#38bdf8", "M", true);
+    legendLine(lx + 398, ly, "#fbbf24", "T", true);
+    ly += 16;
     ctx.fillStyle = "#64748b";
     ctx.font = "8px Arial";
-    ctx.fillText("Left panel: drag to orbit", lx, ly);
+    ctx.fillText("Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.", lx, ly);
     ly += 12;
-    ctx.fillText("Wheel zoom · dbl-click reset", lx, ly);
-    ly += 14;
+    ly += 2;
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "9px Arial";
+    ctx.font = "8px Arial";
     const wordWrap = (txt, maxW) => {
       const words = txt.split(" ");
       const lines = [];
@@ -828,7 +880,7 @@
       if (line) lines.push(line);
       return lines;
     };
-    const volLines = wordWrap("Bed volume: " + scene.volumeKind, legendW - 24);
+    const volLines = wordWrap("Bed volume: " + scene.volumeKind, cssW - 24);
     for (const ln of volLines) {
       ctx.fillText(ln, lx, ly);
       ly += 12;
@@ -837,7 +889,7 @@
       ly += 6;
       ctx.font = "8px Arial";
       ctx.fillStyle = "#78716c";
-      for (const ln of wordWrap(scene.wedgeFootnote, legendW - 20)) {
+      for (const ln of wordWrap(scene.wedgeFootnote, cssW - 24)) {
         ctx.fillText(ln, lx, ly);
         ly += 11;
       }
@@ -848,7 +900,7 @@
       ctx.fillStyle = "#78716c";
       for (const ln of wordWrap(
         "If η (between poles) is small, the drawn arc opens to ≥28° for visibility.",
-        legendW - 20
+        cssW - 24
       )) {
         ctx.fillText(ln, lx, ly);
         ly += 11;
@@ -860,7 +912,7 @@
     ctx.font = "9px Arial";
     ctx.fillStyle = "#64748b";
     ctx.textAlign = "center";
-    ctx.fillText("Schematic only — not to scale.", splitX / 2, cssH - 12);
+    ctx.fillText("Schematic only — not to scale.", cssW / 2, splitY - 6);
     ctx.restore();
   }
 
