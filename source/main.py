@@ -1,6 +1,19 @@
 from __future__ import annotations
 
 import sys
+
+def _consume_mpl_argv() -> None:
+    """`python -m source.main --mpl` uses matplotlib schematics (before app/widgets import)."""
+    if "--mpl" not in sys.argv:
+        return
+    sys.argv = [a for a in sys.argv if a != "--mpl"]
+    from source.geometry_schematic import set_desktop_force_mpl
+
+    set_desktop_force_mpl(True)
+
+
+_consume_mpl_argv()
+
 from pathlib import Path
 
 from PySide6.QtGui import QFont, QIcon

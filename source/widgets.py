@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from source.geometry_schematic import GeometrySchematicWidget
+from source.geometry_schematic import make_geometry_schematic_widget
 
 # Shown on every σ (Monte Carlo uncertainty) spin box — short, plain language.
 MONTE_CARLO_SIGMA_TOOLTIP = (
@@ -154,7 +154,7 @@ class ModelTab(QWidget):
 
         schematic_group = QGroupBox("Schematics")
         schematic_layout = QVBoxLayout()
-        self.geometry_schematic = GeometrySchematicWidget(schematic_group)
+        self.geometry_schematic = make_geometry_schematic_widget(schematic_group)
         schematic_layout.addWidget(self.geometry_schematic)
         schematic_group.setLayout(schematic_layout)
 

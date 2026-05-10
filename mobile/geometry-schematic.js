@@ -733,7 +733,8 @@
     const plotH = splitY - margin.top - margin.bottom;
     const cx = margin.left + plotW / 2;
     /** T5/T6: geometry stays below O in projection; anchor O nearer the top so the fold fits. */
-    const originYFrac = modelId === "t5" || modelId === "t6" ? 0.24 : 0.5;
+    const originYFrac =
+      modelId === "t5" || modelId === "t6" ? 0.18 : 0.5;
     const cy = margin.top + plotH * originYFrac;
 
     const origin = { x: 0, y: 0, z: 0 };

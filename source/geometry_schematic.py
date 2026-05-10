@@ -1,6 +1,9 @@
 """
 Interactive 3D geometry schematic for the Qt desktop app (PySide6).
-Uses the same `mobile/geometry-schematic.js` as the PWA, via Qt WebEngine.
+
+Default: Qt WebEngine + `mobile/geometry-schematic.js` (same as the PWA).
+Optional: Matplotlib/QtAgg (`mpl_geometry_schematic.py`) when run as
+``python -m source.main --mpl`` or when frozen with ``BACKEND_MPL`` from build scripts.
 """
 
 from __future__ import annotations
@@ -127,7 +130,42 @@ def build_geometry_payload(model_id: str, tab: Any, result: object) -> dict[str,
     return {"result": _jsonify(result), "inputs": inputs}
 
 
-class GeometrySchematicWidget(QWidget):
+_force_desktop_mpl_from_cli = False
+
+
+def set_desktop_force_mpl(enabled: bool) -> None:
+    """Set by ``main.py`` when ``python -m source.main --mpl`` is used (before app import)."""
+    global _force_desktop_mpl_from_cli
+    _force_desktop_mpl_from_cli = bool(enabled)
+
+
+def desktop_uses_mpl_schematic() -> bool:
+    """
+    True if ``main`` set `--mpl`, else in a frozen app when ``generated_desktop_backend``
+    sets ``BACKEND_MPL`` (from build scripts).
+    """
+    if _force_desktop_mpl_from_cli:
+        return True
+    if not getattr(sys, "frozen", False):
+        return False
+    try:
+        from source import generated_desktop_backend as _gdb
+
+        return bool(_gdb.BACKEND_MPL)
+    except ImportError:
+        return False
+
+
+def make_geometry_schematic_widget(parent: QWidget | None = None) -> QWidget:
+    """WebEngine + JS by default; Matplotlib when ``--mpl`` or mpl PyInstaller build."""
+    if desktop_uses_mpl_schematic():
+        from source.mpl_geometry_schematic import MplGeometrySchematicWidget
+
+        return MplGeometrySchematicWidget(parent)
+    return GeometrySchematicWebEngineWidget(parent)
+
+
+class GeometrySchematicWebEngineWidget(QWidget):
     """
     Embeds `geometry_embed.html` + `geometry-schematic.js`. If Qt WebEngine is not
     available, shows a short fallback message.
