@@ -1,5 +1,5 @@
 """
-Matplotlib-based geometry schematic widget (desktop). Matches JS camera, scaling, T5/T6 origin offset.
+Matplotlib-based geometry schematic widget (desktop). Matches JS camera and scaling; bed mesh is AABB-centered at the schematic origin with the structural ray origin offset (see ``borehole_ray_o``).
 """
 
 from __future__ import annotations
@@ -20,6 +20,8 @@ from source.mpl_schematic_scene import (
     axis_origin_xyz,
     collect_scene,
     face_depth_for_sort,
+    mt_display_endpoints,
+    mt_display_single_bed_t234,
     project_cam_point,
     segment_depth_for_sort,
 )
@@ -28,8 +30,8 @@ from source.mpl_schematic_scene import (
 PITCH_LIM = (85.0 * math.pi) / 180.0
 ZOOM_MIN = 0.4
 ZOOM_MAX = 4.5
-# Semi-arch folds (T5/T6): projector origin O shifted up vs center so the arc fits (~JS originYFrac).
-ORIGIN_Y_FRAC_T56 = 0.18
+# Volume is AABB-centered at the schematic origin; vertical framing uses mid-height for all models.
+ORIGIN_Y_FRAC = 0.5
 # Subsegments along M / T for depth-sorted drawing with the bed (approximates a thin rod).
 _MT_LINE_SAMPLES = 56
 
@@ -91,10 +93,23 @@ def _render_main_ax(
     proj = lambda p: project_cam_point(p, yaw, pitch)
 
     pts2: list[tuple[float, float]] = []
-    o3 = (0.0, 0.0, 0.0)
-    pts2.append(proj(o3))
-    pts2.append(proj(scene.borehole_end))
-    pts2.append(proj(scene.t_end))
+    o_vol = (0.0, 0.0, 0.0)
+    o_ray = scene.borehole_ray_o
+    if model_id in ("t1", "t2", "t3", "t4", "t5", "t6", "t7", "t8"):
+        m_lo, m_hi = mt_display_single_bed_t234(
+            scene.mesh_faces, o_ray, scene.borehole_end, model_id=model_id
+        )
+        t_lo, t_hi = mt_display_single_bed_t234(
+            scene.mesh_faces, o_ray, scene.t_end, model_id=model_id
+        )
+    else:
+        m_lo, m_hi = mt_display_endpoints(o_ray, scene.borehole_end, scene.mesh_faces)
+        t_lo, t_hi = mt_display_endpoints(o_ray, scene.t_end, scene.mesh_faces)
+    pts2.append(proj(o_vol))
+    pts2.append(proj(m_lo))
+    pts2.append(proj(m_hi))
+    pts2.append(proj(t_lo))
+    pts2.append(proj(t_hi))
     for f in scene.mesh_faces:
         for vx in f["verts"]:
             pts2.append(proj(vx))
@@ -118,7 +133,7 @@ def _render_main_ax(
     min_x, max_x = min(xs), max(xs)
     min_y, max_y = min(ys), max(ys)
     span = max(max_x - min_x, max_y - min_y, 1e-6)
-    origin_y_frac = ORIGIN_Y_FRAC_T56 if model_id in ("t5", "t6") else 0.5
+    origin_y_frac = ORIGIN_Y_FRAC
     cx = plot_w * 0.5
     cy = plot_h * origin_y_frac
     proj_scale = (min(plot_w, plot_h) / (span * 1.12)) * zoom
@@ -180,15 +195,15 @@ def _render_main_ax(
     for i in range(n_samp):
         t0 = i / n_samp
         t1 = (i + 1) / n_samp
-        a = _lerp3(o3, scene.borehole_end, t0)
-        b = _lerp3(o3, scene.borehole_end, t1)
+        a = _lerp3(m_lo, m_hi, t0)
+        b = _lerp3(m_lo, m_hi, t1)
         d = segment_depth_for_sort(a, b, yaw, pitch) + i * 1e-7
         draw_rows.append((d, 1, "mseg", (a, b)))
     for i in range(n_samp):
         t0 = i / n_samp
         t1 = (i + 1) / n_samp
-        a = _lerp3(o3, scene.t_end, t0)
-        b = _lerp3(o3, scene.t_end, t1)
+        a = _lerp3(t_lo, t_hi, t0)
+        b = _lerp3(t_lo, t_hi, t1)
         d = segment_depth_for_sort(a, b, yaw, pitch) + i * 1e-7
         draw_rows.append((d, 2, "tseg", (a, b)))
     draw_rows.sort(key=lambda r: (r[0], r[1]))
@@ -232,7 +247,7 @@ def _render_main_ax(
             draw_seg_3(a, b, "#2563eb", lw_m, z=z_geo)
             z_geo += 0.01
 
-    oc = to_canvas(proj(o3))
+    oc = to_canvas(proj(o_vol))
     z_axes = max(z_geo + 2.0, 50.0)
     ls = max(2.5, (plot_w / 600.0) * 2.5)
     draw_seg_3(ax_origin, v_add(ax_origin, ex), "#ea580c", ls, z=z_axes)
@@ -299,10 +314,10 @@ class MplGeometrySchematicWidget(QWidget):
         self._fig = Figure(figsize=(4.8, 3.8), constrained_layout=False)
         self._fig.patch.set_facecolor("#ffffff")
 
-        # Thin legend strip: most vertical space for the schematic (legend text uses tight transAxes margins).
-        gs = self._fig.add_gridspec(2, 1, height_ratios=[1.0, 0.17], hspace=0.03)
-        self._ax = self._fig.add_subplot(gs[0])
-        self._ax_leg = self._fig.add_subplot(gs[1])
+        # Legend column on the right: main schematic keeps full height for orbit/zoom.
+        gs = self._fig.add_gridspec(1, 2, width_ratios=[1.0, 0.22], wspace=0.04)
+        self._ax = self._fig.add_subplot(gs[0, 0])
+        self._ax_leg = self._fig.add_subplot(gs[0, 1])
         self._ax_leg.axis("off")
         self._ax_leg.set_facecolor("#ffffff")
 
@@ -354,16 +369,16 @@ class MplGeometrySchematicWidget(QWidget):
         self._zoom = getattr(self, "_zoom", 1.0)
         self._full_redraw()
 
-    def _legend_area_height_frac(self) -> float:
-        # Match gridspec ~0.17/(1+0.17) plus small slack for hspace and canvas chrome.
-        return 0.21
+    def _legend_area_width_frac(self) -> float:
+        # Match gridspec ~0.22/(1+0.22) plus small slack for wspace.
+        return 0.26
 
     def _main_plot_px(self) -> tuple[float, float]:
         h = float(self.height() or 360)
         w = float(self.width() or 400)
-        leg_frac = self._legend_area_height_frac()
-        main_h = h * (1.0 - leg_frac - 0.02)
-        return w - 4.0, max(main_h, 80.0)
+        leg_frac = self._legend_area_width_frac()
+        main_w = w * (1.0 - leg_frac) - 6.0
+        return max(main_w, 120.0), max(h - 6.0, 80.0)
 
     def _full_redraw(self) -> None:
         if self._scene is None or self._model_id is None:
@@ -385,9 +400,9 @@ class MplGeometrySchematicWidget(QWidget):
             lines.append(
                 "If η (between poles) is small, the drawn arc opens to ≥28° for visibility."
             )
-        fs = max(7.5, min(9.0, (plot_w / 620.0) * 9.0))
+        fs = max(6.5, min(8.2, (plot_w / 520.0) * 8.2))
         n = len(lines)
-        top_m, bot_m = 0.99, 0.035
+        top_m, bot_m = 0.98, 0.04
         if n == 1:
             ys = [(top_m + bot_m) * 0.5]
         else:
@@ -395,7 +410,7 @@ class MplGeometrySchematicWidget(QWidget):
             ys = [top_m - span * i / (n - 1) for i in range(n)]
         for ln, y in zip(lines, ys):
             self._ax_leg.text(
-                0.02,
+                0.04,
                 y,
                 ln,
                 transform=self._ax_leg.transAxes,

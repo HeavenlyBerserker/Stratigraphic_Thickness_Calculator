@@ -99,12 +99,17 @@
 
   function boxMeshFromQuads(bot, top, fill, stroke) {
     const faces = [];
-    const quad = (a, b, c, d) => ({ verts: [a, b, c, d], fill, stroke });
-    faces.push(quad(bot[0], bot[1], bot[2], bot[3]));
-    faces.push(quad(top[3], top[2], top[1], top[0]));
+    const quad = (a, b, c, d, surface) => ({
+      verts: [a, b, c, d],
+      fill,
+      stroke,
+      surface,
+    });
+    faces.push(quad(bot[0], bot[1], bot[2], bot[3], "base"));
+    faces.push(quad(top[3], top[2], top[1], top[0], "top"));
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
-      faces.push(quad(bot[i], bot[j], top[j], top[i]));
+      faces.push(quad(bot[i], bot[j], top[j], top[i], "side"));
     }
     return faces;
   }
@@ -136,12 +141,17 @@
     const fillSide = "rgba(40, 130, 95, 0.42)";
     const strokeSide = "rgba(25, 95, 70, 0.9)";
     const faces = [];
-    const quad = (a, b, c, d, fill, stroke) => ({ verts: [a, b, c, d], fill, stroke });
-    faces.push(quad(bot[0], bot[1], bot[2], bot[3], fillBase, strokeBase));
-    faces.push(quad(top[3], top[2], top[1], top[0], fillTop, strokeTop));
+    const quad = (a, b, c, d, fill, stroke, surface) => ({
+      verts: [a, b, c, d],
+      fill,
+      stroke,
+      surface,
+    });
+    faces.push(quad(bot[0], bot[1], bot[2], bot[3], fillBase, strokeBase, "base"));
+    faces.push(quad(top[3], top[2], top[1], top[0], fillTop, strokeTop, "top"));
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
-      faces.push(quad(bot[i], bot[j], top[j], top[i], fillSide, strokeSide));
+      faces.push(quad(bot[i], bot[j], top[j], top[i], fillSide, strokeSide, "side"));
     }
     return faces;
   }
@@ -193,12 +203,17 @@
     const strokeSide = "rgba(22, 95, 72, 0.9)";
     const fillEnd = "rgba(40, 118, 88, 0.38)";
     const strokeEnd = "rgba(25, 88, 65, 0.88)";
-    const tri = (a, b, c, fill, stroke) => ({ verts: [a, b, c], fill, stroke });
+    const tri = (a, b, c, fill, stroke, surface) => ({
+      verts: [a, b, c],
+      fill,
+      stroke,
+      surface,
+    });
     return [
-      tri(V0, V1, V2, fillTop, strokeTop),
-      tri(V0, V1, V3, fillBase, strokeBase),
-      tri(V0, V2, V3, fillSide, strokeSide),
-      tri(V1, V2, V3, fillEnd, strokeEnd),
+      tri(V0, V1, V2, fillTop, strokeTop, "top"),
+      tri(V0, V1, V3, fillBase, strokeBase, "base"),
+      tri(V0, V2, V3, fillSide, strokeSide, "side"),
+      tri(V1, V2, V3, fillEnd, strokeEnd, "end"),
     ];
   }
 
@@ -275,9 +290,15 @@
     const Hp = V.scale(hw, H);
     const fillCap = "rgba(30, 150, 110, 0.48)";
     const strokeCap = "rgba(18, 110, 82, 0.92)";
-    const quad = (aa, bb, cc, dd, fill, stroke) => ({ verts: [aa, bb, cc, dd], fill, stroke });
+    const quad = (aa, bb, cc, dd, fill, stroke, surface) => ({
+      verts: [aa, bb, cc, dd],
+      fill,
+      stroke,
+      surface,
+    });
 
     const faces = [];
+    // Outer o* → surface "top", inner i* → "base" (paper Fig. 5: inner = stratigraphic top bed).
     for (let k = 0; k < nArc; k++) {
       const t0 = k / nArc;
       const t1 = (k + 1) / nArc;
@@ -295,8 +316,8 @@
       const i0p = V.add(i0, Hp);
       const i1m = V.add(i1, Hm);
       const i1p = V.add(i1, Hp);
-      faces.push(quad(o0m, o0p, o1p, o1m, fillOut, strokeOut));
-      faces.push(quad(i0m, i1m, i1p, i0p, fillIn, strokeIn));
+      faces.push(quad(o0m, o0p, o1p, o1m, fillOut, strokeOut, "top"));
+      faces.push(quad(i0m, i1m, i1p, i0p, fillIn, strokeIn, "base"));
     }
 
     const dS = slerpDirUnit(u1, uEnd, 0);
@@ -306,10 +327,10 @@
     const iS = V.scale(R - dr, dS);
     const iE = V.scale(R - dr, dE);
     faces.push(
-      quad(V.add(iS, Hm), V.add(iS, Hp), V.add(oS, Hp), V.add(oS, Hm), fillCap, strokeCap)
+      quad(V.add(iS, Hm), V.add(iS, Hp), V.add(oS, Hp), V.add(oS, Hm), fillCap, strokeCap, "cap")
     );
     faces.push(
-      quad(V.add(iE, Hm), V.add(oE, Hm), V.add(oE, Hp), V.add(iE, Hp), fillCap, strokeCap)
+      quad(V.add(iE, Hm), V.add(oE, Hm), V.add(oE, Hp), V.add(iE, Hp), fillCap, strokeCap, "cap")
     );
 
     return faces;
@@ -350,6 +371,395 @@
       y: a.y + t * (b.y - a.y),
       z: a.z + t * (b.z - a.z),
     };
+  }
+
+  function meshAxisAlignedBounds(meshFaces, origin) {
+    let lo = { x: Infinity, y: Infinity, z: Infinity };
+    let hi = { x: -Infinity, y: -Infinity, z: -Infinity };
+    for (const f of meshFaces) {
+      for (const v of f.verts) {
+        lo.x = Math.min(lo.x, v.x);
+        lo.y = Math.min(lo.y, v.y);
+        lo.z = Math.min(lo.z, v.z);
+        hi.x = Math.max(hi.x, v.x);
+        hi.y = Math.max(hi.y, v.y);
+        hi.z = Math.max(hi.z, v.z);
+      }
+    }
+    if (origin) {
+      lo.x = Math.min(lo.x, origin.x);
+      lo.y = Math.min(lo.y, origin.y);
+      lo.z = Math.min(lo.z, origin.z);
+      hi.x = Math.max(hi.x, origin.x);
+      hi.y = Math.max(hi.y, origin.y);
+      hi.z = Math.max(hi.z, origin.z);
+    }
+    return { lo, hi };
+  }
+
+  function meshAabbCenter(meshFaces) {
+    const { lo, hi } = meshAxisAlignedBounds(meshFaces, null);
+    return {
+      x: 0.5 * (lo.x + hi.x),
+      y: 0.5 * (lo.y + hi.y),
+      z: 0.5 * (lo.z + hi.z),
+    };
+  }
+
+  function rayAabbInterval(o, u, lo, hi) {
+    const eps = 1e-14;
+    let tNear = -Infinity;
+    let tFar = Infinity;
+    const axes = ["x", "y", "z"];
+    for (let i = 0; i < 3; i++) {
+      const ax = axes[i];
+      const oi = o[ax];
+      const ui = u[ax];
+      const loi = lo[ax];
+      const hii = hi[ax];
+      if (Math.abs(ui) < eps) {
+        if (oi < loi - 1e-9 || oi > hii + 1e-9) return null;
+        continue;
+      }
+      const inv = 1 / ui;
+      let t1 = (loi - oi) * inv;
+      let t2 = (hii - oi) * inv;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      tNear = Math.max(tNear, t1);
+      tFar = Math.min(tFar, t2);
+      if (tNear > tFar + 1e-12) return null;
+    }
+    return { tNear, tFar };
+  }
+
+  /** Past bottom contact along ray: fraction of L_in (top stub still uses ``pastEach``). */
+  const MT_STUB_BOTTOM_FRAC = 1.0;
+
+  /**
+   * Ray ∩ mesh AABB → in-volume length L_in. +z = down: smaller z = top bed.
+   * Draw from (top along ray) − pastEach×L_in to (bottom along ray) + MT_STUB_BOTTOM_FRAC×L_in, clamped to O→target.
+   */
+  function mtDisplayEndpoints(o, target, meshFaces, pastEach = 0.25) {
+    const d = V.sub(target, o);
+    const full = V.norm(d);
+    if (full < 1e-12) return { lo: o, hi: target };
+    const u = V.unit(d);
+    const { lo, hi } = meshAxisAlignedBounds(meshFaces, o);
+    const slab = rayAabbInterval(o, u, lo, hi);
+    let sA;
+    let sB;
+    if (!slab) {
+      sA = 0.25 * full;
+      sB = 0.75 * full;
+    } else {
+      const sEntry = Math.max(0, Math.min(full, slab.tNear));
+      const sExit = Math.max(0, Math.min(full, slab.tFar));
+      if (sExit <= sEntry + 1e-9 * Math.max(full, 1)) {
+        sA = 0.25 * full;
+        sB = 0.75 * full;
+      } else {
+        sA = sEntry;
+        sB = sExit;
+      }
+    }
+    let lIn = sB - sA;
+    if (lIn < 1e-9 * Math.max(full, 1)) {
+      sA = 0.25 * full;
+      sB = 0.75 * full;
+      lIn = sB - sA;
+    }
+    const pA = V.add(o, V.scale(sA, u));
+    const pB = V.add(o, V.scale(sB, u));
+    let sTop;
+    let sBot;
+    if (pA.z <= pB.z) {
+      sTop = sA;
+      sBot = sB;
+    } else {
+      sTop = sB;
+      sBot = sA;
+    }
+    const extTop = pastEach * lIn;
+    const extBot = MT_STUB_BOTTOM_FRAC * lIn;
+    let sLo = Math.max(0, sTop - extTop);
+    let sHi = Math.min(full, sBot + extBot);
+    if (sLo > sHi) [sLo, sHi] = [sHi, sLo];
+    const pLo = V.add(o, V.scale(sLo, u));
+    const pHi = V.add(o, V.scale(sHi, u));
+    return { lo: pLo, hi: pHi };
+  }
+
+  function planeNdFromFace(face) {
+    const vs = face.verts;
+    const v0 = vs[0];
+    const v1 = vs[1];
+    const v2 = vs[2];
+    let nRaw = V.cross(V.sub(v1, v0), V.sub(v2, v0));
+    let nn = V.norm(nRaw);
+    if (nn < 1e-14 && vs.length >= 4) {
+      const v3 = vs[3];
+      nRaw = V.cross(V.sub(v2, v0), V.sub(v3, v0));
+      nn = V.norm(nRaw);
+    }
+    if (nn < 1e-14) return { n: { x: 0, y: 0, z: 1 }, d: 0 };
+    const n = V.scale(1 / nn, nRaw);
+    const d = V.dot(n, v0);
+    return { n, d };
+  }
+
+  function centroidVerts(verts) {
+    let sx = 0;
+    let sy = 0;
+    let sz = 0;
+    const n = verts.length || 1;
+    for (const v of verts) {
+      sx += v.x;
+      sy += v.y;
+      sz += v.z;
+    }
+    return { x: sx / n, y: sy / n, z: sz / n };
+  }
+
+  /** Ray p = o + t*u (u unit); t where p hits plane of face, or null if parallel. */
+  function rayPlaneParameter(o, u, face) {
+    const { n: nb, d: db } = planeNdFromFace(face);
+    const denom = V.dot(nb, u);
+    if (Math.abs(denom) < 1e-12) return null;
+    return (db - V.dot(nb, o)) / denom;
+  }
+
+  /**
+   * Wedging tetrahedron: M/T along o→target. Deeper bed (+z = down ⇒ larger centroid z) gets the
+   * long stub (½ × max longest edge of the two bed Δ); shallower bed gets the short stub.
+   */
+  function wedgeMtSegmentTriBeds(o, target, topFace, baseFace, pastEach) {
+    const d = V.sub(target, o);
+    const full = V.norm(d);
+    if (full < 1e-12) return null;
+    const u = V.unit(d);
+    const tTop = rayPlaneParameter(o, u, topFace);
+    const tBase = rayPlaneParameter(o, u, baseFace);
+    if (tTop == null || tBase == null) return null;
+    if (Math.abs(tTop - tBase) < 1e-12 * Math.max(1, full)) return null;
+    const zTop = centroidVerts(topFace.verts).z;
+    const zBase = centroidVerts(baseFace.verts).z;
+    let shallowFace;
+    let bottomFace;
+    let tShallow;
+    let tBottom;
+    if (zBase >= zTop) {
+      shallowFace = topFace;
+      bottomFace = baseFace;
+      tShallow = tTop;
+      tBottom = tBase;
+    } else {
+      shallowFace = baseFace;
+      bottomFace = topFace;
+      tShallow = tBase;
+      tBottom = tTop;
+    }
+    const tEnter = Math.min(tShallow, tBottom);
+    const tExit = Math.max(tShallow, tBottom);
+    const lIn = tExit - tEnter;
+    if (lIn < 1e-12 * Math.max(1, full)) return null;
+    const extShort = pastEach * lIn;
+    let extLong =
+      0.5 * Math.max(faceLongestEdgeLen(shallowFace), faceLongestEdgeLen(bottomFace));
+    if (extLong < 1e-12 * Math.max(1, full)) extLong = MT_STUB_BOTTOM_FRAC * lIn;
+    const eps = 1e-9 * Math.max(1, full);
+    const bottomIsExit = tBottom > tShallow + eps;
+    let tLo;
+    let tHi;
+    if (bottomIsExit) {
+      tLo = Math.max(0, tEnter - extShort);
+      tHi = tExit + extLong;
+    } else {
+      tLo = tEnter - extLong;
+      tHi = tExit + extShort;
+    }
+    if (tLo > tHi) [tLo, tHi] = [tHi, tLo];
+    return { lo: V.add(o, V.scale(tLo, u)), hi: V.add(o, V.scale(tHi, u)) };
+  }
+
+  /** Longest polygon edge (triangle: three sides; n>3: cycle edges only). */
+  function faceLongestEdgeLen(face) {
+    const vs = face.verts;
+    if (!vs || vs.length < 2) return 0;
+    if (vs.length === 3) {
+      let best = 0;
+      for (let i = 0; i < 3; i++) {
+        for (let j = i + 1; j < 3; j++) {
+          best = Math.max(best, V.norm(V.sub(vs[j], vs[i])));
+        }
+      }
+      return best;
+    }
+    let best = 0;
+    const n = vs.length;
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      best = Math.max(best, V.norm(V.sub(vs[j], vs[i])));
+    }
+    return best;
+  }
+
+  /** Triangle or quad area (quad split by v0–v2 diagonal). */
+  function polygonAreaFromVerts(verts) {
+    if (!verts || verts.length < 3) return 0;
+    const v0 = verts[0];
+    const v1 = verts[1];
+    const v2 = verts[2];
+    if (verts.length === 3) {
+      return 0.5 * V.norm(V.cross(V.sub(v1, v0), V.sub(v2, v0)));
+    }
+    const v3 = verts[3];
+    const a1 = 0.5 * V.norm(V.cross(V.sub(v1, v0), V.sub(v2, v0)));
+    const a2 = 0.5 * V.norm(V.cross(V.sub(v2, v0), V.sub(v3, v0)));
+    return a1 + a2;
+  }
+
+  /**
+   * T1–T8: M/T along O→target. Wedge: tri top + tri base → top centroid, base plane.
+   * T5–T6 (Fig. 5): mesh **base** = inner limb (stratigraphic top); mesh **top** = outer limb (bottom).
+   * Area-weight center on **inner** faces; chord to deepest **outer** plane or u to that outer centroid if u ∥ plane.
+   * Wedging tri+tri (T7/T8): ``wedgeMtSegmentTriBeds`` along borehole; else bottom stub MT_STUB_BOTTOM_FRAC·L_in.
+   */
+  function mtDisplaySingleBedT234(meshFaces, o, target, pastEach = 0.25, modelId = null) {
+    function segmentFromAnchorPlane(cAnchor, planeFace) {
+      const { n: nb, d: db } = planeNdFromFace(planeFace);
+      const d = V.sub(target, o);
+      const full = V.norm(d);
+      if (full < 1e-12) return { lo: o, hi: target };
+      let u = V.unit(d);
+      let denom = V.dot(nb, u);
+      if (Math.abs(denom) < 1e-12) return null;
+      let sb = (db - V.dot(nb, cAnchor)) / denom;
+      if (sb < 0) {
+        u = V.scale(-1, u);
+        sb = -sb;
+      }
+      let lIn = Math.abs(sb);
+      if (lIn < 1e-12) lIn = Math.max(1e-9 * Math.max(full, 1), full * 0.35);
+      const extTop = pastEach * lIn;
+      const extBot = MT_STUB_BOTTOM_FRAC * lIn;
+      const sLo = -extTop;
+      const sHi = sb + extBot;
+      return {
+        lo: V.add(cAnchor, V.scale(sLo, u)),
+        hi: V.add(cAnchor, V.scale(sHi, u)),
+      };
+    }
+
+    function t56AlongUToFarCentroid(cAnchor, cFar) {
+      const d = V.sub(target, o);
+      const full = V.norm(d);
+      if (full < 1e-12) return { lo: o, hi: target };
+      let u = V.unit(d);
+      let sb = V.dot(V.sub(cFar, cAnchor), u);
+      if (sb < 0) {
+        u = V.scale(-1, u);
+        sb = -sb;
+      }
+      const lIn = Math.max(Math.abs(sb), 1e-9 * Math.max(full, 1));
+      const extTop = pastEach * lIn;
+      const extBot = MT_STUB_BOTTOM_FRAC * lIn;
+      return {
+        lo: V.add(cAnchor, V.scale(-extTop, u)),
+        hi: V.add(cAnchor, V.scale(sb + extBot, u)),
+      };
+    }
+
+    const topTris = meshFaces.filter(
+      (f) => f.surface === "top" && f.verts && f.verts.length === 3
+    );
+    const baseTris = meshFaces.filter(
+      (f) => f.surface === "base" && f.verts && f.verts.length === 3
+    );
+    if (topTris.length === 1 && baseTris.length === 1) {
+      const segW = wedgeMtSegmentTriBeds(o, target, topTris[0], baseTris[0], pastEach);
+      if (segW) return segW;
+      const cTop = centroidVerts(topTris[0].verts);
+      const seg = segmentFromAnchorPlane(cTop, baseTris[0]);
+      if (seg) return seg;
+    }
+
+    if (modelId === "t5" || modelId === "t6") {
+      const outerFs = meshFaces.filter((f) => f.surface === "top");
+      const innerFs = meshFaces.filter((f) => f.surface === "base");
+      if (outerFs.length && innerFs.length) {
+        let tw = 0;
+        let sx = 0;
+        let sy = 0;
+        let sz = 0;
+        const rows = [];
+        for (const f of innerFs) {
+          const ar = polygonAreaFromVerts(f.verts);
+          const c = centroidVerts(f.verts);
+          rows.push({ c, ar });
+          tw += ar;
+          sx += ar * c.x;
+          sy += ar * c.y;
+          sz += ar * c.z;
+        }
+        let cSeed;
+        if (tw < 1e-20) {
+          const n0 = rows.length;
+          cSeed = {
+            x: rows.reduce((s, e) => s + e.c.x, 0) / n0,
+            y: rows.reduce((s, e) => s + e.c.y, 0) / n0,
+            z: rows.reduce((s, e) => s + e.c.z, 0) / n0,
+          };
+        } else {
+          cSeed = { x: sx / tw, y: sy / tw, z: sz / tw };
+        }
+        let anchorFace = innerFs[0];
+        let bestD2 = Infinity;
+        for (const f of innerFs) {
+          const c = centroidVerts(f.verts);
+          const dx = c.x - cSeed.x;
+          const dy = c.y - cSeed.y;
+          const dz = c.z - cSeed.z;
+          const d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 < bestD2) {
+            bestD2 = d2;
+            anchorFace = f;
+          }
+        }
+        const cAnchor = centroidVerts(anchorFace.verts);
+        let deepestOuter = outerFs[0];
+        let maxZ = centroidVerts(deepestOuter.verts).z;
+        for (let j = 1; j < outerFs.length; j++) {
+          const z = centroidVerts(outerFs[j].verts).z;
+          if (z > maxZ) {
+            maxZ = z;
+            deepestOuter = outerFs[j];
+          }
+        }
+        const seg56 = segmentFromAnchorPlane(cAnchor, deepestOuter);
+        if (seg56) return seg56;
+        const cOuterCtr = centroidVerts(deepestOuter.verts);
+        return t56AlongUToFarCentroid(cAnchor, cOuterCtr);
+      }
+    }
+
+    const capSurf = new Set(["top", "base", "cap", "end"]);
+    const capFaces = meshFaces.filter((f) => capSurf.has(f.surface || ""));
+    if (capFaces.length < 2) return mtDisplayEndpoints(o, target, meshFaces, pastEach);
+    let bestMin = null;
+    let bestMax = null;
+    for (const f of capFaces) {
+      const c = centroidVerts(f.verts);
+      const z = c.z;
+      if (!bestMin || z < bestMin.z) bestMin = { f, c, z };
+      if (!bestMax || z > bestMax.z) bestMax = { f, c, z };
+    }
+    const zSpan = bestMax.z - bestMin.z;
+    if (zSpan < 1e-9 * Math.max(1, Math.abs(bestMin.z), Math.abs(bestMax.z)))
+      return mtDisplayEndpoints(o, target, meshFaces, pastEach);
+    if (bestMin.f === bestMax.f) return mtDisplayEndpoints(o, target, meshFaces, pastEach);
+    const seg2 = segmentFromAnchorPlane(bestMin.c, bestMax.f);
+    if (seg2) return seg2;
+    return mtDisplayEndpoints(o, target, meshFaces, pastEach);
   }
 
   function collectScene(modelId, res, M, Tval) {
@@ -400,8 +810,8 @@
         return null;
     }
 
-    const boreholeEnd = V.scale(M, V.unit(ub));
-    const tEnd = V.scale(Tval, tDir);
+    let boreholeEnd = V.scale(M, V.unit(ub));
+    let tEnd = V.scale(Tval, tDir);
     const L = Math.max(M, Tval, 1);
     const axisLen = L * 0.38;
     const axes = {
@@ -465,10 +875,21 @@
       meshFaces = buildWedgingBedMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
     }
 
+    const cMid = meshAabbCenter(meshFaces);
+    const negC = V.scale(-1, cMid);
+    meshFaces = meshFaces.map((f) => ({
+      ...f,
+      verts: f.verts.map((v) => V.add(v, negC)),
+    }));
+    boreholeEnd = V.sub(boreholeEnd, cMid);
+    tEnd = V.sub(tEnd, cMid);
+    const boreholeRayO = negC;
+
     return {
       bedNormals,
       boreholeEnd,
       tEnd,
+      boreholeRayO,
       axes,
       planeSize,
       tDir,
@@ -495,7 +916,8 @@
   const STC_PITCH_LIM = (85 * Math.PI) / 180;
   const STC_ZOOM_MIN = 0.4;
   const STC_ZOOM_MAX = 4.5;
-  const STC_LEGEND_H = 96;
+  const STC_LEGEND_W_FRAC = 0.24;
+  const STC_LEGEND_MIN_W = 100;
   const STC_ROT_SENS = 0.006;
 
   function bindStcCamera(canvas) {
@@ -519,10 +941,12 @@
       const h = rect.height;
       if (w < 1 || h < 1) return false;
       if (lx < 0 || ly < 0 || lx >= w || ly >= h) return false;
-      const lh =
-        canvas._stcLegendH != null ? canvas._stcLegendH : STC_LEGEND_H;
-      const splitY = h - lh;
-      return ly < splitY - 2;
+      const lw =
+        canvas._stcLegendW != null
+          ? canvas._stcLegendW
+          : Math.max(STC_LEGEND_MIN_W, Math.floor(w * STC_LEGEND_W_FRAC));
+      const splitX = w - lw;
+      return lx < splitX - 2;
     };
 
     const touchPoints = new Map();
@@ -710,16 +1134,16 @@
     const fs = (px) => Math.round(px * layoutS) + "px Arial";
     const fsBold = (px) => "bold " + Math.round(px * layoutS) + "px Arial";
 
-    let legendH = Math.round(STC_LEGEND_H * layoutS);
-    legendH = Math.min(legendH, Math.floor(cssH * 0.38));
-    legendH = Math.max(48, legendH);
-    let splitY = cssH - legendH;
-    const minPlot = Math.max(64, Math.round(90 * layoutS));
-    if (splitY < minPlot) {
-      legendH = Math.max(40, cssH - minPlot);
-      splitY = cssH - legendH;
+    let legendW = Math.round(cssW * STC_LEGEND_W_FRAC * Math.max(0.85, layoutS));
+    legendW = Math.min(legendW, Math.floor(cssW * 0.34));
+    legendW = Math.max(STC_LEGEND_MIN_W, legendW);
+    let splitX = cssW - legendW;
+    const minPlotW = Math.max(96, Math.round(140 * layoutS));
+    if (splitX < minPlotW) {
+      legendW = Math.max(80, cssW - minPlotW);
+      splitX = cssW - legendW;
     }
-    canvas._stcLegendH = legendH;
+    canvas._stcLegendW = legendW;
 
     canvas.width = Math.floor(cssW * dpr);
     canvas.height = Math.floor(cssH * dpr);
@@ -734,37 +1158,57 @@
     ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = Math.max(1, layoutS);
     ctx.beginPath();
-    ctx.moveTo(0, splitY + 0.5);
-    ctx.lineTo(cssW, splitY + 0.5);
+    ctx.moveTo(splitX + 0.5, 0);
+    ctx.lineTo(splitX + 0.5, cssH);
     ctx.stroke();
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, splitY + 1, cssW, legendH - 1);
-
     const margin = {
-      left: Math.round(24 * layoutS),
-      right: Math.round(24 * layoutS),
+      left: Math.round(22 * layoutS),
+      right: Math.round(14 * layoutS),
       top: Math.round(34 * layoutS),
       bottom: Math.round(20 * layoutS),
     };
-    const plotW = cssW - margin.left - margin.right;
-    const plotH = splitY - margin.top - margin.bottom;
+    const plotW = splitX - margin.left - margin.right;
+    const plotH = cssH - margin.top - margin.bottom;
     const cx = margin.left + plotW / 2;
-    /** T5/T6: geometry stays below O in projection; anchor O nearer the top so the fold fits. */
-    const originYFrac =
-      modelId === "t5" || modelId === "t6" ? 0.18 : 0.5;
+    const originYFrac = 0.5;
     const cy = margin.top + plotH * originYFrac;
 
-    const origin = { x: 0, y: 0, z: 0 };
+    const oVol = { x: 0, y: 0, z: 0 };
+    const oRay = scene.boreholeRayO;
     const pts2 = [];
 
     function addPt(p) {
       pts2.push(projectCam(p));
     }
 
-    addPt(origin);
-    addPt(scene.boreholeEnd);
-    addPt(scene.tEnd);
+    const mtPastEach = 0.25;
+    const useSingleBedTopAnchor =
+      modelId === "t1" ||
+      modelId === "t2" ||
+      modelId === "t3" ||
+      modelId === "t4" ||
+      modelId === "t5" ||
+      modelId === "t6" ||
+      modelId === "t7" ||
+      modelId === "t8";
+    const bhDisp = useSingleBedTopAnchor
+      ? mtDisplaySingleBedT234(
+          scene.meshFaces,
+          oRay,
+          scene.boreholeEnd,
+          mtPastEach,
+          modelId
+        )
+      : mtDisplayEndpoints(oRay, scene.boreholeEnd, scene.meshFaces, mtPastEach);
+    const tDisp = useSingleBedTopAnchor
+      ? mtDisplaySingleBedT234(scene.meshFaces, oRay, scene.tEnd, mtPastEach, modelId)
+      : mtDisplayEndpoints(oRay, scene.tEnd, scene.meshFaces, mtPastEach);
+    addPt(oVol);
+    addPt(bhDisp.lo);
+    addPt(bhDisp.hi);
+    addPt(tDisp.lo);
+    addPt(tDisp.hi);
 
     for (const f of scene.meshFaces) {
       for (const v of f.verts) addPt(v);
@@ -791,6 +1235,11 @@
         y: cy - p2.y * projScale,
       };
     }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, splitX, cssH);
+    ctx.clip();
 
     function drawLine3(a, b, color, width, dash) {
       const pa = toCanvas(projectCam(a));
@@ -837,8 +1286,8 @@
     for (let i = 0; i < nMtSeg; i++) {
       const t0 = i / nMtSeg;
       const t1 = (i + 1) / nMtSeg;
-      const a = lerpVec3(origin, scene.boreholeEnd, t0);
-      const b = lerpVec3(origin, scene.boreholeEnd, t1);
+      const a = lerpVec3(bhDisp.lo, bhDisp.hi, t0);
+      const b = lerpVec3(bhDisp.lo, bhDisp.hi, t1);
       drawRows.push({
         kind: "mseg",
         depth: segmentDepthRotated(a, b, cam.yaw, cam.pitch) + i * 1e-7,
@@ -850,8 +1299,8 @@
     for (let i = 0; i < nMtSeg; i++) {
       const t0 = i / nMtSeg;
       const t1 = (i + 1) / nMtSeg;
-      const a = lerpVec3(origin, scene.tEnd, t0);
-      const b = lerpVec3(origin, scene.tEnd, t1);
+      const a = lerpVec3(tDisp.lo, tDisp.hi, t0);
+      const b = lerpVec3(tDisp.lo, tDisp.hi, t1);
       drawRows.push({
         kind: "tseg",
         depth: segmentDepthRotated(a, b, cam.yaw, cam.pitch) + i * 1e-7,
@@ -869,7 +1318,7 @@
       else drawLine3(row.a, row.b, "#2563eb", mtLineW);
     }
 
-    const O = toCanvas(projectCam(origin));
+    const O = toCanvas(projectCam(oVol));
 
     function drawAxisArrow(from, vec, color, label) {
       const tip = V.add(from, vec);
@@ -882,7 +1331,10 @@
       ctx.textBaseline = "middle";
       ctx.fillText(
         label,
-        Math.min(end.x + Math.round(4 * layoutS), cssW - Math.round(72 * layoutS)),
+        Math.min(
+          end.x + Math.round(4 * layoutS),
+          splitX - Math.round(10 * layoutS) - ctx.measureText(label).width
+        ),
         end.y
       );
       ctx.restore();
@@ -917,55 +1369,27 @@
     ctx.textAlign = "center";
     ctx.fillText(
       "3D view — drag to orbit · wheel/pinch zoom · dbl-click reset",
-      cssW / 2,
+      splitX / 2,
       Math.max(Math.round(14 * layoutS), 12)
     );
     ctx.restore();
 
-    const lx = Math.round(12 * layoutS);
-    const seg = Math.round(18 * layoutS);
-    const sw = Math.max(6, Math.round(9 * layoutS));
-    let ly = splitY + Math.round(16 * layoutS);
     ctx.save();
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#0f172a";
-    ctx.font = fsBold(11);
-    ctx.fillText("Legend", lx, ly);
-    ly += Math.round(14 * layoutS);
     ctx.font = fs(9);
     ctx.fillStyle = "#475569";
-    const legendLine = (x, y, color, text, isSeg) => {
-      if (isSeg) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = Math.max(2, 3 * layoutS);
-        ctx.beginPath();
-        ctx.moveTo(x, y - Math.round(3 * layoutS));
-        ctx.lineTo(x + seg, y - Math.round(3 * layoutS));
-        ctx.stroke();
-      } else {
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y - sw, sw, sw);
-      }
-      ctx.fillStyle = "#1e293b";
-      ctx.fillText(text, x + Math.round(24 * layoutS), y);
-    };
-    legendLine(lx, ly, "#ea580c", "x axis (North)", false);
-    legendLine(lx + Math.round(122 * layoutS), ly, "#16a34a", "y axis (East)", false);
-    legendLine(lx + Math.round(238 * layoutS), ly, "#000000", "z axis (down)", false);
-    legendLine(lx + Math.round(348 * layoutS), ly, "#dc2626", "M", true);
-    legendLine(lx + Math.round(398 * layoutS), ly, "#2563eb", "T", true);
-    ly += Math.round(16 * layoutS);
-    ctx.fillStyle = "#475569";
-    ctx.font = fs(8);
+    ctx.textAlign = "center";
     ctx.fillText(
-      "Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.",
-      lx,
-      ly
+      "Schematic only — not to scale.",
+      splitX / 2,
+      cssH - Math.round(6 * layoutS)
     );
-    ly += Math.round(14 * layoutS);
-    ly += Math.round(2 * layoutS);
-    ctx.fillStyle = "#64748b";
-    ctx.font = fs(8);
+    ctx.restore();
+
+    ctx.restore();
+
+    const legPad = Math.round(10 * layoutS);
+    const lx = splitX + legPad;
+    const legendTextW = Math.max(40, legendW - 2 * legPad);
     const wordWrap = (txt, maxW) => {
       const words = txt.split(" ");
       const lines = [];
@@ -982,10 +1406,70 @@
       if (line) lines.push(line);
       return lines;
     };
-    const textPad = Math.round(24 * layoutS);
+    const seg = Math.round(18 * layoutS);
+    const sw = Math.max(6, Math.round(9 * layoutS));
+    let ly = Math.round(18 * layoutS);
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#0f172a";
+    ctx.font = fsBold(11);
+    ctx.fillText("Legend", lx, ly);
+    ly += Math.round(16 * layoutS);
+    ctx.font = fs(9);
+    ctx.fillStyle = "#475569";
+    const legendLine = (y, color, text, isSeg) => {
+      const x0 = lx;
+      if (isSeg) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = Math.max(2, 3 * layoutS);
+        ctx.beginPath();
+        ctx.moveTo(x0, y - Math.round(3 * layoutS));
+        ctx.lineTo(x0 + seg, y - Math.round(3 * layoutS));
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = color;
+        ctx.fillRect(x0, y - sw, sw, sw);
+      }
+      ctx.fillStyle = "#1e293b";
+      ctx.fillText(text, x0 + Math.round(24 * layoutS), y);
+      return y + Math.round(18 * layoutS);
+    };
+    ly = legendLine(ly, "#ea580c", "x axis (North)", false);
+    ly = legendLine(ly, "#16a34a", "y axis (East)", false);
+    {
+      const x0 = lx;
+      const swZ = Math.max(6, Math.round(9 * layoutS));
+      const dz = Math.round(14 * layoutS);
+      ctx.save();
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = Math.max(2, 3 * layoutS);
+      ctx.beginPath();
+      ctx.moveTo(x0 + Math.round(swZ / 2), ly - swZ);
+      ctx.lineTo(x0 + Math.round(swZ / 2), ly - swZ + dz);
+      ctx.stroke();
+      ctx.fillStyle = "#1e293b";
+      ctx.textBaseline = "middle";
+      ctx.fillText("z axis (down)", x0 + Math.round(24 * layoutS), ly - swZ + dz * 0.5);
+      ctx.restore();
+      ly += Math.round(18 * layoutS);
+    }
+    ly = legendLine(ly, "#dc2626", "M", true);
+    ly = legendLine(ly, "#2563eb", "T", true);
+    ctx.fillStyle = "#475569";
+    ctx.font = fs(8);
+    for (const ln of wordWrap(
+      "Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.",
+      legendTextW
+    )) {
+      ctx.fillText(ln, lx, ly);
+      ly += Math.round(12 * layoutS);
+    }
+    ly += Math.round(4 * layoutS);
+    ctx.fillStyle = "#64748b";
+    ctx.font = fs(8);
     const lineGap = Math.round(12 * layoutS);
     const lineGapS = Math.round(11 * layoutS);
-    const volLines = wordWrap("Bed volume: " + scene.volumeKind, cssW - textPad);
+    const volLines = wordWrap("Bed volume: " + scene.volumeKind, legendTextW);
     for (const ln of volLines) {
       ctx.fillText(ln, lx, ly);
       ly += lineGap;
@@ -994,7 +1478,7 @@
       ly += Math.round(6 * layoutS);
       ctx.font = fs(8);
       ctx.fillStyle = "#57534e";
-      for (const ln of wordWrap(scene.wedgeFootnote, cssW - textPad)) {
+      for (const ln of wordWrap(scene.wedgeFootnote, legendTextW)) {
         ctx.fillText(ln, lx, ly);
         ly += lineGapS;
       }
@@ -1005,23 +1489,12 @@
       ctx.fillStyle = "#57534e";
       for (const ln of wordWrap(
         "If η (between poles) is small, the drawn arc opens to ≥28° for visibility.",
-        cssW - textPad
+        legendTextW
       )) {
         ctx.fillText(ln, lx, ly);
         ly += lineGapS;
       }
     }
-    ctx.restore();
-
-    ctx.save();
-    ctx.font = fs(9);
-    ctx.fillStyle = "#475569";
-    ctx.textAlign = "center";
-    ctx.fillText(
-      "Schematic only — not to scale.",
-      cssW / 2,
-      splitY - Math.round(6 * layoutS)
-    );
     ctx.restore();
   }
 

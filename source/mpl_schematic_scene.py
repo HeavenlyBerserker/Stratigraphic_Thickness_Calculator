@@ -351,6 +351,7 @@ def _build_semi_arch_fold_mesh(
         return {"verts": [aa, bb, cc, dd], "fill": ff, "stroke": ss, "surface": surf}
 
     faces: list[dict[str, Any]] = []
+    # Mesh tags: outer annulus (o*) → "top", inner (i*) → "base". Paper Fig. 5: inner = strat. top bed.
     for k in range(n_arc):
         t0 = k / n_arc
         t1 = (k + 1) / n_arc
@@ -427,10 +428,418 @@ def segment_depth_for_sort(a: Vec3, b: Vec3, yaw: float, pitch: float) -> float:
     return _v_dot(mid, forward)
 
 
+def mesh_axis_aligned_bounds(
+    mesh_faces: list[dict[str, Any]], origin: Vec3 | None = None
+) -> tuple[Vec3, Vec3]:
+    lo = [float("inf"), float("inf"), float("inf")]
+    hi = [-float("inf"), -float("inf"), -float("inf")]
+    for f in mesh_faces:
+        for v in f["verts"]:
+            for i in range(3):
+                x = float(v[i])
+                lo[i] = min(lo[i], x)
+                hi[i] = max(hi[i], x)
+    if origin is not None:
+        for i in range(3):
+            lo[i] = min(lo[i], float(origin[i]))
+            hi[i] = max(hi[i], float(origin[i]))
+    return (tuple(lo), tuple(hi))
+
+
+def mesh_aabb_center(mesh_faces: list[dict[str, Any]]) -> Vec3:
+    """Midpoint of the axis-aligned bounds of ``mesh_faces`` (volume center for schematic framing)."""
+    lo, hi = mesh_axis_aligned_bounds(mesh_faces, origin=None)
+    return (
+        0.5 * (lo[0] + hi[0]),
+        0.5 * (lo[1] + hi[1]),
+        0.5 * (lo[2] + hi[2]),
+    )
+
+
+def translate_mesh_faces(mesh_faces: list[dict[str, Any]], delta: Vec3) -> list[dict[str, Any]]:
+    """Copy mesh with each vertex shifted by ``delta`` (e.g. ``delta = -center`` to center the volume at origin)."""
+    out: list[dict[str, Any]] = []
+    for f in mesh_faces:
+        nf = dict(f)
+        nf["verts"] = [_v_add(_v_from(v), delta) for v in f["verts"]]
+        out.append(nf)
+    return out
+
+
+def _ray_aabb_interval(o: Vec3, u: Vec3, lo: Vec3, hi: Vec3) -> tuple[float, float] | None:
+    """Infinite ray p(t)=o+t*u (any t) vs axis-aligned box. Returns (t_near, t_far) or None if miss."""
+    t_near = -float("inf")
+    t_far = float("inf")
+    for i in range(3):
+        if abs(u[i]) < 1e-14:
+            if o[i] < lo[i] - 1e-9 or o[i] > hi[i] + 1e-9:
+                return None
+            continue
+        inv = 1.0 / u[i]
+        t1 = (lo[i] - o[i]) * inv
+        t2 = (hi[i] - o[i]) * inv
+        if t1 > t2:
+            t1, t2 = t2, t1
+        t_near = max(t_near, t1)
+        t_far = min(t_far, t2)
+        if t_near > t_far + 1e-12:
+            return None
+    return (t_near, t_far)
+
+
+def _plane_nd_from_face(face: dict[str, Any]) -> tuple[Vec3, float]:
+    """Unit normal ``n`` and scalar ``d`` with ``n·x = d`` for the plane of the first three vertices."""
+    verts = [_v_from(v) for v in face["verts"]]
+    if len(verts) < 3:
+        return (0.0, 0.0, 1.0), 0.0
+    v0, v1, v2 = verts[0], verts[1], verts[2]
+    n_raw = _v_cross(_v_sub(v1, v0), _v_sub(v2, v0))
+    nn = _v_norm(n_raw)
+    if nn < 1e-14 and len(verts) >= 4:
+        v3 = verts[3]
+        n_raw = _v_cross(_v_sub(v2, v0), _v_sub(v3, v0))
+        nn = _v_norm(n_raw)
+    if nn < 1e-14:
+        return (0.0, 0.0, 1.0), 0.0
+    n = (n_raw[0] / nn, n_raw[1] / nn, n_raw[2] / nn)
+    d = _v_dot(n, v0)
+    return n, d
+
+
+def _ray_plane_parameter(o: Vec3, u: Vec3, face: dict[str, Any]) -> float | None:
+    """Scalar ``t`` with ``o + t*u`` on the plane of ``face``; ``None`` if ray ∥ plane."""
+    n_b, d_b = _plane_nd_from_face(face)
+    denom = _v_dot(n_b, u)
+    if abs(denom) < 1e-12:
+        return None
+    return (d_b - _v_dot(n_b, o)) / denom
+
+
+def _face_centroid_vec(face: dict[str, Any]) -> Vec3:
+    return _centroid3([_v_from(v) for v in face.get("verts", ())])
+
+
+def _wedge_mt_segment_tri_beds(
+    o: Vec3,
+    target: Vec3,
+    top_face: dict[str, Any],
+    base_face: dict[str, Any],
+    past_each_end: float,
+) -> tuple[Vec3, Vec3] | None:
+    """
+    Wedging tetrahedron (tri ``top`` + tri ``base``): stubs along **o → target**.
+
+    The **deeper** bedding face (+z = down ⇒ larger centroid ``z``) is treated as the wedge
+    **bottom** for the long stub (``½`` × max longest edge of the two bed triangles). The
+    shallower face gets the short stub (``past_each_end * L_in``). Mesh tags ``top``/``base``
+    are not used for stub direction — only for plane equations and edge length.
+    """
+    d_vec = _v_sub(target, o)
+    full = _v_norm(d_vec)
+    if full < 1e-12:
+        return None
+    u = _v_unit(d_vec)
+    t_top = _ray_plane_parameter(o, u, top_face)
+    t_base = _ray_plane_parameter(o, u, base_face)
+    if t_top is None or t_base is None:
+        return None
+    if abs(t_top - t_base) < 1e-12 * max(1.0, full):
+        return None
+    c_top = _face_centroid_vec(top_face)
+    c_base = _face_centroid_vec(base_face)
+    # Deeper = larger z (down is +z in this app).
+    if c_base[2] >= c_top[2]:
+        shallow_face, bottom_face = top_face, base_face
+        t_shallow, t_bottom = t_top, t_base
+    else:
+        shallow_face, bottom_face = base_face, top_face
+        t_shallow, t_bottom = t_base, t_top
+    t_enter = min(t_shallow, t_bottom)
+    t_exit = max(t_shallow, t_bottom)
+    l_in = t_exit - t_enter
+    if l_in < 1e-12 * max(1.0, full):
+        return None
+    ext_short = past_each_end * l_in
+    le_s = _face_longest_edge_length(shallow_face)
+    le_b = _face_longest_edge_length(bottom_face)
+    ext_long = 0.5 * max(le_s, le_b)
+    if ext_long < 1e-12 * max(1.0, full):
+        ext_long = _MT_STUB_BOTTOM_FRAC * l_in
+    eps = 1e-9 * max(1.0, full)
+    bottom_is_exit = t_bottom > t_shallow + eps
+    if bottom_is_exit:
+        t_lo = max(0.0, t_enter - ext_short)
+        t_hi = t_exit + ext_long
+    else:
+        t_lo = t_enter - ext_long
+        t_hi = t_exit + ext_short
+    if t_lo > t_hi:
+        t_lo, t_hi = t_hi, t_lo
+    return (_v_add(o, _v_scale(t_lo, u)), _v_add(o, _v_scale(t_hi, u)))
+
+
+def _face_longest_edge_length(face: dict[str, Any]) -> float:
+    """Longest polygon edge (triangle: max of three sides; n>3: cycle edges only, no diagonals)."""
+    verts = [_v_from(v) for v in face.get("verts", ())]
+    n = len(verts)
+    if n < 2:
+        return 0.0
+    if n == 3:
+        best = 0.0
+        for i in range(3):
+            for j in range(i + 1, 3):
+                best = max(best, _v_norm(_v_sub(verts[i], verts[j])))
+        return best
+    best = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        best = max(best, _v_norm(_v_sub(verts[i], verts[j])))
+    return best
+
+
+def _face_polygon_area(face: dict[str, Any]) -> float:
+    """Triangle or quad area (quad split by v0,v2 diagonal)."""
+    verts = [_v_from(v) for v in face["verts"]]
+    if len(verts) < 3:
+        return 0.0
+    v0, v1, v2 = verts[0], verts[1], verts[2]
+    if len(verts) == 3:
+        return 0.5 * _v_norm(_v_cross(_v_sub(v1, v0), _v_sub(v2, v0)))
+    v3 = verts[3]
+    a1 = 0.5 * _v_norm(_v_cross(_v_sub(v1, v0), _v_sub(v2, v0)))
+    a2 = 0.5 * _v_norm(_v_cross(_v_sub(v2, v0), _v_sub(v3, v0)))
+    return a1 + a2
+
+
+# M/T schematic ray stubs past bedding (+z down: shallower z = top). Top stub uses ``past_each_end``;
+# past the bottom contact the stub is longer (fraction of ``L_in``).
+_MT_STUB_BOTTOM_FRAC = 1.0
+
+
+def mt_display_single_bed_t234(
+    mesh_faces: list[dict[str, Any]],
+    o: Vec3,
+    target: Vec3,
+    *,
+    past_each_end: float = 0.25,
+    model_id: str | None = None,
+) -> tuple[Vec3, Vec3]:
+    """
+    Slab, single bed, semi-arch fold (T1–T6), or wedging tetrahedron (T7–T8): draw M/T along
+    ``unit(target - o)`` through a bedding anchor, with chord ``L_in`` to an opposite cap plane,
+    then asymmetric stubs: ``past_each_end * L_in`` before the anchor (top side of the chord) and
+    a longer stub past the opposite cap along ``u`` (``_MT_STUB_BOTTOM_FRAC * L_in``, except wedges
+    below).
+
+    **Wedge (Fig. 6):** tri ``"top"`` + tri ``"base"`` — borehole ray vs both planes; long stub past
+    the **deeper** bed (larger centroid ``z``, +z = down), ``½`` × max longest edge of the two bed
+    triangles; short stub on the shallower side. (min/max over ``end``/``cap`` mis-orders
+    non-wedge tetrahedra). **T5–T6 (semi-arch / twin slab, Xu et al. Fig. 5):** mesh ``"base"`` is the **inner**
+    limb (stratigraphic **top** bed); mesh ``"top"`` is the **outer** limb (stratigraphic bottom).
+    Anchor with area-weighted centering on **inner** ``"base"`` faces, chord to the **deepest**
+    **outer** ``"top"`` plane, or along ``u`` to that outer patch centroid if ``u`` is nearly parallel
+    (same anchor for M and T).
+    **Other models:** shallowest centroid among ``top`` / ``base`` / ``cap`` / ``end`` (omitting
+    ``side``), chord to the deepest such plane.
+    """
+
+    def _segment_from_anchor_plane(
+        c_anchor: Vec3, plane_face: dict[str, Any]
+    ) -> tuple[Vec3, Vec3] | None:
+        n_b, d_b = _plane_nd_from_face(plane_face)
+        d_vec = _v_sub(target, o)
+        full = _v_norm(d_vec)
+        if full < 1e-12:
+            return o, target
+        u = _v_unit(d_vec)
+        denom = _v_dot(n_b, u)
+        if abs(denom) < 1e-12:
+            return None
+        s_b = (d_b - _v_dot(n_b, c_anchor)) / denom
+        if s_b < 0:
+            u = _v_scale(-1.0, u)
+            s_b = -s_b
+        l_in = abs(s_b)
+        if l_in < 1e-12:
+            l_in = max(1e-9 * max(full, 1.0), full * 0.35)
+        ext_top = past_each_end * l_in
+        ext_bot = _MT_STUB_BOTTOM_FRAC * l_in
+        s_lo = -ext_top
+        s_hi = s_b + ext_bot
+        p_lo = _v_add(c_anchor, _v_scale(s_lo, u))
+        p_hi = _v_add(c_anchor, _v_scale(s_hi, u))
+        return p_lo, p_hi
+
+    def _t56_segment_along_u_to_far_centroid(
+        c_anchor: Vec3, c_far: Vec3
+    ) -> tuple[Vec3, Vec3]:
+        """When ray vs the opposite-bedding plane is degenerate, span along ``u`` to ``c_far``."""
+        d_vec = _v_sub(target, o)
+        full = _v_norm(d_vec)
+        if full < 1e-12:
+            return o, target
+        u = _v_unit(d_vec)
+        s_b = _v_dot(_v_sub(c_far, c_anchor), u)
+        if s_b < 0:
+            u = _v_scale(-1.0, u)
+            s_b = -s_b
+        l_in = max(abs(s_b), 1e-9 * max(full, 1.0))
+        ext_top = past_each_end * l_in
+        ext_bot = _MT_STUB_BOTTOM_FRAC * l_in
+        s_lo = -ext_top
+        s_hi = s_b + ext_bot
+        return (
+            _v_add(c_anchor, _v_scale(s_lo, u)),
+            _v_add(c_anchor, _v_scale(s_hi, u)),
+        )
+
+    top_tris = [
+        f
+        for f in mesh_faces
+        if str(f.get("surface", "")) == "top" and len(f.get("verts", ())) == 3
+    ]
+    base_tris = [
+        f
+        for f in mesh_faces
+        if str(f.get("surface", "")) == "base" and len(f.get("verts", ())) == 3
+    ]
+    if len(top_tris) == 1 and len(base_tris) == 1:
+        seg_w = _wedge_mt_segment_tri_beds(o, target, top_tris[0], base_tris[0], past_each_end)
+        if seg_w is not None:
+            return seg_w
+        c_top = _centroid3([_v_from(v) for v in top_tris[0]["verts"]])
+        seg = _segment_from_anchor_plane(c_top, base_tris[0])
+        if seg is not None:
+            return seg
+
+    if model_id in ("t5", "t6"):
+        # Mesh tags: "top" = outer limb, "base" = inner limb (paper: inner = stratigraphic top bed).
+        outer_fs = [f for f in mesh_faces if str(f.get("surface", "")) == "top"]
+        inner_fs = [f for f in mesh_faces if str(f.get("surface", "")) == "base"]
+        if outer_fs and inner_fs:
+            tw = 0.0
+            sx = sy = sz = 0.0
+            entries: list[tuple[Vec3, float]] = []
+            for f in inner_fs:
+                ar = _face_polygon_area(f)
+                c = _centroid3([_v_from(v) for v in f["verts"]])
+                entries.append((c, ar))
+                tw += ar
+                sx += ar * c[0]
+                sy += ar * c[1]
+                sz += ar * c[2]
+            if tw < 1e-20:
+                nf = float(len(entries))
+                c_seed = (
+                    sum(e[0][0] for e in entries) / nf,
+                    sum(e[0][1] for e in entries) / nf,
+                    sum(e[0][2] for e in entries) / nf,
+                )
+            else:
+                c_seed = (sx / tw, sy / tw, sz / tw)
+
+            def _d2_to_seed(ff: dict[str, Any]) -> float:
+                c = _centroid3([_v_from(v) for v in ff["verts"]])
+                d = _v_sub(c, c_seed)
+                return _v_dot(d, d)
+
+            anchor_inner = min(inner_fs, key=_d2_to_seed)
+            c_anchor = _centroid3([_v_from(v) for v in anchor_inner["verts"]])
+            deepest_outer = max(
+                outer_fs,
+                key=lambda ff: _centroid3([_v_from(v) for v in ff["verts"]])[2],
+            )
+            seg = _segment_from_anchor_plane(c_anchor, deepest_outer)
+            if seg is not None:
+                return seg
+            c_outer_ctr = _centroid3([_v_from(v) for v in deepest_outer["verts"]])
+            return _t56_segment_along_u_to_far_centroid(c_anchor, c_outer_ctr)
+
+    cap_surf = frozenset({"top", "base", "cap", "end"})
+    cap_faces = [f for f in mesh_faces if str(f.get("surface", "")) in cap_surf]
+    if len(cap_faces) < 2:
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+    best_min: tuple[dict[str, Any], Vec3, float] | None = None
+    best_max: tuple[dict[str, Any], Vec3, float] | None = None
+    for f in cap_faces:
+        c = _centroid3([_v_from(v) for v in f["verts"]])
+        z = c[2]
+        if best_min is None or z < best_min[2]:
+            best_min = (f, c, z)
+        if best_max is None or z > best_max[2]:
+            best_max = (f, c, z)
+    if best_min is None or best_max is None:
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+    z_span = best_max[2] - best_min[2]
+    if z_span < 1e-9 * max(1.0, abs(best_min[2]), abs(best_max[2])):
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+    if best_min[0] is best_max[0]:
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+    c_anchor = best_min[1]
+    seg = _segment_from_anchor_plane(c_anchor, best_max[0])
+    if seg is not None:
+        return seg
+    return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+
+
+def mt_display_endpoints(
+    o: Vec3,
+    target: Vec3,
+    mesh_faces: list[dict[str, Any]],
+    *,
+    past_each_end: float = 0.25,
+) -> tuple[Vec3, Vec3]:
+    """
+    Clip M/T for schematic: ray ∩ mesh AABB gives in-volume length ``L_in``.
+    With +z = down, the shallower contact is the **top bed**; the deeper is **bottom**.
+    Draw from ``(top along ray) - past_each_end * L_in`` to ``(bottom along ray) + _MT_STUB_BOTTOM_FRAC * L_in``,
+    clamped to the segment O→target (top stub default ``past_each_end`` = 0.25).
+    """
+    d = _v_sub(target, o)
+    full = _v_norm(d)
+    if full < 1e-12:
+        return o, target
+    u = _v_unit(d)
+    lo, hi = mesh_axis_aligned_bounds(mesh_faces, origin=o)
+    slab = _ray_aabb_interval(o, u, lo, hi)
+    if slab is None:
+        s_a, s_b = 0.25 * full, 0.75 * full
+    else:
+        t_near, t_far = slab
+        s_entry = max(0.0, min(full, t_near))
+        s_exit = max(0.0, min(full, t_far))
+        if s_exit <= s_entry + 1e-9 * max(full, 1.0):
+            s_a, s_b = 0.25 * full, 0.75 * full
+        else:
+            s_a, s_b = s_entry, s_exit
+    l_in = s_b - s_a
+    if l_in < 1e-9 * max(full, 1.0):
+        s_a, s_b = 0.25 * full, 0.75 * full
+        l_in = s_b - s_a
+    p_a = _v_add(o, _v_scale(s_a, u))
+    p_b = _v_add(o, _v_scale(s_b, u))
+    # z increases downward; smaller z = stratigraphically higher (top bed).
+    if p_a[2] <= p_b[2]:
+        s_top, s_bot = s_a, s_b
+    else:
+        s_top, s_bot = s_b, s_a
+    ext_top = past_each_end * l_in
+    ext_bot = _MT_STUB_BOTTOM_FRAC * l_in
+    s_lo = max(0.0, s_top - ext_top)
+    s_hi = min(full, s_bot + ext_bot)
+    if s_lo > s_hi:
+        s_lo, s_hi = s_hi, s_lo
+    p_lo = _v_add(o, _v_scale(s_lo, u))
+    p_hi = _v_add(o, _v_scale(s_hi, u))
+    return p_lo, p_hi
+
+
 @dataclass
 class SchematicScene:
     borehole_end: Vec3
     t_end: Vec3
+    # Borehole / T ray origin in the centered frame (pre-shift world origin).
+    borehole_ray_o: Vec3
     axes_ex: Vec3
     axes_ey: Vec3
     axes_ez: Vec3
@@ -542,10 +951,18 @@ def collect_scene(model_id: str, res: dict[str, Any], m_len: float, t_val: float
     else:
         return None
 
+    c_mid = mesh_aabb_center(mesh)
+    neg_c = _v_sub((0.0, 0.0, 0.0), c_mid)
+    mesh = translate_mesh_faces(mesh, neg_c)
+    borehole_end = _v_sub(borehole_end, c_mid)
+    t_end = _v_sub(t_end, c_mid)
+    borehole_ray_o = neg_c
+
     foot = "T8 = T7 cos(η/2); η = angle between U_d1 and U_d2." if model_id == "t8" else None
     return SchematicScene(
         borehole_end=borehole_end,
         t_end=t_end,
+        borehole_ray_o=borehole_ray_o,
         axes_ex=axes_ex,
         axes_ey=axes_ey,
         axes_ez=axes_ez,
