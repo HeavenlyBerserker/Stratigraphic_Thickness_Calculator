@@ -1,6 +1,7 @@
 """
 Desktop Matplotlib schematic: 3D geometry matching `mobile/geometry-schematic.js` scene logic
-(isometric-style camera, same meshes and colors). Used when frozen with BACKEND_MPL = True.
+(isometric-style camera, same meshes and colors). Default desktop schematic when
+``BACKEND_MPL`` is True (standard build) or when running from source without ``--js``.
 """
 
 from __future__ import annotations

@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+"""
+Desktop entry: ``python -m source.main`` → Matplotlib schematic (default).
+``python -m source.main --js`` → Qt WebEngine + embedded JS (same as PWA).
+"""
+
 import sys
 
-def _consume_mpl_argv() -> None:
-    """`python -m source.main --mpl` uses matplotlib schematics (before app/widgets import)."""
-    if "--mpl" not in sys.argv:
+
+def _consume_schematic_argv() -> None:
+    """Strip ``--js`` from argv and force WebEngine schematic before importing the app."""
+    if "--js" not in sys.argv:
         return
-    sys.argv = [a for a in sys.argv if a != "--mpl"]
-    from source.geometry_schematic import set_desktop_force_mpl
+    sys.argv = [a for a in sys.argv if a != "--js"]
+    from source.geometry_schematic import set_desktop_force_webengine
 
-    set_desktop_force_mpl(True)
+    set_desktop_force_webengine(True)
 
 
-_consume_mpl_argv()
+_consume_schematic_argv()
 
 from pathlib import Path
 

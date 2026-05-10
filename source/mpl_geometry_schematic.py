@@ -249,7 +249,8 @@ class MplGeometrySchematicWidget(QWidget):
         self._fig = Figure(figsize=(4.8, 3.8), constrained_layout=False)
         self._fig.patch.set_facecolor("#ffffff")
 
-        gs = self._fig.add_gridspec(2, 1, height_ratios=[1.0, 0.34], hspace=0.08)
+        # Extra height for legend rows so copy does not overlap (was height_ratios 1 / 0.34).
+        gs = self._fig.add_gridspec(2, 1, height_ratios=[1.0, 0.42], hspace=0.1)
         self._ax = self._fig.add_subplot(gs[0])
         self._ax_leg = self._fig.add_subplot(gs[1])
         self._ax_leg.axis("off")
@@ -304,13 +305,13 @@ class MplGeometrySchematicWidget(QWidget):
         self._full_redraw()
 
     def _legend_area_height_frac(self) -> float:
-        return 0.255
+        return 0.30
 
     def _main_plot_px(self) -> tuple[float, float]:
         h = float(self.height() or 360)
         w = float(self.width() or 400)
-        leg_frac = 0.255
-        main_h = h * (1.0 - leg_frac - 0.05)
+        leg_frac = self._legend_area_height_frac()
+        main_h = h * (1.0 - leg_frac - 0.06)
         return w - 8.0, max(main_h, 80.0)
 
     def _full_redraw(self) -> None:
@@ -333,11 +334,26 @@ class MplGeometrySchematicWidget(QWidget):
             lines.append(
                 "If η (between poles) is small, the drawn arc opens to ≥28° for visibility."
             )
-        y = 0.98
         fs = max(8.5, min(11.0, (plot_w / 620.0) * 11.0))
-        for ln in lines:
-            self._ax_leg.text(0.01, y, ln, transform=self._ax_leg.transAxes, va="top", ha="left", fontsize=fs, color="#334155")
-            y -= 0.14
+        n = len(lines)
+        top_m, bot_m = 0.97, 0.05
+        if n == 1:
+            ys = [(top_m + bot_m) * 0.5]
+        else:
+            span = top_m - bot_m
+            ys = [top_m - span * i / (n - 1) for i in range(n)]
+        for ln, y in zip(lines, ys):
+            self._ax_leg.text(
+                0.02,
+                y,
+                ln,
+                transform=self._ax_leg.transAxes,
+                va="center",
+                ha="left",
+                fontsize=fs,
+                color="#334155",
+                clip_on=False,
+            )
 
         self._fig.canvas.draw_idle()
 

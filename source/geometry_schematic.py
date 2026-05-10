@@ -1,9 +1,11 @@
 """
 Interactive 3D geometry schematic for the Qt desktop app (PySide6).
 
-Default: Qt WebEngine + `mobile/geometry-schematic.js` (same as the PWA).
-Optional: Matplotlib/QtAgg (`mpl_geometry_schematic.py`) when run as
-``python -m source.main --mpl`` or when frozen with ``BACKEND_MPL`` from build scripts.
+Default: Matplotlib/QtAgg (`mpl_geometry_schematic.py`) — smaller bundles, no Chromium.
+
+Optional: Qt WebEngine + `mobile/geometry-schematic.js` (same rendering as the PWA) when
+run as ``python -m source.main --js`` or when frozen with ``BACKEND_MPL = False`` from
+the ``-js`` / ``--js`` build scripts.
 """
 
 from __future__ import annotations
@@ -130,34 +132,35 @@ def build_geometry_payload(model_id: str, tab: Any, result: object) -> dict[str,
     return {"result": _jsonify(result), "inputs": inputs}
 
 
-_force_desktop_mpl_from_cli = False
+_force_webengine_from_cli = False
 
 
-def set_desktop_force_mpl(enabled: bool) -> None:
-    """Set by ``main.py`` when ``python -m source.main --mpl`` is used (before app import)."""
-    global _force_desktop_mpl_from_cli
-    _force_desktop_mpl_from_cli = bool(enabled)
+def set_desktop_force_webengine(enabled: bool) -> None:
+    """Set by ``main.py`` when ``python -m source.main --js`` is used (before app import)."""
+    global _force_webengine_from_cli
+    _force_webengine_from_cli = bool(enabled)
 
 
 def desktop_uses_mpl_schematic() -> bool:
     """
-    True if ``main`` set `--mpl`, else in a frozen app when ``generated_desktop_backend``
-    sets ``BACKEND_MPL`` (from build scripts).
+    False if ``main`` set ``--js``. When frozen, ``generated_desktop_backend.BACKEND_MPL``
+    from the build script; when running from source, default is Matplotlib (True) unless
+    ``--js`` forces WebEngine.
     """
-    if _force_desktop_mpl_from_cli:
-        return True
-    if not getattr(sys, "frozen", False):
+    if _force_webengine_from_cli:
         return False
+    if not getattr(sys, "frozen", False):
+        return True
     try:
         from source import generated_desktop_backend as _gdb
 
         return bool(_gdb.BACKEND_MPL)
     except ImportError:
-        return False
+        return True
 
 
 def make_geometry_schematic_widget(parent: QWidget | None = None) -> QWidget:
-    """WebEngine + JS by default; Matplotlib when ``--mpl`` or mpl PyInstaller build."""
+    """Matplotlib by default; Qt WebEngine + JS when ``--js`` or a ``-js`` PyInstaller build."""
     if desktop_uses_mpl_schematic():
         from source.mpl_geometry_schematic import MplGeometrySchematicWidget
 
