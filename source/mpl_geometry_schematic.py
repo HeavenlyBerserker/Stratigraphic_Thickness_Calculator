@@ -181,13 +181,13 @@ def _render_main_ax(
     lw_m = max(2.0, 3.5 * (plot_w / 600.0) ** 0.5)
 
     oc = to_canvas(proj(o3))
-    draw_seg_3(o3, scene.borehole_end, "#0284c7", lw_m)
-    draw_seg_3(o3, scene.t_end, "#d97706", lw_m)
+    draw_seg_3(o3, scene.borehole_end, "#dc2626", lw_m)
+    draw_seg_3(o3, scene.t_end, "#2563eb", lw_m)
 
     ls = max(2.5, (plot_w / 600.0) * 2.5)
-    draw_seg_3(ax_origin, v_add(ax_origin, ex), "#dc2626", ls)
+    draw_seg_3(ax_origin, v_add(ax_origin, ex), "#ea580c", ls)
     draw_seg_3(ax_origin, v_add(ax_origin, ey), "#16a34a", ls)
-    draw_seg_3(ax_origin, v_add(ax_origin, ez), "#2563eb", ls)
+    draw_seg_3(ax_origin, v_add(ax_origin, ez), "#000000", ls)
 
     ao_c = to_canvas(proj(ax_origin))
     ax.scatter([ao_c[0]], [ao_c[1]], s=28, fc="white", ec="#64748b", lw=1, zorder=6)
@@ -324,7 +324,7 @@ class MplGeometrySchematicWidget(QWidget):
         self._ax_leg.axis("off")
         sc = self._scene
         lines = [
-            "Legend: x (N) red  y (E) green  z (down) blue  M cyan  T orange",
+            "Legend: x (N) orange  y (E) green  z (down) black  M red  T blue",
             "Drag = orbit. Wheel = zoom. Double-click = reset.",
             f"Bed volume: {sc.volume_kind}",
         ]

@@ -830,9 +830,9 @@
       ctx.restore();
     }
 
-    drawAxisArrow(axisOrigin, scene.axes.ex, "#dc2626", "x (N)");
+    drawAxisArrow(axisOrigin, scene.axes.ex, "#ea580c", "x (N)");
     drawAxisArrow(axisOrigin, scene.axes.ey, "#16a34a", "y (E)");
-    drawAxisArrow(axisOrigin, scene.axes.ez, "#2563eb", "z (↓)");
+    drawAxisArrow(axisOrigin, scene.axes.ez, "#000000", "z (↓)");
 
     ctx.save();
     ctx.strokeStyle = "#64748b";
@@ -844,8 +844,8 @@
     ctx.stroke();
     ctx.restore();
 
-    drawLine3(origin, scene.boreholeEnd, "#0284c7", Math.max(2, 3.5 * layoutS));
-    drawLine3(origin, scene.tEnd, "#d97706", Math.max(2, 3.5 * layoutS));
+    drawLine3(origin, scene.boreholeEnd, "#dc2626", Math.max(2, 3.5 * layoutS));
+    drawLine3(origin, scene.tEnd, "#2563eb", Math.max(2, 3.5 * layoutS));
 
     ctx.save();
     ctx.strokeStyle = "#475569";
@@ -894,11 +894,11 @@
       ctx.fillStyle = "#1e293b";
       ctx.fillText(text, x + Math.round(24 * layoutS), y);
     };
-    legendLine(lx, ly, "#dc2626", "x axis (North)", false);
+    legendLine(lx, ly, "#ea580c", "x axis (North)", false);
     legendLine(lx + Math.round(122 * layoutS), ly, "#16a34a", "y axis (East)", false);
-    legendLine(lx + Math.round(238 * layoutS), ly, "#2563eb", "z axis (down)", false);
-    legendLine(lx + Math.round(348 * layoutS), ly, "#0284c7", "M", true);
-    legendLine(lx + Math.round(398 * layoutS), ly, "#d97706", "T", true);
+    legendLine(lx + Math.round(238 * layoutS), ly, "#000000", "z axis (down)", false);
+    legendLine(lx + Math.round(348 * layoutS), ly, "#dc2626", "M", true);
+    legendLine(lx + Math.round(398 * layoutS), ly, "#2563eb", "T", true);
     ly += Math.round(16 * layoutS);
     ctx.fillStyle = "#475569";
     ctx.font = fs(8);
