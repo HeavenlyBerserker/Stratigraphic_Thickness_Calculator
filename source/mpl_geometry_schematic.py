@@ -191,26 +191,8 @@ def _render_main_ax(
 
     ao_c = to_canvas(proj(ax_origin))
     ax.scatter([ao_c[0]], [ao_c[1]], s=28, fc="white", ec="#64748b", lw=1, zorder=6)
-    ax.text(
-        ao_c[0],
-        ao_c[1] - 14 * (plot_h / 320.0),
-        "axes",
-        ha="center",
-        va="top",
-        fontsize=9 * (plot_w / 600.0) ** 0.5,
-        color="#475569",
-    )
 
     ax.scatter([oc[0]], [oc[1]], s=36, fc="white", ec="#475569", lw=1, zorder=6)
-    ax.text(
-        oc[0],
-        oc[1] + 18 * (plot_h / 320.0),
-        "O",
-        ha="center",
-        va="bottom",
-        fontsize=10 * (plot_w / 600.0) ** 0.5,
-        color="#475569",
-    )
 
     hint_fs = 11 * (plot_w / 600.0) ** 0.5
     foot_fs = 9 * (plot_w / 600.0) ** 0.5

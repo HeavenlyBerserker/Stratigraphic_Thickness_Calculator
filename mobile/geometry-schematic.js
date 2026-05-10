@@ -842,10 +842,6 @@
     ctx.beginPath();
     ctx.arc(AO.x, AO.y, Math.max(2, 3.5 * layoutS), 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = "#475569";
-    ctx.font = fs(9);
-    ctx.textAlign = "center";
-    ctx.fillText("axes", AO.x, AO.y + Math.round(14 * layoutS));
     ctx.restore();
 
     drawLine3(origin, scene.boreholeEnd, "#0284c7", Math.max(2, 3.5 * layoutS));
@@ -858,10 +854,6 @@
     ctx.beginPath();
     ctx.arc(O.x, O.y, Math.max(2.5, 4 * layoutS), 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = "#475569";
-    ctx.font = fs(10);
-    ctx.textAlign = "center";
-    ctx.fillText("O", O.x, O.y + Math.round(18 * layoutS));
     ctx.restore();
 
     ctx.save();
