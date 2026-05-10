@@ -21,6 +21,7 @@ from source.mpl_schematic_scene import (
     collect_scene,
     face_depth_for_sort,
     project_cam_point,
+    segment_depth_for_sort,
 )
 
 
@@ -29,6 +30,8 @@ ZOOM_MIN = 0.4
 ZOOM_MAX = 4.5
 # Semi-arch folds (T5/T6): projector origin O shifted up vs center so the arc fits (~JS originYFrac).
 ORIGIN_Y_FRAC_T56 = 0.18
+# Subsegments along M / T for depth-sorted drawing with the bed (approximates a thin rod).
+_MT_LINE_SAMPLES = 56
 
 
 def _to_rgba(s: str, default_alpha: float = 1.0) -> tuple[float, float, float, float]:
@@ -140,9 +143,6 @@ def _render_main_ax(
     sy1 = max(ys_c + [by_hi] if ys_c else [by_hi])
     pad = max(sx1 - sx0, sy1 - sy0) * 0.04 + 8.0
 
-    sorted_faces = sorted(
-        scene.mesh_faces, key=lambda f: face_depth_for_sort(f, yaw, pitch)
-    )
     edge_outline = max(2.05, 2.5 * (plot_w / 600.0) ** 0.5)
 
     def draw_seg_3(
@@ -165,50 +165,84 @@ def _render_main_ax(
         )
 
     lw_m = max(2.0, 3.5 * (plot_w / 600.0) ** 0.5)
-    # M / T under translucent fills so alpha occludes segments inside the bed (same idea as JS canvas).
-    draw_seg_3(o3, scene.borehole_end, "#dc2626", lw_m, z=1)
-    draw_seg_3(o3, scene.t_end, "#2563eb", lw_m, z=1)
 
-    for f in sorted_faces:
-        poly = [to_canvas(proj(v)) for v in f["verts"]]
-        fc = _mpl_fill_rgba(f, model_id)
-        ax.add_patch(
-            Polygon(
-                poly,
-                closed=True,
-                facecolor=fc,
-                edgecolor="none",
-                linewidth=0,
-                zorder=2,
+    def _lerp3(a: tuple[float, float, float], b: tuple[float, float, float], t: float) -> tuple[float, float, float]:
+        return (
+            a[0] + t * (b[0] - a[0]),
+            a[1] + t * (b[1] - a[1]),
+            a[2] + t * (b[2] - a[2]),
+        )
+
+    n_samp = _MT_LINE_SAMPLES
+    draw_rows: list[tuple[float, int, str, Any]] = []
+    for f in scene.mesh_faces:
+        draw_rows.append((face_depth_for_sort(f, yaw, pitch), 0, "face", f))
+    for i in range(n_samp):
+        t0 = i / n_samp
+        t1 = (i + 1) / n_samp
+        a = _lerp3(o3, scene.borehole_end, t0)
+        b = _lerp3(o3, scene.borehole_end, t1)
+        d = segment_depth_for_sort(a, b, yaw, pitch) + i * 1e-7
+        draw_rows.append((d, 1, "mseg", (a, b)))
+    for i in range(n_samp):
+        t0 = i / n_samp
+        t1 = (i + 1) / n_samp
+        a = _lerp3(o3, scene.t_end, t0)
+        b = _lerp3(o3, scene.t_end, t1)
+        d = segment_depth_for_sort(a, b, yaw, pitch) + i * 1e-7
+        draw_rows.append((d, 2, "tseg", (a, b)))
+    draw_rows.sort(key=lambda r: (r[0], r[1]))
+
+    z_geo = 5.0
+    for _depth, _pri, kind, payload in draw_rows:
+        if kind == "face":
+            f = payload
+            poly = [to_canvas(proj(v)) for v in f["verts"]]
+            fc = _mpl_fill_rgba(f, model_id)
+            ax.add_patch(
+                Polygon(
+                    poly,
+                    closed=True,
+                    facecolor=fc,
+                    edgecolor="none",
+                    linewidth=0,
+                    zorder=z_geo,
+                )
             )
-        )
-
-    for f in sorted_faces:
-        poly = [to_canvas(proj(v)) for v in f["verts"]]
-        ec = _mpl_edge_rgba(f)
-        xs = [p[0] for p in poly] + [poly[0][0]]
-        ys = [p[1] for p in poly] + [poly[0][1]]
-        ax.plot(
-            xs,
-            ys,
-            color=ec,
-            lw=edge_outline,
-            zorder=3,
-            solid_capstyle="round",
-            solid_joinstyle="round",
-        )
+            z_geo += 0.01
+            ec = _mpl_edge_rgba(f)
+            xs_p = [p[0] for p in poly] + [poly[0][0]]
+            ys_p = [p[1] for p in poly] + [poly[0][1]]
+            ax.plot(
+                xs_p,
+                ys_p,
+                color=ec,
+                lw=edge_outline,
+                zorder=z_geo,
+                solid_capstyle="round",
+                solid_joinstyle="round",
+            )
+            z_geo += 0.01
+        elif kind == "mseg":
+            a, b = payload
+            draw_seg_3(a, b, "#dc2626", lw_m, z=z_geo)
+            z_geo += 0.01
+        else:
+            a, b = payload
+            draw_seg_3(a, b, "#2563eb", lw_m, z=z_geo)
+            z_geo += 0.01
 
     oc = to_canvas(proj(o3))
-
+    z_axes = max(z_geo + 2.0, 50.0)
     ls = max(2.5, (plot_w / 600.0) * 2.5)
-    draw_seg_3(ax_origin, v_add(ax_origin, ex), "#ea580c", ls, z=5)
-    draw_seg_3(ax_origin, v_add(ax_origin, ey), "#16a34a", ls, z=5)
-    draw_seg_3(ax_origin, v_add(ax_origin, ez), "#000000", ls, z=5)
+    draw_seg_3(ax_origin, v_add(ax_origin, ex), "#ea580c", ls, z=z_axes)
+    draw_seg_3(ax_origin, v_add(ax_origin, ey), "#16a34a", ls, z=z_axes)
+    draw_seg_3(ax_origin, v_add(ax_origin, ez), "#000000", ls, z=z_axes)
 
     ao_c = to_canvas(proj(ax_origin))
-    ax.scatter([ao_c[0]], [ao_c[1]], s=28, fc="white", ec="#64748b", lw=1, zorder=6)
+    ax.scatter([ao_c[0]], [ao_c[1]], s=28, fc="white", ec="#64748b", lw=1, zorder=z_axes + 1)
 
-    ax.scatter([oc[0]], [oc[1]], s=36, fc="white", ec="#475569", lw=1, zorder=6)
+    ax.scatter([oc[0]], [oc[1]], s=36, fc="white", ec="#475569", lw=1, zorder=z_axes + 1)
 
     hint_fs = max(8.5, 10.0 * (plot_w / 600.0) ** 0.5)
     foot_fs = max(7.5, 8.2 * (plot_w / 600.0) ** 0.5)
@@ -224,7 +258,7 @@ def _render_main_ax(
         color="#334155",
         weight="bold",
         clip_on=False,
-        zorder=8,
+        zorder=z_axes + 3,
     )
     ax.text(
         0.5,
@@ -236,7 +270,7 @@ def _render_main_ax(
         fontsize=foot_fs,
         color="#475569",
         clip_on=False,
-        zorder=8,
+        zorder=z_axes + 3,
     )
 
     ax.set_xlim(sx0 - pad, sx1 + pad)

@@ -416,6 +416,17 @@ def face_depth_for_sort(f: dict[str, Any], yaw: float, pitch: float) -> float:
     return _v_dot(c, forward)
 
 
+def segment_depth_for_sort(a: Vec3, b: Vec3, yaw: float, pitch: float) -> float:
+    """Camera-depth key for a short 3D segment (midpoint · forward), for painter-style sorting with faces."""
+    _r, _u, forward = _make_camera_basis(yaw, pitch)
+    mid = (
+        (a[0] + b[0]) * 0.5,
+        (a[1] + b[1]) * 0.5,
+        (a[2] + b[2]) * 0.5,
+    )
+    return _v_dot(mid, forward)
+
+
 @dataclass
 class SchematicScene:
     borehole_end: Vec3

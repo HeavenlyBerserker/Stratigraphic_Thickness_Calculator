@@ -334,6 +334,24 @@
     return V.dot(c, basis.forward);
   }
 
+  function segmentDepthRotated(a, b, yaw, pitch) {
+    const mid = {
+      x: (a.x + b.x) * 0.5,
+      y: (a.y + b.y) * 0.5,
+      z: (a.z + b.z) * 0.5,
+    };
+    const basis = makeCameraBasis(yaw, pitch);
+    return V.dot(mid, basis.forward);
+  }
+
+  function lerpVec3(a, b, t) {
+    return {
+      x: a.x + t * (b.x - a.x),
+      y: a.y + t * (b.y - a.y),
+      z: a.z + t * (b.z - a.z),
+    };
+  }
+
   function collectScene(modelId, res, M, Tval) {
     const ub = V.from(res.ub_vector);
     let bedNormals = [];
@@ -806,13 +824,50 @@
       ctx.restore();
     }
 
-    const sortedFaces = [...scene.meshFaces].sort(
-      (a, b) => faceDepthRotated(a, cam.yaw, cam.pitch) - faceDepthRotated(b, cam.yaw, cam.pitch)
-    );
-    // M / T drawn first: translucent faces blend on top so segments inside the bed read as "through" the volume.
-    drawLine3(origin, scene.boreholeEnd, "#dc2626", Math.max(2, 3.5 * layoutS));
-    drawLine3(origin, scene.tEnd, "#2563eb", Math.max(2, 3.5 * layoutS));
-    for (const f of sortedFaces) fillFace3(f);
+    const nMtSeg = 56;
+    const drawRows = [];
+    for (const f of scene.meshFaces) {
+      drawRows.push({
+        kind: "face",
+        depth: faceDepthRotated(f, cam.yaw, cam.pitch),
+        pri: 0,
+        f,
+      });
+    }
+    for (let i = 0; i < nMtSeg; i++) {
+      const t0 = i / nMtSeg;
+      const t1 = (i + 1) / nMtSeg;
+      const a = lerpVec3(origin, scene.boreholeEnd, t0);
+      const b = lerpVec3(origin, scene.boreholeEnd, t1);
+      drawRows.push({
+        kind: "mseg",
+        depth: segmentDepthRotated(a, b, cam.yaw, cam.pitch) + i * 1e-7,
+        pri: 1,
+        a,
+        b,
+      });
+    }
+    for (let i = 0; i < nMtSeg; i++) {
+      const t0 = i / nMtSeg;
+      const t1 = (i + 1) / nMtSeg;
+      const a = lerpVec3(origin, scene.tEnd, t0);
+      const b = lerpVec3(origin, scene.tEnd, t1);
+      drawRows.push({
+        kind: "tseg",
+        depth: segmentDepthRotated(a, b, cam.yaw, cam.pitch) + i * 1e-7,
+        pri: 2,
+        a,
+        b,
+      });
+    }
+    drawRows.sort((p, q) => (p.depth !== q.depth ? p.depth - q.depth : p.pri - q.pri));
+
+    const mtLineW = Math.max(2, 3.5 * layoutS);
+    for (const row of drawRows) {
+      if (row.kind === "face") fillFace3(row.f);
+      else if (row.kind === "mseg") drawLine3(row.a, row.b, "#dc2626", mtLineW);
+      else drawLine3(row.a, row.b, "#2563eb", mtLineW);
+    }
 
     const O = toCanvas(projectCam(origin));
 
