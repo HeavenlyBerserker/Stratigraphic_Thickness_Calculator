@@ -1,7 +1,7 @@
 /**
- * Web-only 3D geometry schematic: left = interactive orbit/zoom view (bed + borehole + T + axes);
- * right = separate legend ("vane"). Bed volumes are 3D solids (slab, single
- * bed with two dips, wedging tetrahedron (Fig. 6), or folded shells) per model.
+ * 3D geometry schematic (canvas): bed + borehole + T + axes. Legend layout:
+ * ``globalThis.STC_LEGEND_LAYOUT === "side"`` → legend column on the right (Qt WebEngine embed);
+ * otherwise (e.g. PWA ``"bottom"``) → legend strip under the 3D view.
  */
 (function (global) {
   const V = {
@@ -432,14 +432,19 @@
     return { tNear, tFar };
   }
 
-  /** Past bottom contact along ray: fraction of L_in (top stub still uses ``pastEach``). */
+  /** Past bottom contact along ray: fraction of L_in (T1–T4 use 2; others 1). Top stub still uses ``pastEach``. */
   const MT_STUB_BOTTOM_FRAC = 1.0;
+
+  function mtStubBottomFrac(modelId) {
+    if (modelId === "t1" || modelId === "t2" || modelId === "t3" || modelId === "t4") return 2.0;
+    return MT_STUB_BOTTOM_FRAC;
+  }
 
   /**
    * Ray ∩ mesh AABB → in-volume length L_in. +z = down: smaller z = top bed.
-   * Draw from (top along ray) − pastEach×L_in to (bottom along ray) + MT_STUB_BOTTOM_FRAC×L_in, clamped to O→target.
+   * Draw from (top along ray) − pastEach×L_in to (bottom along ray) + stub×L_in, clamped to O→target.
    */
-  function mtDisplayEndpoints(o, target, meshFaces, pastEach = 0.25) {
+  function mtDisplayEndpoints(o, target, meshFaces, pastEach = 0.25, modelId = null) {
     const d = V.sub(target, o);
     const full = V.norm(d);
     if (full < 1e-12) return { lo: o, hi: target };
@@ -480,7 +485,7 @@
       sBot = sA;
     }
     const extTop = pastEach * lIn;
-    const extBot = MT_STUB_BOTTOM_FRAC * lIn;
+    const extBot = mtStubBottomFrac(modelId) * lIn;
     let sLo = Math.max(0, sTop - extTop);
     let sHi = Math.min(full, sBot + extBot);
     if (sLo > sHi) [sLo, sHi] = [sHi, sLo];
@@ -532,7 +537,7 @@
    * Wedging tetrahedron: M/T along o→target. Deeper bed (+z = down ⇒ larger centroid z) gets the
    * long stub (½ × max longest edge of the two bed Δ); shallower bed gets the short stub.
    */
-  function wedgeMtSegmentTriBeds(o, target, topFace, baseFace, pastEach) {
+  function wedgeMtSegmentTriBeds(o, target, topFace, baseFace, pastEach, modelId = null) {
     const d = V.sub(target, o);
     const full = V.norm(d);
     if (full < 1e-12) return null;
@@ -565,7 +570,7 @@
     const extShort = pastEach * lIn;
     let extLong =
       0.5 * Math.max(faceLongestEdgeLen(shallowFace), faceLongestEdgeLen(bottomFace));
-    if (extLong < 1e-12 * Math.max(1, full)) extLong = MT_STUB_BOTTOM_FRAC * lIn;
+    if (extLong < 1e-12 * Math.max(1, full)) extLong = mtStubBottomFrac(modelId) * lIn;
     const eps = 1e-9 * Math.max(1, full);
     const bottomIsExit = tBottom > tShallow + eps;
     let tLo;
@@ -641,7 +646,7 @@
       let lIn = Math.abs(sb);
       if (lIn < 1e-12) lIn = Math.max(1e-9 * Math.max(full, 1), full * 0.35);
       const extTop = pastEach * lIn;
-      const extBot = MT_STUB_BOTTOM_FRAC * lIn;
+      const extBot = mtStubBottomFrac(modelId) * lIn;
       const sLo = -extTop;
       const sHi = sb + extBot;
       return {
@@ -662,7 +667,7 @@
       }
       const lIn = Math.max(Math.abs(sb), 1e-9 * Math.max(full, 1));
       const extTop = pastEach * lIn;
-      const extBot = MT_STUB_BOTTOM_FRAC * lIn;
+      const extBot = mtStubBottomFrac(modelId) * lIn;
       return {
         lo: V.add(cAnchor, V.scale(-extTop, u)),
         hi: V.add(cAnchor, V.scale(sb + extBot, u)),
@@ -676,7 +681,7 @@
       (f) => f.surface === "base" && f.verts && f.verts.length === 3
     );
     if (topTris.length === 1 && baseTris.length === 1) {
-      const segW = wedgeMtSegmentTriBeds(o, target, topTris[0], baseTris[0], pastEach);
+      const segW = wedgeMtSegmentTriBeds(o, target, topTris[0], baseTris[0], pastEach, modelId);
       if (segW) return segW;
       const cTop = centroidVerts(topTris[0].verts);
       const seg = segmentFromAnchorPlane(cTop, baseTris[0]);
@@ -744,7 +749,7 @@
 
     const capSurf = new Set(["top", "base", "cap", "end"]);
     const capFaces = meshFaces.filter((f) => capSurf.has(f.surface || ""));
-    if (capFaces.length < 2) return mtDisplayEndpoints(o, target, meshFaces, pastEach);
+    if (capFaces.length < 2) return mtDisplayEndpoints(o, target, meshFaces, pastEach, modelId);
     let bestMin = null;
     let bestMax = null;
     for (const f of capFaces) {
@@ -755,11 +760,11 @@
     }
     const zSpan = bestMax.z - bestMin.z;
     if (zSpan < 1e-9 * Math.max(1, Math.abs(bestMin.z), Math.abs(bestMax.z)))
-      return mtDisplayEndpoints(o, target, meshFaces, pastEach);
-    if (bestMin.f === bestMax.f) return mtDisplayEndpoints(o, target, meshFaces, pastEach);
+      return mtDisplayEndpoints(o, target, meshFaces, pastEach, modelId);
+    if (bestMin.f === bestMax.f) return mtDisplayEndpoints(o, target, meshFaces, pastEach, modelId);
     const seg2 = segmentFromAnchorPlane(bestMin.c, bestMax.f);
     if (seg2) return seg2;
-    return mtDisplayEndpoints(o, target, meshFaces, pastEach);
+    return mtDisplayEndpoints(o, target, meshFaces, pastEach, modelId);
   }
 
   function collectScene(modelId, res, M, Tval) {
@@ -918,6 +923,7 @@
   const STC_ZOOM_MAX = 4.5;
   const STC_LEGEND_W_FRAC = 0.24;
   const STC_LEGEND_MIN_W = 100;
+  const STC_LEGEND_H = 96;
   const STC_ROT_SENS = 0.006;
 
   function bindStcCamera(canvas) {
@@ -941,12 +947,19 @@
       const h = rect.height;
       if (w < 1 || h < 1) return false;
       if (lx < 0 || ly < 0 || lx >= w || ly >= h) return false;
-      const lw =
-        canvas._stcLegendW != null
-          ? canvas._stcLegendW
-          : Math.max(STC_LEGEND_MIN_W, Math.floor(w * STC_LEGEND_W_FRAC));
-      const splitX = w - lw;
-      return lx < splitX - 2;
+      const layout = canvas._stcLegendLayout || "bottom";
+      if (layout === "side") {
+        const lw =
+          canvas._stcLegendW != null
+            ? canvas._stcLegendW
+            : Math.max(STC_LEGEND_MIN_W, Math.floor(w * STC_LEGEND_W_FRAC));
+        const splitX = w - lw;
+        return lx < splitX - 2;
+      }
+      const lh =
+        canvas._stcLegendH != null ? canvas._stcLegendH : STC_LEGEND_H;
+      const splitY = h - lh;
+      return ly < splitY - 2;
     };
 
     const touchPoints = new Map();
@@ -1134,16 +1147,37 @@
     const fs = (px) => Math.round(px * layoutS) + "px Arial";
     const fsBold = (px) => "bold " + Math.round(px * layoutS) + "px Arial";
 
-    let legendW = Math.round(cssW * STC_LEGEND_W_FRAC * Math.max(0.85, layoutS));
-    legendW = Math.min(legendW, Math.floor(cssW * 0.34));
-    legendW = Math.max(STC_LEGEND_MIN_W, legendW);
-    let splitX = cssW - legendW;
-    const minPlotW = Math.max(96, Math.round(140 * layoutS));
-    if (splitX < minPlotW) {
-      legendW = Math.max(80, cssW - minPlotW);
+    const legendOnSide = globalThis.STC_LEGEND_LAYOUT === "side";
+    let splitX = cssW;
+    let splitY = cssH;
+    let legendW = 0;
+    let legendH = 0;
+    if (legendOnSide) {
+      legendW = Math.round(cssW * STC_LEGEND_W_FRAC * Math.max(0.85, layoutS));
+      legendW = Math.min(legendW, Math.floor(cssW * 0.34));
+      legendW = Math.max(STC_LEGEND_MIN_W, legendW);
       splitX = cssW - legendW;
+      const minPlotW = Math.max(96, Math.round(140 * layoutS));
+      if (splitX < minPlotW) {
+        legendW = Math.max(80, cssW - minPlotW);
+        splitX = cssW - legendW;
+      }
+      canvas._stcLegendW = legendW;
+      canvas._stcLegendH = undefined;
+    } else {
+      legendH = Math.round(STC_LEGEND_H * layoutS);
+      legendH = Math.min(legendH, Math.floor(cssH * 0.38));
+      legendH = Math.max(48, legendH);
+      splitY = cssH - legendH;
+      const minPlot = Math.max(64, Math.round(90 * layoutS));
+      if (splitY < minPlot) {
+        legendH = Math.max(40, cssH - minPlot);
+        splitY = cssH - legendH;
+      }
+      canvas._stcLegendH = legendH;
+      canvas._stcLegendW = undefined;
     }
-    canvas._stcLegendW = legendW;
+    canvas._stcLegendLayout = legendOnSide ? "side" : "bottom";
 
     canvas.width = Math.floor(cssW * dpr);
     canvas.height = Math.floor(cssH * dpr);
@@ -1155,24 +1189,46 @@
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, cssW, cssH);
 
+    const plotClipW = legendOnSide ? splitX : cssW;
+    const plotClipH = legendOnSide ? cssH : splitY;
+
     ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = Math.max(1, layoutS);
     ctx.beginPath();
-    ctx.moveTo(splitX + 0.5, 0);
-    ctx.lineTo(splitX + 0.5, cssH);
+    if (legendOnSide) {
+      ctx.moveTo(splitX + 0.5, 0);
+      ctx.lineTo(splitX + 0.5, cssH);
+    } else {
+      ctx.moveTo(0, splitY + 0.5);
+      ctx.lineTo(cssW, splitY + 0.5);
+    }
     ctx.stroke();
 
-    const margin = {
-      left: Math.round(22 * layoutS),
-      right: Math.round(14 * layoutS),
-      top: Math.round(34 * layoutS),
-      bottom: Math.round(20 * layoutS),
-    };
-    const plotW = splitX - margin.left - margin.right;
-    const plotH = cssH - margin.top - margin.bottom;
+    if (!legendOnSide) {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, splitY + 1, cssW, legendH - 1);
+    }
+
+    const margin = legendOnSide
+      ? {
+          left: Math.round(22 * layoutS),
+          right: Math.round(14 * layoutS),
+          top: Math.round(34 * layoutS),
+          bottom: Math.round(20 * layoutS),
+        }
+      : {
+          left: Math.round(24 * layoutS),
+          right: Math.round(24 * layoutS),
+          top: Math.round(34 * layoutS),
+          bottom: Math.round(20 * layoutS),
+        };
+    const plotW = plotClipW - margin.left - margin.right;
+    const plotH = plotClipH - margin.top - margin.bottom;
     const cx = margin.left + plotW / 2;
     const originYFrac = 0.5;
     const cy = margin.top + plotH * originYFrac;
+    const plotLabelMaxX = legendOnSide ? splitX : cssW;
+    const titleCenterX = legendOnSide ? splitX / 2 : cssW / 2;
 
     const oVol = { x: 0, y: 0, z: 0 };
     const oRay = scene.boreholeRayO;
@@ -1200,10 +1256,10 @@
           mtPastEach,
           modelId
         )
-      : mtDisplayEndpoints(oRay, scene.boreholeEnd, scene.meshFaces, mtPastEach);
+      : mtDisplayEndpoints(oRay, scene.boreholeEnd, scene.meshFaces, mtPastEach, modelId);
     const tDisp = useSingleBedTopAnchor
       ? mtDisplaySingleBedT234(scene.meshFaces, oRay, scene.tEnd, mtPastEach, modelId)
-      : mtDisplayEndpoints(oRay, scene.tEnd, scene.meshFaces, mtPastEach);
+      : mtDisplayEndpoints(oRay, scene.tEnd, scene.meshFaces, mtPastEach, modelId);
     addPt(oVol);
     addPt(bhDisp.lo);
     addPt(bhDisp.hi);
@@ -1238,7 +1294,7 @@
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, splitX, cssH);
+    ctx.rect(0, 0, plotClipW, plotClipH);
     ctx.clip();
 
     function drawLine3(a, b, color, width, dash) {
@@ -1333,7 +1389,7 @@
         label,
         Math.min(
           end.x + Math.round(4 * layoutS),
-          splitX - Math.round(10 * layoutS) - ctx.measureText(label).width
+          plotLabelMaxX - Math.round(10 * layoutS) - ctx.measureText(label).width
         ),
         end.y
       );
@@ -1369,7 +1425,7 @@
     ctx.textAlign = "center";
     ctx.fillText(
       "3D view — drag to orbit · wheel/pinch zoom · dbl-click reset",
-      splitX / 2,
+      titleCenterX,
       Math.max(Math.round(14 * layoutS), 12)
     );
     ctx.restore();
@@ -1380,16 +1436,13 @@
     ctx.textAlign = "center";
     ctx.fillText(
       "Schematic only — not to scale.",
-      splitX / 2,
-      cssH - Math.round(6 * layoutS)
+      titleCenterX,
+      legendOnSide ? cssH - Math.round(6 * layoutS) : splitY - Math.round(6 * layoutS)
     );
     ctx.restore();
 
     ctx.restore();
 
-    const legPad = Math.round(10 * layoutS);
-    const lx = splitX + legPad;
-    const legendTextW = Math.max(40, legendW - 2 * legPad);
     const wordWrap = (txt, maxW) => {
       const words = txt.split(" ");
       const lines = [];
@@ -1406,96 +1459,177 @@
       if (line) lines.push(line);
       return lines;
     };
-    const seg = Math.round(18 * layoutS);
-    const sw = Math.max(6, Math.round(9 * layoutS));
-    let ly = Math.round(18 * layoutS);
-    ctx.save();
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#0f172a";
-    ctx.font = fsBold(11);
-    ctx.fillText("Legend", lx, ly);
-    ly += Math.round(16 * layoutS);
-    ctx.font = fs(9);
-    ctx.fillStyle = "#475569";
-    const legendLine = (y, color, text, isSeg) => {
-      const x0 = lx;
-      if (isSeg) {
-        ctx.strokeStyle = color;
+
+    if (legendOnSide) {
+      const legPad = Math.round(10 * layoutS);
+      const lx = splitX + legPad;
+      const legendTextW = Math.max(40, legendW - 2 * legPad);
+      const seg = Math.round(18 * layoutS);
+      const sw = Math.max(6, Math.round(9 * layoutS));
+      let ly = Math.round(18 * layoutS);
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#0f172a";
+      ctx.font = fsBold(11);
+      ctx.fillText("Legend", lx, ly);
+      ly += Math.round(16 * layoutS);
+      ctx.font = fs(9);
+      ctx.fillStyle = "#475569";
+      const legendLineCol = (y, color, text, isSeg) => {
+        const x0 = lx;
+        if (isSeg) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(2, 3 * layoutS);
+          ctx.beginPath();
+          ctx.moveTo(x0, y - Math.round(3 * layoutS));
+          ctx.lineTo(x0 + seg, y - Math.round(3 * layoutS));
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = color;
+          ctx.fillRect(x0, y - sw, sw, sw);
+        }
+        ctx.fillStyle = "#1e293b";
+        ctx.fillText(text, x0 + Math.round(24 * layoutS), y);
+        return y + Math.round(18 * layoutS);
+      };
+      ly = legendLineCol(ly, "#ea580c", "x axis (North)", false);
+      ly = legendLineCol(ly, "#16a34a", "y axis (East)", false);
+      {
+        const x0 = lx;
+        const swZ = Math.max(6, Math.round(9 * layoutS));
+        const dz = Math.round(14 * layoutS);
+        ctx.save();
+        ctx.strokeStyle = "#000000";
         ctx.lineWidth = Math.max(2, 3 * layoutS);
         ctx.beginPath();
-        ctx.moveTo(x0, y - Math.round(3 * layoutS));
-        ctx.lineTo(x0 + seg, y - Math.round(3 * layoutS));
+        ctx.moveTo(x0 + Math.round(swZ / 2), ly - swZ);
+        ctx.lineTo(x0 + Math.round(swZ / 2), ly - swZ + dz);
         ctx.stroke();
-      } else {
-        ctx.fillStyle = color;
-        ctx.fillRect(x0, y - sw, sw, sw);
+        ctx.fillStyle = "#1e293b";
+        ctx.textBaseline = "middle";
+        ctx.fillText("z axis (down)", x0 + Math.round(24 * layoutS), ly - swZ + dz * 0.5);
+        ctx.restore();
+        ly += Math.round(18 * layoutS);
       }
-      ctx.fillStyle = "#1e293b";
-      ctx.fillText(text, x0 + Math.round(24 * layoutS), y);
-      return y + Math.round(18 * layoutS);
-    };
-    ly = legendLine(ly, "#ea580c", "x axis (North)", false);
-    ly = legendLine(ly, "#16a34a", "y axis (East)", false);
-    {
-      const x0 = lx;
-      const swZ = Math.max(6, Math.round(9 * layoutS));
-      const dz = Math.round(14 * layoutS);
-      ctx.save();
-      ctx.strokeStyle = "#000000";
-      ctx.lineWidth = Math.max(2, 3 * layoutS);
-      ctx.beginPath();
-      ctx.moveTo(x0 + Math.round(swZ / 2), ly - swZ);
-      ctx.lineTo(x0 + Math.round(swZ / 2), ly - swZ + dz);
-      ctx.stroke();
-      ctx.fillStyle = "#1e293b";
-      ctx.textBaseline = "middle";
-      ctx.fillText("z axis (down)", x0 + Math.round(24 * layoutS), ly - swZ + dz * 0.5);
-      ctx.restore();
-      ly += Math.round(18 * layoutS);
-    }
-    ly = legendLine(ly, "#dc2626", "M", true);
-    ly = legendLine(ly, "#2563eb", "T", true);
-    ctx.fillStyle = "#475569";
-    ctx.font = fs(8);
-    for (const ln of wordWrap(
-      "Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.",
-      legendTextW
-    )) {
-      ctx.fillText(ln, lx, ly);
-      ly += Math.round(12 * layoutS);
-    }
-    ly += Math.round(4 * layoutS);
-    ctx.fillStyle = "#64748b";
-    ctx.font = fs(8);
-    const lineGap = Math.round(12 * layoutS);
-    const lineGapS = Math.round(11 * layoutS);
-    const volLines = wordWrap("Bed volume: " + scene.volumeKind, legendTextW);
-    for (const ln of volLines) {
-      ctx.fillText(ln, lx, ly);
-      ly += lineGap;
-    }
-    if (scene.wedgeFootnote) {
-      ly += Math.round(6 * layoutS);
+      ly = legendLineCol(ly, "#dc2626", "M", true);
+      ly = legendLineCol(ly, "#2563eb", "T", true);
+      ctx.fillStyle = "#475569";
       ctx.font = fs(8);
-      ctx.fillStyle = "#57534e";
-      for (const ln of wordWrap(scene.wedgeFootnote, legendTextW)) {
-        ctx.fillText(ln, lx, ly);
-        ly += lineGapS;
-      }
-    }
-    if (modelId === "t5" || modelId === "t6") {
-      ly += Math.round(6 * layoutS);
-      ctx.font = fs(8);
-      ctx.fillStyle = "#57534e";
       for (const ln of wordWrap(
-        "If η (between poles) is small, the drawn arc opens to ≥28° for visibility.",
+        "Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.",
         legendTextW
       )) {
         ctx.fillText(ln, lx, ly);
-        ly += lineGapS;
+        ly += Math.round(12 * layoutS);
       }
+      ly += Math.round(4 * layoutS);
+      ctx.fillStyle = "#64748b";
+      ctx.font = fs(8);
+      const lineGap = Math.round(12 * layoutS);
+      const lineGapS = Math.round(11 * layoutS);
+      const volLines = wordWrap("Bed volume: " + scene.volumeKind, legendTextW);
+      for (const ln of volLines) {
+        ctx.fillText(ln, lx, ly);
+        ly += lineGap;
+      }
+      if (scene.wedgeFootnote) {
+        ly += Math.round(6 * layoutS);
+        ctx.font = fs(8);
+        ctx.fillStyle = "#57534e";
+        for (const ln of wordWrap(scene.wedgeFootnote, legendTextW)) {
+          ctx.fillText(ln, lx, ly);
+          ly += lineGapS;
+        }
+      }
+      if (modelId === "t5" || modelId === "t6") {
+        ly += Math.round(6 * layoutS);
+        ctx.font = fs(8);
+        ctx.fillStyle = "#57534e";
+        for (const ln of wordWrap(
+          "If η (between poles) is small, the drawn arc opens to ≥28° for visibility.",
+          legendTextW
+        )) {
+          ctx.fillText(ln, lx, ly);
+          ly += lineGapS;
+        }
+      }
+      ctx.restore();
+    } else {
+      const lx0 = Math.round(12 * layoutS);
+      const textPad = Math.round(24 * layoutS);
+      const legendTextW = cssW - textPad;
+      const seg = Math.round(18 * layoutS);
+      const sw = Math.max(6, Math.round(9 * layoutS));
+      let ly = splitY + Math.round(16 * layoutS);
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#0f172a";
+      ctx.font = fsBold(11);
+      ctx.fillText("Legend", lx0, ly);
+      ly += Math.round(14 * layoutS);
+      ctx.font = fs(9);
+      ctx.fillStyle = "#475569";
+      const legendLineRow = (x, y, color, text, isSeg) => {
+        if (isSeg) {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(2, 3 * layoutS);
+          ctx.beginPath();
+          ctx.moveTo(x, y - Math.round(3 * layoutS));
+          ctx.lineTo(x + seg, y - Math.round(3 * layoutS));
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = color;
+          ctx.fillRect(x, y - sw, sw, sw);
+        }
+        ctx.fillStyle = "#1e293b";
+        ctx.fillText(text, x + Math.round(24 * layoutS), y);
+      };
+      legendLineRow(lx0, ly, "#ea580c", "x axis (North)", false);
+      legendLineRow(lx0 + Math.round(122 * layoutS), ly, "#16a34a", "y axis (East)", false);
+      legendLineRow(lx0 + Math.round(238 * layoutS), ly, "#000000", "z axis (down)", false);
+      legendLineRow(lx0 + Math.round(348 * layoutS), ly, "#dc2626", "M", true);
+      legendLineRow(lx0 + Math.round(398 * layoutS), ly, "#2563eb", "T", true);
+      ly += Math.round(16 * layoutS);
+      ctx.fillStyle = "#475569";
+      ctx.font = fs(8);
+      ctx.fillText(
+        "Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.",
+        lx0,
+        ly
+      );
+      ly += Math.round(14 * layoutS);
+      ly += Math.round(2 * layoutS);
+      ctx.fillStyle = "#64748b";
+      ctx.font = fs(8);
+      const lineGap = Math.round(12 * layoutS);
+      const lineGapS = Math.round(11 * layoutS);
+      for (const ln of wordWrap("Bed volume: " + scene.volumeKind, legendTextW)) {
+        ctx.fillText(ln, lx0, ly);
+        ly += lineGap;
+      }
+      if (scene.wedgeFootnote) {
+        ly += Math.round(6 * layoutS);
+        ctx.font = fs(8);
+        ctx.fillStyle = "#57534e";
+        for (const ln of wordWrap(scene.wedgeFootnote, legendTextW)) {
+          ctx.fillText(ln, lx0, ly);
+          ly += lineGapS;
+        }
+      }
+      if (modelId === "t5" || modelId === "t6") {
+        ly += Math.round(6 * layoutS);
+        ctx.font = fs(8);
+        ctx.fillStyle = "#57534e";
+        for (const ln of wordWrap(
+          "If η (between poles) is small, the drawn arc opens to ≥28° for visibility.",
+          legendTextW
+        )) {
+          ctx.fillText(ln, lx0, ly);
+          ly += lineGapS;
+        }
+      }
+      ctx.restore();
     }
-    ctx.restore();
   }
 
   function drawGeometry(canvas, modelId, payload) {

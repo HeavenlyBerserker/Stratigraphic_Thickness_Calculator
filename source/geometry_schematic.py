@@ -3,7 +3,8 @@ Interactive 3D geometry schematic for the Qt desktop app (PySide6).
 
 Default: Matplotlib/QtAgg (`mpl_geometry_schematic.py`) — smaller bundles, no Chromium.
 
-Optional: Qt WebEngine + `mobile/geometry-schematic.js` (same rendering as the PWA) when
+Optional: Qt WebEngine + `mobile/geometry-schematic.js` (embed sets ``STC_LEGEND_LAYOUT = "side"``;
+the PWA uses ``"bottom"``) when
 run as ``python -m source.main --js`` or when frozen with ``BACKEND_MPL = False`` from
 the ``-js`` / ``--js`` build scripts.
 """

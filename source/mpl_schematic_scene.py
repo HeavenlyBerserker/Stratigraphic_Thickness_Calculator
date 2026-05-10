@@ -525,6 +525,7 @@ def _wedge_mt_segment_tri_beds(
     top_face: dict[str, Any],
     base_face: dict[str, Any],
     past_each_end: float,
+    model_id: str | None = None,
 ) -> tuple[Vec3, Vec3] | None:
     """
     Wedging tetrahedron (tri ``top`` + tri ``base``): stubs along **o → target**.
@@ -564,7 +565,7 @@ def _wedge_mt_segment_tri_beds(
     le_b = _face_longest_edge_length(bottom_face)
     ext_long = 0.5 * max(le_s, le_b)
     if ext_long < 1e-12 * max(1.0, full):
-        ext_long = _MT_STUB_BOTTOM_FRAC * l_in
+        ext_long = _mt_stub_bottom_frac(model_id) * l_in
     eps = 1e-9 * max(1.0, full)
     bottom_is_exit = t_bottom > t_shallow + eps
     if bottom_is_exit:
@@ -612,8 +613,12 @@ def _face_polygon_area(face: dict[str, Any]) -> float:
 
 
 # M/T schematic ray stubs past bedding (+z down: shallower z = top). Top stub uses ``past_each_end``;
-# past the bottom contact the stub is longer (fraction of ``L_in``).
+# past the bottom contact the stub is longer (fraction of ``L_in``). T1–T4 use a longer past-bottom stub.
 _MT_STUB_BOTTOM_FRAC = 1.0
+
+
+def _mt_stub_bottom_frac(model_id: str | None) -> float:
+    return 2.0 if model_id in ("t1", "t2", "t3", "t4") else _MT_STUB_BOTTOM_FRAC
 
 
 def mt_display_single_bed_t234(
@@ -663,7 +668,7 @@ def mt_display_single_bed_t234(
         if l_in < 1e-12:
             l_in = max(1e-9 * max(full, 1.0), full * 0.35)
         ext_top = past_each_end * l_in
-        ext_bot = _MT_STUB_BOTTOM_FRAC * l_in
+        ext_bot = _mt_stub_bottom_frac(model_id) * l_in
         s_lo = -ext_top
         s_hi = s_b + ext_bot
         p_lo = _v_add(c_anchor, _v_scale(s_lo, u))
@@ -685,7 +690,7 @@ def mt_display_single_bed_t234(
             s_b = -s_b
         l_in = max(abs(s_b), 1e-9 * max(full, 1.0))
         ext_top = past_each_end * l_in
-        ext_bot = _MT_STUB_BOTTOM_FRAC * l_in
+        ext_bot = _mt_stub_bottom_frac(model_id) * l_in
         s_lo = -ext_top
         s_hi = s_b + ext_bot
         return (
@@ -704,7 +709,7 @@ def mt_display_single_bed_t234(
         if str(f.get("surface", "")) == "base" and len(f.get("verts", ())) == 3
     ]
     if len(top_tris) == 1 and len(base_tris) == 1:
-        seg_w = _wedge_mt_segment_tri_beds(o, target, top_tris[0], base_tris[0], past_each_end)
+        seg_w = _wedge_mt_segment_tri_beds(o, target, top_tris[0], base_tris[0], past_each_end, model_id)
         if seg_w is not None:
             return seg_w
         c_top = _centroid3([_v_from(v) for v in top_tris[0]["verts"]])
@@ -758,7 +763,7 @@ def mt_display_single_bed_t234(
     cap_surf = frozenset({"top", "base", "cap", "end"})
     cap_faces = [f for f in mesh_faces if str(f.get("surface", "")) in cap_surf]
     if len(cap_faces) < 2:
-        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end, model_id=model_id)
     best_min: tuple[dict[str, Any], Vec3, float] | None = None
     best_max: tuple[dict[str, Any], Vec3, float] | None = None
     for f in cap_faces:
@@ -769,17 +774,17 @@ def mt_display_single_bed_t234(
         if best_max is None or z > best_max[2]:
             best_max = (f, c, z)
     if best_min is None or best_max is None:
-        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end, model_id=model_id)
     z_span = best_max[2] - best_min[2]
     if z_span < 1e-9 * max(1.0, abs(best_min[2]), abs(best_max[2])):
-        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end, model_id=model_id)
     if best_min[0] is best_max[0]:
-        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+        return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end, model_id=model_id)
     c_anchor = best_min[1]
     seg = _segment_from_anchor_plane(c_anchor, best_max[0])
     if seg is not None:
         return seg
-    return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end)
+    return mt_display_endpoints(o, target, mesh_faces, past_each_end=past_each_end, model_id=model_id)
 
 
 def mt_display_endpoints(
@@ -788,12 +793,13 @@ def mt_display_endpoints(
     mesh_faces: list[dict[str, Any]],
     *,
     past_each_end: float = 0.25,
+    model_id: str | None = None,
 ) -> tuple[Vec3, Vec3]:
     """
     Clip M/T for schematic: ray ∩ mesh AABB gives in-volume length ``L_in``.
     With +z = down, the shallower contact is the **top bed**; the deeper is **bottom**.
-    Draw from ``(top along ray) - past_each_end * L_in`` to ``(bottom along ray) + _MT_STUB_BOTTOM_FRAC * L_in``,
-    clamped to the segment O→target (top stub default ``past_each_end`` = 0.25).
+    Draw from ``(top along ray) - past_each_end * L_in`` to ``(bottom along ray) + stub_frac * L_in``,
+    clamped to the segment O→target (``stub_frac`` is 2 for T1–T4, else ``_MT_STUB_BOTTOM_FRAC``).
     """
     d = _v_sub(target, o)
     full = _v_norm(d)
@@ -824,7 +830,7 @@ def mt_display_endpoints(
     else:
         s_top, s_bot = s_b, s_a
     ext_top = past_each_end * l_in
-    ext_bot = _MT_STUB_BOTTOM_FRAC * l_in
+    ext_bot = _mt_stub_bottom_frac(model_id) * l_in
     s_lo = max(0.0, s_top - ext_top)
     s_hi = min(full, s_bot + ext_bot)
     if s_lo > s_hi:

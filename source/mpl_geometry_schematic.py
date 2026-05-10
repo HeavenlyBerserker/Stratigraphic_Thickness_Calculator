@@ -103,8 +103,10 @@ def _render_main_ax(
             scene.mesh_faces, o_ray, scene.t_end, model_id=model_id
         )
     else:
-        m_lo, m_hi = mt_display_endpoints(o_ray, scene.borehole_end, scene.mesh_faces)
-        t_lo, t_hi = mt_display_endpoints(o_ray, scene.t_end, scene.mesh_faces)
+        m_lo, m_hi = mt_display_endpoints(
+            o_ray, scene.borehole_end, scene.mesh_faces, model_id=scene.model_id
+        )
+        t_lo, t_hi = mt_display_endpoints(o_ray, scene.t_end, scene.mesh_faces, model_id=scene.model_id)
     pts2.append(proj(o_vol))
     pts2.append(proj(m_lo))
     pts2.append(proj(m_hi))
