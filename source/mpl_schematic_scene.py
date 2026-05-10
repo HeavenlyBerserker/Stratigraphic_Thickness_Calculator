@@ -613,12 +613,12 @@ def _face_polygon_area(face: dict[str, Any]) -> float:
 
 
 # M/T schematic ray stubs past bedding (+z down: shallower z = top). Top stub uses ``past_each_end``;
-# past the bottom contact the stub is longer (fraction of ``L_in``). T1–T4 use a longer past-bottom stub.
+# past the bottom contact the stub is longer (fraction of ``L_in``). T1–T4 use 3× ``L_in`` past-bottom stub.
 _MT_STUB_BOTTOM_FRAC = 1.0
 
 
 def _mt_stub_bottom_frac(model_id: str | None) -> float:
-    return 2.0 if model_id in ("t1", "t2", "t3", "t4") else _MT_STUB_BOTTOM_FRAC
+    return 3.0 if model_id in ("t1", "t2", "t3", "t4") else _MT_STUB_BOTTOM_FRAC
 
 
 def mt_display_single_bed_t234(
@@ -799,7 +799,7 @@ def mt_display_endpoints(
     Clip M/T for schematic: ray ∩ mesh AABB gives in-volume length ``L_in``.
     With +z = down, the shallower contact is the **top bed**; the deeper is **bottom**.
     Draw from ``(top along ray) - past_each_end * L_in`` to ``(bottom along ray) + stub_frac * L_in``,
-    clamped to the segment O→target (``stub_frac`` is 2 for T1–T4, else ``_MT_STUB_BOTTOM_FRAC``).
+    clamped to the segment O→target (``stub_frac`` is 3 for T1–T4, else ``_MT_STUB_BOTTOM_FRAC``).
     """
     d = _v_sub(target, o)
     full = _v_norm(d)

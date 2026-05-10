@@ -432,11 +432,11 @@
     return { tNear, tFar };
   }
 
-  /** Past bottom contact along ray: fraction of L_in (T1–T4 use 2; others 1). Top stub still uses ``pastEach``. */
+  /** Past bottom contact along ray: fraction of L_in (T1–T4 use 3; others 1). Top stub still uses ``pastEach``. */
   const MT_STUB_BOTTOM_FRAC = 1.0;
 
   function mtStubBottomFrac(modelId) {
-    if (modelId === "t1" || modelId === "t2" || modelId === "t3" || modelId === "t4") return 2.0;
+    if (modelId === "t1" || modelId === "t2" || modelId === "t3" || modelId === "t4") return 3.0;
     return MT_STUB_BOTTOM_FRAC;
   }
 
