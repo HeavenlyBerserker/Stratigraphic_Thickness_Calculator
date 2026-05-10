@@ -809,6 +809,9 @@
     const sortedFaces = [...scene.meshFaces].sort(
       (a, b) => faceDepthRotated(a, cam.yaw, cam.pitch) - faceDepthRotated(b, cam.yaw, cam.pitch)
     );
+    // M / T drawn first: translucent faces blend on top so segments inside the bed read as "through" the volume.
+    drawLine3(origin, scene.boreholeEnd, "#dc2626", Math.max(2, 3.5 * layoutS));
+    drawLine3(origin, scene.tEnd, "#2563eb", Math.max(2, 3.5 * layoutS));
     for (const f of sortedFaces) fillFace3(f);
 
     const O = toCanvas(projectCam(origin));
@@ -843,9 +846,6 @@
     ctx.arc(AO.x, AO.y, Math.max(2, 3.5 * layoutS), 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
-
-    drawLine3(origin, scene.boreholeEnd, "#dc2626", Math.max(2, 3.5 * layoutS));
-    drawLine3(origin, scene.tEnd, "#2563eb", Math.max(2, 3.5 * layoutS));
 
     ctx.save();
     ctx.strokeStyle = "#475569";

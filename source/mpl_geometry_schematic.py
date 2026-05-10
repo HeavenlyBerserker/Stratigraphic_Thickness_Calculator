@@ -144,6 +144,31 @@ def _render_main_ax(
         scene.mesh_faces, key=lambda f: face_depth_for_sort(f, yaw, pitch)
     )
     edge_outline = max(2.05, 2.5 * (plot_w / 600.0) ** 0.5)
+
+    def draw_seg_3(
+        a: tuple[float, float, float],
+        b: tuple[float, float, float],
+        col: str,
+        lw: float,
+        *,
+        z: float = 5,
+    ) -> None:
+        pa = to_canvas(proj(a))
+        pb = to_canvas(proj(b))
+        ax.plot(
+            [pa[0], pb[0]],
+            [pa[1], pb[1]],
+            color=col,
+            lw=lw,
+            zorder=z,
+            solid_capstyle="round",
+        )
+
+    lw_m = max(2.0, 3.5 * (plot_w / 600.0) ** 0.5)
+    # M / T under translucent fills so alpha occludes segments inside the bed (same idea as JS canvas).
+    draw_seg_3(o3, scene.borehole_end, "#dc2626", lw_m, z=1)
+    draw_seg_3(o3, scene.t_end, "#2563eb", lw_m, z=1)
+
     for f in sorted_faces:
         poly = [to_canvas(proj(v)) for v in f["verts"]]
         fc = _mpl_fill_rgba(f, model_id)
@@ -154,7 +179,7 @@ def _render_main_ax(
                 facecolor=fc,
                 edgecolor="none",
                 linewidth=0,
-                zorder=1,
+                zorder=2,
             )
         )
 
@@ -173,21 +198,12 @@ def _render_main_ax(
             solid_joinstyle="round",
         )
 
-    def draw_seg_3(a: tuple[float, float, float], b: tuple[float, float, float], col: str, lw: float) -> None:
-        pa = to_canvas(proj(a))
-        pb = to_canvas(proj(b))
-        ax.plot([pa[0], pb[0]], [pa[1], pb[1]], color=col, lw=lw, zorder=5, solid_capstyle="round")
-
-    lw_m = max(2.0, 3.5 * (plot_w / 600.0) ** 0.5)
-
     oc = to_canvas(proj(o3))
-    draw_seg_3(o3, scene.borehole_end, "#dc2626", lw_m)
-    draw_seg_3(o3, scene.t_end, "#2563eb", lw_m)
 
     ls = max(2.5, (plot_w / 600.0) * 2.5)
-    draw_seg_3(ax_origin, v_add(ax_origin, ex), "#ea580c", ls)
-    draw_seg_3(ax_origin, v_add(ax_origin, ey), "#16a34a", ls)
-    draw_seg_3(ax_origin, v_add(ax_origin, ez), "#000000", ls)
+    draw_seg_3(ax_origin, v_add(ax_origin, ex), "#ea580c", ls, z=5)
+    draw_seg_3(ax_origin, v_add(ax_origin, ey), "#16a34a", ls, z=5)
+    draw_seg_3(ax_origin, v_add(ax_origin, ez), "#000000", ls, z=5)
 
     ao_c = to_canvas(proj(ax_origin))
     ax.scatter([ao_c[0]], [ao_c[1]], s=28, fc="white", ec="#64748b", lw=1, zorder=6)
