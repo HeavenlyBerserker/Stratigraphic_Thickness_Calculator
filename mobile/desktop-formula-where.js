@@ -110,7 +110,7 @@ globalThis.STC_FORMULA_WHERE = {
     "If S ≥ 0: Top-normal = M' cos(α + η) / cos(η) &nbsp; (paper T<sub>7</sub>)<br>" +
     "Also Top-normal = M' (sinγ / sinμ) = M' cos(α ∓ η) / cos(η) (Berg, 2011)<br><br>" +
     "<b>Where</b><br>" +
-    "Top-normal: thickness for M measured normal to the top bed (paper T<sub>7</sub>)<br>" +
+    "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed; paper T<sub>7</sub>)<br>" +
     "η: angle between dip poles at top and base; S selects thickening sense<br>",
   t8:
     "<b>Formula</b><br>" +
@@ -118,5 +118,5 @@ globalThis.STC_FORMULA_WHERE = {
     "Top-normal = M' cos(α ∓ η) / cos(η) per S (paper T<sub>7</sub>)<br>" +
     "T<sub>8</sub> = Top-normal × cos(η / 2) &nbsp; (equal-angle method)<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>8</sub>: equal-angle thickness; η = arccos(U<sub>d1</sub> · U<sub>d2</sub>)<br>",
+    "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; η = arccos(U<sub>d1</sub> · U<sub>d2</sub>))<br>",
 };

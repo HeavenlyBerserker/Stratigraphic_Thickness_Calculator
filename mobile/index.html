@@ -842,7 +842,7 @@
       if (modelId === "t7") {
         return (
           "<b>Result</b><br>" +
-          "Top-normal (stratigraphic thickness, normal to top bed): " +
+          "T<sub>7</sub> (True Stratigraphic Thickness, normal to top bed): " +
           fmtNum(res.true_stratigraphic_thickness) +
           "<br>" +
           gw +
@@ -852,11 +852,8 @@
       if (modelId === "t8") {
         return (
           "<b>Result</b><br>" +
-          "T<sub>8</sub> (equal-angle): " +
+          "T<sub>8</sub> (True Stratigraphic Thickness, equal-angle): " +
           fmtNum(res.true_stratigraphic_thickness) +
-          "<br>" +
-          "Top-normal (intermediate): " +
-          fmtNum(res.top_normal_thickness) +
           "<br>" +
           gw +
           "<br>"
@@ -1039,6 +1036,9 @@
       if (modelId === "t8") {
         return (
           "<b>Quantities</b><br>" +
+          "Top-normal (intermediate, paper T<sub>7</sub>): " +
+          fmtNum(res.top_normal_thickness) +
+          "<br>" +
           "M' = " +
           fmtNum(res.m_prime) +
           "<br>" +
@@ -1192,7 +1192,7 @@
           rows.push(...xlsxVec3Rows("Uc", res.c_vector));
           break;
         case "t7":
-          rows.push(["Top_normal_T7", res.true_stratigraphic_thickness]);
+          rows.push(["T7", res.true_stratigraphic_thickness]);
           rows.push(["M_prime", res.m_prime]);
           rows.push(["alpha_deg", res.alpha_deg]);
           rows.push(["eta_deg", res.eta_deg]);
@@ -1205,7 +1205,7 @@
           rows.push(...xlsxVec3Rows("Ub_prime", res.ub_prime_vector));
           break;
         case "t8":
-          rows.push(["T8_equal_angle", res.true_stratigraphic_thickness]);
+          rows.push(["T8", res.true_stratigraphic_thickness]);
           rows.push(["Top_normal_intermediate", res.top_normal_thickness]);
           rows.push(["M_prime", res.m_prime]);
           rows.push(["alpha_deg", res.alpha_deg]);

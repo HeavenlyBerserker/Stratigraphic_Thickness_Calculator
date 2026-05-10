@@ -1377,7 +1377,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         warn_html = self._geometry_warnings_after_result_html(result.geometry_warnings)
         output = (
             "<b>Result</b><br>"
-            "Top-normal (stratigraphic thickness, normal to top bed): "
+            f"T<sub>7</sub> (True Stratigraphic Thickness, normal to top bed): "
             f"{result.true_stratigraphic_thickness:.6f}<br>"
             f"{warn_html}"
             "<br>"
@@ -1417,7 +1417,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "If S ≥ 0: Top-normal = M' cos(α + η) / cos(η) &nbsp; (paper T<sub>7</sub>)<br>"
             "Also Top-normal = M' (sinγ / sinμ) = M' cos(α ∓ η) / cos(η) (Berg, 2011)<br><br>"
             "<b>Where</b><br>"
-            "Top-normal: thickness for M measured normal to the top bed (paper T<sub>7</sub>)<br>"
+            "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed; paper T<sub>7</sub>)<br>"
             "η: angle between dip poles at top and base; S selects thickening sense<br>"
         )
         xlsx_in = [
@@ -1430,7 +1430,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             self._xlsx_input_column(tab, "phid2_7", "phid2_deg"),
         ]
         xlsx_out = [
-            ("Top_normal_T7", result.true_stratigraphic_thickness),
+            ("T7", result.true_stratigraphic_thickness),
             ("M_prime", result.m_prime),
             ("alpha_deg", result.alpha_deg),
             ("eta_deg", result.eta_deg),
@@ -1492,11 +1492,13 @@ class StratigraphicCalculatorWindow(QMainWindow):
         warn_html = self._geometry_warnings_after_result_html(result.geometry_warnings)
         output = (
             "<b>Result</b><br>"
-            f"T<sub>8</sub> (equal-angle): {result.true_stratigraphic_thickness:.6f}<br>"
-            f"Top-normal (intermediate): {result.top_normal_thickness:.6f}<br>"
+            f"T<sub>8</sub> (True Stratigraphic Thickness, equal-angle): "
+            f"{result.true_stratigraphic_thickness:.6f}<br>"
             f"{warn_html}"
             "<br>"
             "<b>Quantities</b><br>"
+            f"Top-normal (intermediate, paper T<sub>7</sub>): "
+            f"{result.top_normal_thickness:.6f}<br>"
             f"M' = {result.m_prime:.6f}<br>"
             f"α = {result.alpha_deg:.6f} deg<br>"
             f"η = {result.eta_deg:.6f} deg<br>"
@@ -1523,7 +1525,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "Top-normal = M' cos(α ∓ η) / cos(η) per S (paper T<sub>7</sub>)<br>"
             "T<sub>8</sub> = Top-normal × cos(η / 2) &nbsp; (equal-angle method)<br><br>"
             "<b>Where</b><br>"
-            "T<sub>8</sub>: equal-angle thickness; η = arccos(U<sub>d1</sub> · U<sub>d2</sub>)<br>"
+            "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; η = arccos(U<sub>d1</sub> · U<sub>d2</sub>))<br>"
         )
         xlsx_in = [
             self._xlsx_input_column(tab, "m8", "M"),
@@ -1535,7 +1537,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             self._xlsx_input_column(tab, "phid2_8", "phid2_deg"),
         ]
         xlsx_out = [
-            ("T8_equal_angle", result.true_stratigraphic_thickness),
+            ("T8", result.true_stratigraphic_thickness),
             ("Top_normal_intermediate", result.top_normal_thickness),
             ("M_prime", result.m_prime),
             ("alpha_deg", result.alpha_deg),
