@@ -3,18 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#111827" />
+  <meta name="theme-color" content="#f1f5f9" />
   <title>Stratigraphic Thickness Mobile</title>
   <link rel="manifest" href="./manifest.json" />
   <style>
     :root {
+      /* Light theme (default, field / outdoor readability) */
+      --bg: #f1f5f9;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #16a34a;
+      --warn: #b91c1c;
+      --warn-bg: #fef2f2;
+      --input: #ffffff;
+      --border: #cbd5e1;
+      --btn-secondary: #64748b;
+      --icon-btn: #94a3b8;
+      --link: #1d4ed8;
+      --help-backdrop: rgba(15, 23, 42, 0.45);
+    }
+    html[data-theme="dark"] {
       --bg: #111827;
       --panel: #1f2937;
       --text: #f3f4f6;
       --muted: #9ca3af;
       --accent: #22c55e;
-      --warn: #ef4444;
+      --warn: #f87171;
+      --warn-bg: #292524;
       --input: #374151;
+      --border: #4b5563;
+      --btn-secondary: #4b5563;
+      --icon-btn: #6b7280;
+      --link: #93c5fd;
+      --help-backdrop: rgba(0, 0, 0, 0.6);
     }
     * { box-sizing: border-box; }
     body {
@@ -34,11 +56,31 @@
       padding: 12px;
       margin-bottom: 12px;
     }
+    .header-bar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      column-gap: 10px;
+    }
+    .title-row-wrap {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      min-width: 0;
+    }
     .title-row {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
+    }
+    .theme-toggle {
+      width: auto;
+      min-width: 2.5rem;
+      padding: 6px 10px;
+      font-size: 1.15rem;
+      line-height: 1;
+      flex-shrink: 0;
     }
     .logo {
       width: 32px;
@@ -58,7 +100,7 @@
     }
     input, select, button, textarea {
       width: 100%;
-      border: 1px solid #4b5563;
+      border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--input);
       color: var(--text);
@@ -99,23 +141,23 @@
       min-width: 26px;
       padding: 2px 8px;
       border-radius: 999px;
-      background: #6b7280;
+      background: var(--icon-btn);
       font-weight: bold;
       line-height: 1.2;
     }
     .help-dialog {
-      border: 1px solid #4b5563;
+      border: 1px solid var(--border);
       border-radius: 10px;
-      background: #1f2937;
-      color: #f3f4f6;
+      background: var(--panel);
+      color: var(--text);
       max-width: 540px;
       width: calc(100% - 32px);
       padding: 14px;
     }
     .help-dialog::backdrop {
-      background: rgba(0, 0, 0, 0.6);
+      background: var(--help-backdrop);
     }
-    .help-dialog a { color: #93c5fd; }
+    .help-dialog a { color: var(--link); }
     .exports {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -128,7 +170,20 @@
       font-weight: bold;
       cursor: pointer;
     }
-    button.secondary { background: #4b5563; }
+    button.secondary { background: var(--btn-secondary); }
+    .geometry-warnings {
+      border: 1px solid var(--warn);
+      background: var(--warn-bg);
+      color: var(--warn);
+      padding: 8px 10px;
+      margin: 0.4em 0 0.85em 0;
+      border-radius: 6px;
+    }
+    .geometry-warnings b,
+    .geometry-warnings span,
+    .geometry-warnings ul {
+      color: var(--warn);
+    }
     #output.output-html {
       margin: 0;
       white-space: pre-wrap;
@@ -162,9 +217,14 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <div class="title-row">
-        <img class="logo" src="../logo.png" alt="Stratigraphic Thickness Calculator logo" />
-        <h1>Stratigraphic Thickness Calculator</h1>
+      <div class="header-bar">
+        <div class="title-row-wrap">
+          <div class="title-row">
+            <img class="logo" src="../logo.png" alt="Stratigraphic Thickness Calculator logo" />
+            <h1>Stratigraphic Thickness Calculator</h1>
+          </div>
+        </div>
+        <button type="button" id="btnTheme" class="theme-toggle secondary" aria-label="Switch to dark theme" title="Use dark theme">&#x263E;</button>
       </div>
     </div>
 
@@ -397,6 +457,52 @@
       else attachMcPlotBeforeExports();
     }
     const btnCalc = document.getElementById("btnCalc");
+    const THEME_STORAGE_KEY = "stc-mobile-theme";
+
+    function initThemeToggle() {
+      const btnTheme = document.getElementById("btnTheme");
+      if (!btnTheme) return;
+      const root = document.documentElement;
+      const metaTheme = document.querySelector('meta[name="theme-color"]');
+
+      function isDark() {
+        return root.getAttribute("data-theme") === "dark";
+      }
+
+      function applyTheme(mode) {
+        if (mode === "dark") {
+          root.setAttribute("data-theme", "dark");
+        } else {
+          root.removeAttribute("data-theme");
+        }
+        if (metaTheme) {
+          metaTheme.setAttribute("content", mode === "dark" ? "#111827" : "#f1f5f9");
+        }
+        // Moon in light mode → dark; sun in dark → light. U+263C (☼) reads clearer than U+2600 on web fonts.
+        btnTheme.textContent = mode === "dark" ? "\u263c" : "\u263e";
+        btnTheme.setAttribute(
+          "aria-label",
+          mode === "dark" ? "Switch to light theme" : "Switch to dark theme"
+        );
+        btnTheme.setAttribute(
+          "title",
+          mode === "dark" ? "Use light theme" : "Use dark theme"
+        );
+      }
+
+      let stored = localStorage.getItem(THEME_STORAGE_KEY);
+      if (stored !== "dark" && stored !== "light") {
+        stored = "light";
+      }
+      applyTheme(stored);
+
+      btnTheme.addEventListener("click", () => {
+        const next = isDark() ? "light" : "dark";
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+        applyTheme(next);
+      });
+    }
+
     const btnHelp = document.getElementById("btnHelp");
     const helpDialog = document.getElementById("helpDialog");
     const btnCloseHelp = document.getElementById("btnCloseHelp");
@@ -628,12 +734,12 @@
       if (!warnings || !warnings.length) return "";
       const items = warnings.map((w) => "<li>" + escapeHtml(w) + "</li>").join("");
       return (
-        '<div class="geometry-warnings" style="border:1px solid #b91c1c;background:#1e1e1e;padding:8px 10px;margin:0.4em 0 0.85em 0;border-radius:6px;color:#b91c1c;">' +
-        '<b style="color:#b91c1c;">⚠ Warning: intermediate angles</b><br>' +
-        '<span style="color:#b91c1c;">The thickness value(s) above were still computed, ' +
+        '<div class="geometry-warnings">' +
+        "<b>⚠ Warning: intermediate angles</b><br>" +
+        "<span>The thickness value(s) above were still computed, " +
         "but the following depart from the usual ranges for this model; verify inputs " +
-        'and interpret with caution:</span>' +
-        '<ul style="margin:6px 0 0 1.1em;color:#b91c1c;">' +
+        "and interpret with caution:</span>" +
+        '<ul style="margin:6px 0 0 1.1em;">' +
         items +
         "</ul></div>"
       );
@@ -1454,6 +1560,8 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         } catch (_) {}
       });
     }
+
+    initThemeToggle();
 
     (async () => {
       try {

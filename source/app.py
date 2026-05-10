@@ -66,8 +66,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
 
     def _update_theme_toggle_button(self) -> None:
         # Moon while in light mode → switch to dark; sun while in dark → switch to light.
+        # U+263C (WHITE SUN WITH RAYS) reads more sun-like than U+2600 in many Qt font stacks.
         if self._dark_mode:
-            self._theme_toggle_btn.setText("\u2600")
+            self._theme_toggle_btn.setText("\u263c")
             self._theme_toggle_btn.setToolTip("Switch to light theme")
         else:
             self._theme_toggle_btn.setText("\u263e")
