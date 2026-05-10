@@ -1,5 +1,7 @@
 """
-Matplotlib-based geometry schematic widget (desktop). Matches JS camera and scaling; bed mesh is AABB-centered at the schematic origin with the structural ray origin offset (see ``borehole_ray_o``).
+Matplotlib-based geometry schematic widget (desktop). Matches JS camera and framing constants
+(``SCHEMATIC_PROJ_SPAN_FACTOR`` / ``STC_PROJ_SPAN_FACTOR``, default zoom); bed mesh is AABB-centered
+at the schematic origin with the structural ray origin offset (see ``borehole_ray_o``).
 """
 
 from __future__ import annotations
@@ -32,6 +34,9 @@ ZOOM_MIN = 0.4
 ZOOM_MAX = 4.5
 # Volume is AABB-centered at the schematic origin; vertical framing uses mid-height for all models.
 ORIGIN_Y_FRAC = 0.5
+# Tighter framing in the main plot: smaller factor = larger default scale (was ~1.12 here).
+SCHEMATIC_PROJ_SPAN_FACTOR = 0.92
+DEFAULT_SCHEMATIC_ZOOM = 1.10
 # Subsegments along M / T for depth-sorted drawing with the bed (approximates a thin rod).
 _MT_LINE_SAMPLES = 56
 
@@ -138,7 +143,7 @@ def _render_main_ax(
     origin_y_frac = ORIGIN_Y_FRAC
     cx = plot_w * 0.5
     cy = plot_h * origin_y_frac
-    proj_scale = (min(plot_w, plot_h) / (span * 1.12)) * zoom
+    proj_scale = (min(plot_w, plot_h) / (span * SCHEMATIC_PROJ_SPAN_FACTOR)) * zoom
 
     def to_canvas(p2: tuple[float, float]) -> tuple[float, float]:
         return (cx + p2[0] * proj_scale, cy - p2[1] * proj_scale)
@@ -306,7 +311,7 @@ class MplGeometrySchematicWidget(QWidget):
         self._scene: SchematicScene | None = None
         self._yaw = 0.0
         self._pitch = 0.0
-        self._zoom = 1.0
+        self._zoom = DEFAULT_SCHEMATIC_ZOOM
         self._drag = False
         self._last_x = 0.0
         self._last_y = 0.0
@@ -368,7 +373,7 @@ class MplGeometrySchematicWidget(QWidget):
         if self._scene is None:
             self.clear()
             return
-        self._zoom = getattr(self, "_zoom", 1.0)
+        self._zoom = getattr(self, "_zoom", DEFAULT_SCHEMATIC_ZOOM)
         self._full_redraw()
 
     def _legend_area_width_frac(self) -> float:
@@ -439,7 +444,7 @@ class MplGeometrySchematicWidget(QWidget):
         if getattr(ev, "dblclick", False):
             self._yaw = 0.0
             self._pitch = 0.0
-            self._zoom = 1.0
+            self._zoom = DEFAULT_SCHEMATIC_ZOOM
             self._drag = False
             self._full_redraw()
             return

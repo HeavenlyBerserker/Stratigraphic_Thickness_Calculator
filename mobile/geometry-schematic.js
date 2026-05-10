@@ -921,6 +921,10 @@
   const STC_PITCH_LIM = (85 * Math.PI) / 180;
   const STC_ZOOM_MIN = 0.4;
   const STC_ZOOM_MAX = 4.5;
+  /** Match MPL `SCHEMATIC_PROJ_SPAN_FACTOR`: smaller = tighter fit in the plot. */
+  const STC_PROJ_SPAN_FACTOR = 0.92;
+  /** Initial / double-click-reset zoom (wheel still adjusts). Match MPL `DEFAULT_SCHEMATIC_ZOOM`. */
+  const STC_DEFAULT_ZOOM = 1.1;
   const STC_LEGEND_W_FRAC = 0.24;
   const STC_LEGEND_MIN_W = 100;
   const STC_LEGEND_H = 96;
@@ -1042,7 +1046,7 @@
             canvas._stcDragging = false;
             canvas._stcActivePointerId = undefined;
             canvas._stcPinchStartDist = touchDistance();
-            canvas._stcPinchStartZoom = (canvas._stcCam && canvas._stcCam.zoom) || 1;
+            canvas._stcPinchStartZoom = (canvas._stcCam && canvas._stcCam.zoom) || STC_DEFAULT_ZOOM;
             return;
           }
         }
@@ -1080,7 +1084,7 @@
       if (canvas._stcCam) {
         canvas._stcCam.yaw = 0;
         canvas._stcCam.pitch = 0;
-        canvas._stcCam.zoom = 1;
+        canvas._stcCam.zoom = STC_DEFAULT_ZOOM;
         canvas._stcPinchStartDist = null;
         canvas._stcPinchStartZoom = null;
         schedulePaint();
@@ -1119,7 +1123,7 @@
       return;
     }
 
-    const cam = canvas._stcCam || { yaw: 0, pitch: 0, zoom: 1 };
+    const cam = canvas._stcCam || { yaw: 0, pitch: 0, zoom: STC_DEFAULT_ZOOM };
     canvas._stcCam = cam;
     const projectCam = makeProjectCam(cam.yaw, cam.pitch);
 
@@ -1283,7 +1287,7 @@
 
     const bb = bboxProjected(pts2);
     const span = Math.max(bb.maxX - bb.minX, bb.maxY - bb.minY, 1e-6);
-    const projScale = (Math.min(plotW, plotH) / (span * 1.18)) * cam.zoom;
+    const projScale = (Math.min(plotW, plotH) / (span * STC_PROJ_SPAN_FACTOR)) * cam.zoom;
 
     function toCanvas(p2) {
       return {
@@ -1648,11 +1652,11 @@
     canvas._stcPayload = payload;
     canvas._stcModelId = modelId;
     if (canvas._stcLastModelId !== modelId) {
-      canvas._stcCam = { yaw: 0, pitch: 0, zoom: 1 };
+      canvas._stcCam = { yaw: 0, pitch: 0, zoom: STC_DEFAULT_ZOOM };
       canvas._stcLastModelId = modelId;
     }
     if (!canvas._stcCam) {
-      canvas._stcCam = { yaw: 0, pitch: 0, zoom: 1 };
+      canvas._stcCam = { yaw: 0, pitch: 0, zoom: STC_DEFAULT_ZOOM };
     }
 
     if (!canvas._stcCameraBound) {
