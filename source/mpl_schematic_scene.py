@@ -189,6 +189,10 @@ def _build_wedging_bed_mesh(
     fill_base: str,
     stroke_base: str,
 ) -> list[dict[str, Any]]:
+    """
+    Tetrahedral wedge; +z = down so the **shallower** bedding (smaller ``z`` centroid) is stratigraphic
+    ``top`` (blue ``fill_base``); the deeper is ``base`` (green ``fill_top``).
+    """
     u1 = _v_unit(ud1)
     u2 = _v_unit(ud2)
     h_raw = ndp_hint if ndp_hint and _v_norm(ndp_hint) > 1e-10 else _v_cross(u1, u2)
@@ -231,9 +235,19 @@ def _build_wedging_bed_mesh(
     def tri(a: Vec3, b: Vec3, c: Vec3, ff: str, ss: str, surf: str) -> dict[str, Any]:
         return {"verts": [a, b, c], "fill": ff, "stroke": ss, "surface": surf}
 
+    # +z = down: shallower (smaller z centroid) = stratigraphic **top** bed. Tag that face ``"top"``
+    # and use blue ``fill_base``; the deeper bed is ``"base"`` with green ``fill_top`` (matches JS).
+    z_a = _centroid3([v0, v1, v2])[2]
+    z_b = _centroid3([v0, v1, v3])[2]
+    if z_a <= z_b:
+        shallow_a, shallow_b, shallow_c = v0, v1, v2
+        deep_a, deep_b, deep_c = v0, v1, v3
+    else:
+        shallow_a, shallow_b, shallow_c = v0, v1, v3
+        deep_a, deep_b, deep_c = v0, v1, v2
     return [
-        tri(v0, v1, v2, fill_top, stroke_top, "top"),
-        tri(v0, v1, v3, fill_base, stroke_base, "base"),
+        tri(shallow_a, shallow_b, shallow_c, fill_base, stroke_base, "top"),
+        tri(deep_a, deep_b, deep_c, fill_top, stroke_top, "base"),
         tri(v0, v2, v3, fill_side, stroke_side, "side"),
         tri(v1, v2, v3, fill_end, stroke_end, "end"),
     ]
@@ -515,6 +529,98 @@ def _ray_plane_parameter(o: Vec3, u: Vec3, face: dict[str, Any]) -> float | None
     return (d_b - _v_dot(n_b, o)) / denom
 
 
+def _closest_point_on_segment_to_point(p: Vec3, a: Vec3, b: Vec3) -> Vec3:
+    ab = _v_sub(b, a)
+    denom = _v_dot(ab, ab)
+    t = 0.0 if denom < 1e-20 else _v_dot(_v_sub(p, a), ab) / denom
+    t = max(0.0, min(1.0, t))
+    return _v_add(a, _v_scale(t, ab))
+
+
+def _project_point_to_triangle_plane(a: Vec3, b: Vec3, c: Vec3, p: Vec3) -> Vec3:
+    n_raw = _v_cross(_v_sub(b, a), _v_sub(c, a))
+    nn = _v_norm(n_raw)
+    if nn < 1e-14:
+        return a
+    nu = _v_scale(1.0 / nn, n_raw)
+    return _v_sub(p, _v_scale(_v_dot(_v_sub(p, a), nu), nu))
+
+
+def _point_in_triangle_barycentric(a: Vec3, b: Vec3, c: Vec3, p: Vec3, eps: float = 1e-6) -> bool:
+    v0 = _v_sub(b, a)
+    v1 = _v_sub(c, a)
+    v2 = _v_sub(p, a)
+    d00 = _v_dot(v0, v0)
+    d01 = _v_dot(v0, v1)
+    d11 = _v_dot(v1, v1)
+    d20 = _v_dot(v2, v0)
+    d21 = _v_dot(v2, v1)
+    denom = d00 * d11 - d01 * d01
+    if abs(denom) < 1e-22:
+        return False
+    v = (d11 * d20 - d01 * d21) / denom
+    w = (d00 * d21 - d01 * d20) / denom
+    u = 1.0 - v - w
+    return u >= -eps and v >= -eps and w >= -eps
+
+
+def _closest_point_on_triangle_3d(a: Vec3, b: Vec3, c: Vec3, p: Vec3) -> Vec3:
+    """Closest point on closed triangle ``ABC`` to point ``P`` (3D)."""
+    p0 = _project_point_to_triangle_plane(a, b, c, p)
+    if _point_in_triangle_barycentric(a, b, c, p0, eps=1e-5):
+        return p0
+    c_ab = _closest_point_on_segment_to_point(p, a, b)
+    c_bc = _closest_point_on_segment_to_point(p, b, c)
+    c_ca = _closest_point_on_segment_to_point(p, c, a)
+
+    def d2(x: Vec3) -> float:
+        d = _v_sub(p, x)
+        return _v_dot(d, d)
+
+    d_ab = d2(c_ab)
+    d_bc = d2(c_bc)
+    d_ca = d2(c_ca)
+    if d_ab <= d_bc and d_ab <= d_ca:
+        return c_ab
+    if d_bc <= d_ca:
+        return c_bc
+    return c_ca
+
+
+def _wedge_anchor_top_pierce(
+    mesh_faces: list[dict[str, Any]], o_ray: Vec3, ub_vec: Vec3
+) -> Vec3 | None:
+    """
+    T7/T8 wedge: pierce point of the borehole line through the stratigraphic **top** bedding Δ.
+
+    ``collect_scene`` then translates the mesh by ``o_ray - q_top`` so this pierce lies on
+    ``borehole_ray_o`` without moving ``o_ray`` / M / T endpoints (see wedge block in ``collect_scene``).
+    """
+    top_face: dict[str, Any] | None = None
+    for f in mesh_faces:
+        if str(f.get("surface", "")) == "top" and len(f.get("verts", ())) >= 3:
+            top_face = f
+            break
+    if top_face is None:
+        return None
+    verts = [_v_from(v) for v in top_face["verts"]]
+    if len(verts) < 3:
+        return None
+    ub_u = _v_unit(ub_vec)
+    t_hit = _ray_plane_parameter(o_ray, ub_u, top_face)
+    if t_hit is None:
+        return None
+    q_line = _v_add(o_ray, _v_scale(t_hit, ub_u))
+    if len(verts) == 3:
+        return _closest_point_on_triangle_3d(verts[0], verts[1], verts[2], q_line)
+    # Planar quad (degenerate wedge → two-slants mesh): snap to nearer triangle.
+    q1 = _closest_point_on_triangle_3d(verts[0], verts[1], verts[2], q_line)
+    q2 = _closest_point_on_triangle_3d(verts[0], verts[2], verts[3], q_line)
+    d1 = _v_norm(_v_sub(q_line, q1))
+    d2 = _v_norm(_v_sub(q_line, q2))
+    return q1 if d1 <= d2 else q2
+
+
 def _face_centroid_vec(face: dict[str, Any]) -> Vec3:
     return _centroid3([_v_from(v) for v in face.get("verts", ())])
 
@@ -574,6 +680,11 @@ def _wedge_mt_segment_tri_beds(
     else:
         t_lo = t_enter - ext_long
         t_hi = t_exit + ext_short
+    if t_lo > t_hi:
+        t_lo, t_hi = t_hi, t_lo
+    # Include ray origin ``o`` (wedge top pierce for T7/T8); ``max(0, …)`` can otherwise omit it.
+    t_lo = min(t_lo, 0.0)
+    t_hi = max(t_hi, 0.0)
     if t_lo > t_hi:
         t_lo, t_hi = t_hi, t_lo
     return (_v_add(o, _v_scale(t_lo, u)), _v_add(o, _v_scale(t_hi, u)))
@@ -963,6 +1074,15 @@ def collect_scene(model_id: str, res: dict[str, Any], m_len: float, t_val: float
     borehole_end = _v_sub(borehole_end, c_mid)
     t_end = _v_sub(t_end, c_mid)
     borehole_ray_o = neg_c
+    if model_id in ("t7", "t8"):
+        q_top = _wedge_anchor_top_pierce(mesh, borehole_ray_o, ub)
+        if q_top is not None:
+            # Slide mesh so the borehole–top pierce sits at ``borehole_ray_o``. Using ``q_top - o``
+            # and also shifting ``o`` by the same vector leaves ``o`` off the translated surface
+            # (surface point moves by ``2T`` while ``o`` moves by ``T``). Only translate the mesh by
+            # ``o - q_top``; keep ``borehole_ray_o``, ``borehole_end``, and ``t_end`` fixed.
+            shift_w = _v_sub(borehole_ray_o, q_top)
+            mesh = translate_mesh_faces(mesh, shift_w)
 
     foot = "T8 = T7 cos(η/2); η = angle between U_d1 and U_d2." if model_id == "t8" else None
     return SchematicScene(

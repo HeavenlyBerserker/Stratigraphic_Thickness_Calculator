@@ -160,6 +160,7 @@
    * Wedging bed (paper §2.2.6 / Fig. 6): upper and lower boundaries are planes ⊥ Ud1 and ⊥ Ud2;
    * they intersect along hinge H ∥ N_dp = Ud1 × Ud2. Solid is a tetrahedron with one edge on the
    * hinge and two triangular faces on the top and base beds — a literal wedge pinching to the hinge.
+   * Shallower face (+z down ⇒ smaller z centroid) is tagged ``top`` and drawn blue; the deeper is ``base`` (green).
    * T7 uses thickness ⊥ top; T8 uses the equal-angle construction on the same geometry (tDir differs).
    */
   function buildWedgingBedMesh(ud1, ud2, ndpHint, charLen, slabThick, fillTop, strokeTop, fillBase, strokeBase) {
@@ -209,9 +210,28 @@
       stroke,
       surface,
     });
+    // +z = down: shallower (smaller z centroid) = stratigraphic top → tag "top", blue (fillBase).
+    const zA = centroid3([V0, V1, V2]).z;
+    const zB = centroid3([V0, V1, V3]).z;
+    let sa, sb, sc, da, db, dc;
+    if (zA <= zB) {
+      sa = V0;
+      sb = V1;
+      sc = V2;
+      da = V0;
+      db = V1;
+      dc = V3;
+    } else {
+      sa = V0;
+      sb = V1;
+      sc = V3;
+      da = V0;
+      db = V1;
+      dc = V2;
+    }
     return [
-      tri(V0, V1, V2, fillTop, strokeTop, "top"),
-      tri(V0, V1, V3, fillBase, strokeBase, "base"),
+      tri(sa, sb, sc, fillBase, strokeBase, "top"),
+      tri(da, db, dc, fillTop, strokeTop, "base"),
       tri(V0, V2, V3, fillSide, strokeSide, "side"),
       tri(V1, V2, V3, fillEnd, strokeEnd, "end"),
     ];
@@ -583,6 +603,11 @@
       tHi = tExit + extShort;
     }
     if (tLo > tHi) [tLo, tHi] = [tHi, tLo];
+    // Always include ray origin ``o`` (top pierce for T7/T8). Otherwise ``max(0, …)`` can drop the
+    // anchor so M/T segments start inside the wedge and appear to cross in empty space.
+    tLo = Math.min(tLo, 0);
+    tHi = Math.max(tHi, 0);
+    if (tLo > tHi) [tLo, tHi] = [tHi, tLo];
     return { lo: V.add(o, V.scale(tLo, u)), hi: V.add(o, V.scale(tHi, u)) };
   }
 
@@ -767,6 +792,78 @@
     return mtDisplayEndpoints(o, target, meshFaces, pastEach, modelId);
   }
 
+  function closestPointOnSegmentToPoint(p, a, b) {
+    const ab = V.sub(b, a);
+    const denom = V.dot(ab, ab);
+    const t =
+      denom < 1e-20 ? 0 : Math.max(0, Math.min(1, V.dot(V.sub(p, a), ab) / denom));
+    return V.add(a, V.scale(t, ab));
+  }
+
+  function projectPointToTrianglePlane(a, b, c, p) {
+    const nRaw = V.cross(V.sub(b, a), V.sub(c, a));
+    const nn = V.norm(nRaw);
+    if (nn < 1e-14) return { ...a };
+    const nu = V.scale(1 / nn, nRaw);
+    return V.sub(p, V.scale(V.dot(V.sub(p, a), nu), nu));
+  }
+
+  function pointInTriangleBarycentric(a, b, c, p, eps) {
+    const v0 = V.sub(b, a);
+    const v1 = V.sub(c, a);
+    const v2 = V.sub(p, a);
+    const d00 = V.dot(v0, v0);
+    const d01 = V.dot(v0, v1);
+    const d11 = V.dot(v1, v1);
+    const d20 = V.dot(v2, v0);
+    const d21 = V.dot(v2, v1);
+    const denom = d00 * d11 - d01 * d01;
+    if (Math.abs(denom) < 1e-22) return false;
+    const v = (d11 * d20 - d01 * d21) / denom;
+    const w = (d00 * d21 - d01 * d20) / denom;
+    const u = 1 - v - w;
+    return u >= -eps && v >= -eps && w >= -eps;
+  }
+
+  function closestPointOnTriangle3d(a, b, c, p) {
+    const p0 = projectPointToTrianglePlane(a, b, c, p);
+    if (pointInTriangleBarycentric(a, b, c, p0, 1e-5)) return p0;
+    const c1 = closestPointOnSegmentToPoint(p, a, b);
+    const c2 = closestPointOnSegmentToPoint(p, b, c);
+    const c3 = closestPointOnSegmentToPoint(p, c, a);
+    const d2 = (q) => {
+      const d = V.sub(p, q);
+      return V.dot(d, d);
+    };
+    const d1 = d2(c1);
+    const d2b = d2(c2);
+    const d3 = d2(c3);
+    if (d1 <= d2b && d1 <= d3) return c1;
+    if (d2b <= d3) return c2;
+    return c3;
+  }
+
+  /** T7/T8: borehole ∩ top plane, snapped onto the top face (tri or quad; matches MPL). */
+  function wedgeAnchorTopPierce(meshFaces, oRay, ub) {
+    const topFace = meshFaces.find(
+      (f) => f.surface === "top" && f.verts && f.verts.length >= 3
+    );
+    if (!topFace) return null;
+    const vs = topFace.verts;
+    const ubU = V.unit(ub);
+    const tHit = rayPlaneParameter(oRay, ubU, topFace);
+    if (tHit == null) return null;
+    const qLine = V.add(oRay, V.scale(tHit, ubU));
+    if (vs.length === 3) {
+      return closestPointOnTriangle3d(vs[0], vs[1], vs[2], qLine);
+    }
+    const q1 = closestPointOnTriangle3d(vs[0], vs[1], vs[2], qLine);
+    const q2 = closestPointOnTriangle3d(vs[0], vs[2], vs[3], qLine);
+    const d1 = V.norm(V.sub(qLine, q1));
+    const d2 = V.norm(V.sub(qLine, q2));
+    return d1 <= d2 ? q1 : q2;
+  }
+
   function collectScene(modelId, res, M, Tval) {
     const ub = V.from(res.ub_vector);
     let bedNormals = [];
@@ -888,7 +985,18 @@
     }));
     boreholeEnd = V.sub(boreholeEnd, cMid);
     tEnd = V.sub(tEnd, cMid);
-    const boreholeRayO = negC;
+    let boreholeRayO = negC;
+    if (modelId === "t7" || modelId === "t8") {
+      const qTop = wedgeAnchorTopPierce(meshFaces, boreholeRayO, ub);
+      if (qTop) {
+        // Match MPL: translate mesh by (o - qTop) only so o lies on the top face; do not shift o/M/T.
+        const shiftW = V.sub(boreholeRayO, qTop);
+        meshFaces = meshFaces.map((f) => ({
+          ...f,
+          verts: f.verts.map((v) => V.add(v, shiftW)),
+        }));
+      }
+    }
 
     return {
       bedNormals,
