@@ -133,8 +133,8 @@
       V.add(Ct, V.add(V.scale(s, tb.u), V.scale(s, tb.v))),
       V.add(Ct, V.add(V.scale(-s, tb.u), V.scale(s, tb.v))),
     ];
-    const fillSide = "rgba(64, 180, 130, 0.22)";
-    const strokeSide = "rgba(64, 180, 130, 0.58)";
+    const fillSide = "rgba(40, 130, 95, 0.42)";
+    const strokeSide = "rgba(25, 95, 70, 0.9)";
     const faces = [];
     const quad = (a, b, c, d, fill, stroke) => ({ verts: [a, b, c, d], fill, stroke });
     faces.push(quad(bot[0], bot[1], bot[2], bot[3], fillBase, strokeBase));
@@ -189,10 +189,10 @@
     V2 = V.add(V2, shift);
     V3 = V.add(V3, shift);
 
-    const fillSide = "rgba(45, 170, 125, 0.28)";
-    const strokeSide = "rgba(45, 170, 125, 0.65)";
-    const fillEnd = "rgba(52, 160, 118, 0.24)";
-    const strokeEnd = "rgba(52, 160, 118, 0.6)";
+    const fillSide = "rgba(35, 125, 95, 0.42)";
+    const strokeSide = "rgba(22, 95, 72, 0.9)";
+    const fillEnd = "rgba(40, 118, 88, 0.38)";
+    const strokeEnd = "rgba(25, 88, 65, 0.88)";
     const tri = (a, b, c, fill, stroke) => ({ verts: [a, b, c], fill, stroke });
     return [
       tri(V0, V1, V2, fillTop, strokeTop),
@@ -273,8 +273,8 @@
     const nArc = 22;
     const Hm = V.scale(-hw, H);
     const Hp = V.scale(hw, H);
-    const fillCap = "rgba(52, 211, 153, 0.38)";
-    const strokeCap = "rgba(52, 211, 153, 0.75)";
+    const fillCap = "rgba(30, 150, 110, 0.48)";
+    const strokeCap = "rgba(18, 110, 82, 0.92)";
     const quad = (aa, bb, cc, dd, fill, stroke) => ({ verts: [aa, bb, cc, dd], fill, stroke });
 
     const faces = [];
@@ -397,10 +397,10 @@
     let volumeKind = "";
     let meshFaces = [];
 
-    const fillTop = "rgba(34, 197, 94, 0.28)";
-    const strokeTop = "rgba(34, 197, 94, 0.85)";
-    const fillBase = "rgba(56, 189, 248, 0.22)";
-    const strokeBase = "rgba(56, 189, 248, 0.85)";
+    const fillTop = "rgba(22, 140, 55, 0.4)";
+    const strokeTop = "rgba(15, 100, 40, 0.92)";
+    const fillBase = "rgba(30, 130, 200, 0.38)";
+    const strokeBase = "rgba(20, 95, 165, 0.92)";
 
     if (modelId === "t1") {
       volumeKind = "Slanted slab";
@@ -710,17 +710,17 @@
 
     const ctx = canvas.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#0b1220";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, cssW, cssH);
 
-    ctx.strokeStyle = "#334155";
+    ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = Math.max(1, layoutS);
     ctx.beginPath();
     ctx.moveTo(0, splitY + 0.5);
     ctx.lineTo(cssW, splitY + 0.5);
     ctx.stroke();
 
-    ctx.fillStyle = "#0f172a";
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, splitY + 1, cssW, legendH - 1);
 
     const margin = {
@@ -827,9 +827,9 @@
       ctx.restore();
     }
 
-    drawAxisArrow(axisOrigin, scene.axes.ex, "#f87171", "x (N)");
-    drawAxisArrow(axisOrigin, scene.axes.ey, "#4ade80", "y (E)");
-    drawAxisArrow(axisOrigin, scene.axes.ez, "#93c5fd", "z (↓)");
+    drawAxisArrow(axisOrigin, scene.axes.ex, "#dc2626", "x (N)");
+    drawAxisArrow(axisOrigin, scene.axes.ey, "#16a34a", "y (E)");
+    drawAxisArrow(axisOrigin, scene.axes.ez, "#2563eb", "z (↓)");
 
     ctx.save();
     ctx.strokeStyle = "#64748b";
@@ -839,14 +839,14 @@
     ctx.beginPath();
     ctx.arc(AO.x, AO.y, Math.max(2, 3.5 * layoutS), 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = "#64748b";
+    ctx.fillStyle = "#475569";
     ctx.font = fs(9);
     ctx.textAlign = "center";
     ctx.fillText("axes", AO.x, AO.y + Math.round(14 * layoutS));
     ctx.restore();
 
-    drawLine3(origin, scene.boreholeEnd, "#38bdf8", Math.max(2, 3.5 * layoutS));
-    drawLine3(origin, scene.tEnd, "#fbbf24", Math.max(2, 3.5 * layoutS));
+    drawLine3(origin, scene.boreholeEnd, "#0284c7", Math.max(2, 3.5 * layoutS));
+    drawLine3(origin, scene.tEnd, "#d97706", Math.max(2, 3.5 * layoutS));
 
     ctx.save();
     ctx.strokeStyle = "#475569";
@@ -855,14 +855,14 @@
     ctx.beginPath();
     ctx.arc(O.x, O.y, Math.max(2.5, 4 * layoutS), 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = "#94a3b8";
+    ctx.fillStyle = "#475569";
     ctx.font = fs(10);
     ctx.textAlign = "center";
     ctx.fillText("O", O.x, O.y + Math.round(18 * layoutS));
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = "#cbd5e1";
+    ctx.fillStyle = "#334155";
     ctx.font = fsBold(12);
     ctx.textAlign = "center";
     ctx.fillText(
@@ -878,12 +878,12 @@
     let ly = splitY + Math.round(16 * layoutS);
     ctx.save();
     ctx.textAlign = "left";
-    ctx.fillStyle = "#e2e8f0";
+    ctx.fillStyle = "#0f172a";
     ctx.font = fsBold(11);
     ctx.fillText("Legend", lx, ly);
     ly += Math.round(14 * layoutS);
     ctx.font = fs(9);
-    ctx.fillStyle = "#94a3b8";
+    ctx.fillStyle = "#475569";
     const legendLine = (x, y, color, text, isSeg) => {
       if (isSeg) {
         ctx.strokeStyle = color;
@@ -896,16 +896,16 @@
         ctx.fillStyle = color;
         ctx.fillRect(x, y - sw, sw, sw);
       }
-      ctx.fillStyle = "#e2e8f0";
+      ctx.fillStyle = "#1e293b";
       ctx.fillText(text, x + Math.round(24 * layoutS), y);
     };
-    legendLine(lx, ly, "#f87171", "x axis (North)", false);
-    legendLine(lx + Math.round(122 * layoutS), ly, "#4ade80", "y axis (East)", false);
-    legendLine(lx + Math.round(238 * layoutS), ly, "#93c5fd", "z axis (down)", false);
-    legendLine(lx + Math.round(348 * layoutS), ly, "#38bdf8", "M", true);
-    legendLine(lx + Math.round(398 * layoutS), ly, "#fbbf24", "T", true);
+    legendLine(lx, ly, "#dc2626", "x axis (North)", false);
+    legendLine(lx + Math.round(122 * layoutS), ly, "#16a34a", "y axis (East)", false);
+    legendLine(lx + Math.round(238 * layoutS), ly, "#2563eb", "z axis (down)", false);
+    legendLine(lx + Math.round(348 * layoutS), ly, "#0284c7", "M", true);
+    legendLine(lx + Math.round(398 * layoutS), ly, "#d97706", "T", true);
     ly += Math.round(16 * layoutS);
-    ctx.fillStyle = "#64748b";
+    ctx.fillStyle = "#475569";
     ctx.font = fs(8);
     ctx.fillText(
       "Drag = orbit. Wheel (desktop) / pinch (mobile) = zoom. Double-click = reset.",
@@ -914,7 +914,7 @@
     );
     ly += Math.round(14 * layoutS);
     ly += Math.round(2 * layoutS);
-    ctx.fillStyle = "#94a3b8";
+    ctx.fillStyle = "#64748b";
     ctx.font = fs(8);
     const wordWrap = (txt, maxW) => {
       const words = txt.split(" ");
@@ -943,7 +943,7 @@
     if (scene.wedgeFootnote) {
       ly += Math.round(6 * layoutS);
       ctx.font = fs(8);
-      ctx.fillStyle = "#78716c";
+      ctx.fillStyle = "#57534e";
       for (const ln of wordWrap(scene.wedgeFootnote, cssW - textPad)) {
         ctx.fillText(ln, lx, ly);
         ly += lineGapS;
@@ -952,7 +952,7 @@
     if (modelId === "t5" || modelId === "t6") {
       ly += Math.round(6 * layoutS);
       ctx.font = fs(8);
-      ctx.fillStyle = "#78716c";
+      ctx.fillStyle = "#57534e";
       for (const ln of wordWrap(
         "If η (between poles) is small, the drawn arc opens to ≥28° for visibility.",
         cssW - textPad
@@ -965,7 +965,7 @@
 
     ctx.save();
     ctx.font = fs(9);
-    ctx.fillStyle = "#64748b";
+    ctx.fillStyle = "#475569";
     ctx.textAlign = "center";
     ctx.fillText(
       "Schematic only — not to scale.",
