@@ -118,7 +118,7 @@ def _render_main_ax(
     origin_y_frac = ORIGIN_Y_FRAC_T56 if model_id in ("t5", "t6") else 0.5
     cx = plot_w * 0.5
     cy = plot_h * origin_y_frac
-    proj_scale = (min(plot_w, plot_h) / (span * 1.18)) * zoom
+    proj_scale = (min(plot_w, plot_h) / (span * 1.12)) * zoom
 
     def to_canvas(p2: tuple[float, float]) -> tuple[float, float]:
         return (cx + p2[0] * proj_scale, cy - p2[1] * proj_scale)
@@ -138,7 +138,7 @@ def _render_main_ax(
     sx1 = max(xs_c + [bx_hi] if xs_c else [bx_hi])
     sy0 = min(ys_c + [by_lo] if ys_c else [by_lo])
     sy1 = max(ys_c + [by_hi] if ys_c else [by_hi])
-    pad = max(sx1 - sx0, sy1 - sy0) * 0.06 + 16.0
+    pad = max(sx1 - sx0, sy1 - sy0) * 0.04 + 8.0
 
     sorted_faces = sorted(
         scene.mesh_faces, key=lambda f: face_depth_for_sort(f, yaw, pitch)
@@ -210,12 +210,12 @@ def _render_main_ax(
 
     ax.scatter([oc[0]], [oc[1]], s=36, fc="white", ec="#475569", lw=1, zorder=6)
 
-    hint_fs = 11 * (plot_w / 600.0) ** 0.5
-    foot_fs = 9 * (plot_w / 600.0) ** 0.5
-    # transAxes anchors stay stable when adjustable="box" changes data scaling.
+    hint_fs = max(8.5, 10.0 * (plot_w / 600.0) ** 0.5)
+    foot_fs = max(7.5, 8.2 * (plot_w / 600.0) ** 0.5)
+    # Hug axes edges so the 3D content can use almost the full subplot (transAxes stable with adjustable="box").
     ax.text(
         0.5,
-        0.985,
+        0.998,
         "3D view - drag / wheel zoom / double-click reset",
         transform=ax.transAxes,
         ha="center",
@@ -228,7 +228,7 @@ def _render_main_ax(
     )
     ax.text(
         0.5,
-        0.015,
+        0.002,
         "Schematic only - not to scale.",
         transform=ax.transAxes,
         ha="center",
@@ -265,8 +265,8 @@ class MplGeometrySchematicWidget(QWidget):
         self._fig = Figure(figsize=(4.8, 3.8), constrained_layout=False)
         self._fig.patch.set_facecolor("#ffffff")
 
-        # Extra height for legend rows so copy does not overlap (was height_ratios 1 / 0.34).
-        gs = self._fig.add_gridspec(2, 1, height_ratios=[1.0, 0.42], hspace=0.1)
+        # Thin legend strip: most vertical space for the schematic (legend text uses tight transAxes margins).
+        gs = self._fig.add_gridspec(2, 1, height_ratios=[1.0, 0.17], hspace=0.03)
         self._ax = self._fig.add_subplot(gs[0])
         self._ax_leg = self._fig.add_subplot(gs[1])
         self._ax_leg.axis("off")
@@ -321,14 +321,15 @@ class MplGeometrySchematicWidget(QWidget):
         self._full_redraw()
 
     def _legend_area_height_frac(self) -> float:
-        return 0.30
+        # Match gridspec ~0.17/(1+0.17) plus small slack for hspace and canvas chrome.
+        return 0.21
 
     def _main_plot_px(self) -> tuple[float, float]:
         h = float(self.height() or 360)
         w = float(self.width() or 400)
         leg_frac = self._legend_area_height_frac()
-        main_h = h * (1.0 - leg_frac - 0.06)
-        return w - 8.0, max(main_h, 80.0)
+        main_h = h * (1.0 - leg_frac - 0.02)
+        return w - 4.0, max(main_h, 80.0)
 
     def _full_redraw(self) -> None:
         if self._scene is None or self._model_id is None:
@@ -350,9 +351,9 @@ class MplGeometrySchematicWidget(QWidget):
             lines.append(
                 "If η (between poles) is small, the drawn arc opens to ≥28° for visibility."
             )
-        fs = max(8.5, min(11.0, (plot_w / 620.0) * 11.0))
+        fs = max(7.5, min(9.0, (plot_w / 620.0) * 9.0))
         n = len(lines)
-        top_m, bot_m = 0.97, 0.05
+        top_m, bot_m = 0.99, 0.035
         if n == 1:
             ys = [(top_m + bot_m) * 0.5]
         else:
