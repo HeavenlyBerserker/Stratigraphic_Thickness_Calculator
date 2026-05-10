@@ -621,6 +621,37 @@ def _wedge_anchor_top_pierce(
     return q1 if d1 <= d2 else q2
 
 
+def _wedge_t_dir_for_strat_top_mesh(mesh_faces: list[dict[str, Any]], ud1: Vec3, ud2: Vec3) -> Vec3:
+    """
+    Unit direction for the schematic **T** ray: dip pole of the bed whose plane matches the mesh
+    face tagged ``"top"`` (stratigraphically shallow). After sorting wedge caps by ``z``, that face
+    may correspond to ``U_d2`` rather than ``U_d1``; using ``U_d1`` alone would make ``T`` look
+    normal to the wrong cap.
+    """
+    top_face: dict[str, Any] | None = None
+    base_face: dict[str, Any] | None = None
+    for f in mesh_faces:
+        s = str(f.get("surface", ""))
+        n_v = len(f.get("verts", ()))
+        if s == "top" and n_v >= 3 and top_face is None:
+            top_face = f
+        if s == "base" and n_v >= 3 and base_face is None:
+            base_face = f
+    if top_face is None:
+        return _v_unit(ud1)
+    n_face, _pl = _plane_nd_from_face(top_face)
+    u1u = _v_unit(ud1)
+    u2u = _v_unit(ud2)
+    d1 = abs(_v_dot(n_face, u1u))
+    d2 = abs(_v_dot(n_face, u2u))
+    pole = u2u if d2 > d1 + 1e-9 else u1u
+    if base_face is not None:
+        into = _v_sub(_face_centroid_vec(base_face), _face_centroid_vec(top_face))
+        if _v_norm(into) > 1e-14 and _v_dot(pole, into) < 0.0:
+            pole = _v_scale(-1.0, pole)
+    return pole
+
+
 def _face_centroid_vec(face: dict[str, Any]) -> Vec3:
     return _centroid3([_v_from(v) for v in face.get("verts", ())])
 
@@ -1083,6 +1114,9 @@ def collect_scene(model_id: str, res: dict[str, Any], m_len: float, t_val: float
             # ``o - q_top``; keep ``borehole_ray_o``, ``borehole_end``, and ``t_end`` fixed.
             shift_w = _v_sub(borehole_ray_o, q_top)
             mesh = translate_mesh_faces(mesh, shift_w)
+        ud2 = _v_from(res["ud2_vector"])
+        t_dir = _wedge_t_dir_for_strat_top_mesh(mesh, ud1, ud2)
+        t_end = _v_sub(_v_scale(t_val, t_dir), c_mid)
 
     foot = "T8 = T7 cos(η/2); η = angle between U_d1 and U_d2." if model_id == "t8" else None
     return SchematicScene(

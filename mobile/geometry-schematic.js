@@ -864,6 +864,29 @@
     return d1 <= d2 ? q1 : q2;
   }
 
+  /** Dip pole matching the mesh face tagged `top` (stratigraphically shallow); matches MPL. */
+  function wedgeTDirForStratTop(meshFaces, ud1Raw, ud2Raw) {
+    let topFace = null;
+    let baseFace = null;
+    for (const f of meshFaces) {
+      const nV = f.verts && f.verts.length;
+      if (f.surface === "top" && nV >= 3 && !topFace) topFace = f;
+      if (f.surface === "base" && nV >= 3 && !baseFace) baseFace = f;
+    }
+    if (!topFace) return V.unit(ud1Raw);
+    const { n: nFace } = planeNdFromFace(topFace);
+    const u1u = V.unit(ud1Raw);
+    const u2u = V.unit(ud2Raw);
+    const d1 = Math.abs(V.dot(nFace, u1u));
+    const d2 = Math.abs(V.dot(nFace, u2u));
+    let pole = d2 > d1 + 1e-9 ? u2u : u1u;
+    if (baseFace) {
+      const into = V.sub(centroidVerts(baseFace.verts), centroidVerts(topFace.verts));
+      if (V.norm(into) > 1e-14 && V.dot(pole, into) < 0) pole = V.scale(-1, pole);
+    }
+    return pole;
+  }
+
   function collectScene(modelId, res, M, Tval) {
     const ub = V.from(res.ub_vector);
     let bedNormals = [];
@@ -996,6 +1019,9 @@
           verts: f.verts.map((v) => V.add(v, shiftW)),
         }));
       }
+      const u2 = V.from(res.ud2_vector);
+      tDir = wedgeTDirForStratTop(meshFaces, ud1, u2);
+      tEnd = V.sub(V.scale(Tval, tDir), cMid);
     }
 
     return {
