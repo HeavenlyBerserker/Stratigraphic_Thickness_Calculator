@@ -538,9 +538,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
         xlsx_input_columns: list[tuple[str, float, float]],
         xlsx_output_rows: list[tuple[str, float | int]],
         xlsx_mc_rows: list[tuple[str, float | int]] | None,
-        *,
-        geometry_model_id: str | None = None,
-        geometry_result: object | None = None,
     ) -> None:
         tab.set_output(output_html, is_html=True)
         if mc_stats is not None and mc_stats.get("thicknesses"):
@@ -553,7 +550,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_output_rows,
             xlsx_mc_rows,
         )
-        tab.set_geometry_schematic(geometry_model_id, geometry_result)
 
     @staticmethod
     def _xlsx_input_column(
@@ -849,8 +845,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t1",
-            geometry_result=result,
         )
         print("One-dip calculation completed.")
 
@@ -933,8 +927,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t2",
-            geometry_result=result,
         )
         print("Average-vector calculation completed.")
 
@@ -1018,8 +1010,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t3",
-            geometry_result=result,
         )
         print("Average-thickness calculation completed.")
 
@@ -1106,8 +1096,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t4",
-            geometry_result=result,
         )
         print("Mixed Average calculation completed.")
 
@@ -1228,8 +1216,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t5",
-            geometry_result=result,
         )
         print("Concentric Fold calculation completed.")
 
@@ -1337,8 +1323,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t6",
-            geometry_result=result,
         )
         print("Plunging Concentric Fold calculation completed.")
 
@@ -1452,8 +1436,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t7",
-            geometry_result=result,
         )
         print("Top-normal calculation completed.")
 
@@ -1560,7 +1542,5 @@ class StratigraphicCalculatorWindow(QMainWindow):
             xlsx_in,
             xlsx_out,
             self._mc_excel_rows_from_stats(mc_stats),
-            geometry_model_id="t8",
-            geometry_result=result,
         )
         print("Equal-angle (T8) calculation completed.")

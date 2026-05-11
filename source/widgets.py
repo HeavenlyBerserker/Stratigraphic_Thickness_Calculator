@@ -24,8 +24,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from source.geometry_schematic import make_geometry_schematic_widget
-
 # Shown on every σ (Monte Carlo uncertainty) spin box — short, plain language.
 MONTE_CARLO_SIGMA_TOOLTIP = (
     "If your instrument quotes ±ε for this reading (e.g. ±2°), it is\n"
@@ -63,7 +61,7 @@ class ModelTab(QWidget):
     Generic tab layout:
     - input and output side by side
     - calculate / clear row
-    - resizable splitters: input | output; stdout/stderr | Schematics
+    - resizable splitters: input | output; stdout/stderr below
     """
 
     def __init__(
@@ -152,31 +150,17 @@ class ModelTab(QWidget):
         logs_layout.addWidget(self.log_text)
         logs_group.setLayout(logs_layout)
 
-        schematic_group = QGroupBox("Schematics")
-        schematic_layout = QVBoxLayout()
-        self.geometry_schematic = make_geometry_schematic_widget(schematic_group)
-        schematic_layout.addWidget(self.geometry_schematic)
-        schematic_group.setLayout(schematic_layout)
-
-        bottom_splitter = QSplitter(Qt.Orientation.Horizontal)
-        bottom_splitter.setChildrenCollapsible(False)
-        bottom_splitter.addWidget(logs_group)
-        bottom_splitter.addWidget(schematic_group)
-        bottom_splitter.setStretchFactor(0, 1)
-        bottom_splitter.setStretchFactor(1, 2)
-
         main_splitter = QSplitter(Qt.Orientation.Vertical)
         main_splitter.setChildrenCollapsible(False)
         main_splitter.addWidget(top_area)
-        main_splitter.addWidget(bottom_splitter)
+        main_splitter.addWidget(logs_group)
         main_splitter.setStretchFactor(0, 1)
         main_splitter.setStretchFactor(1, 1)
 
         root_layout.addWidget(main_splitter)
 
         content_splitter.setSizes([520, 520])
-        bottom_splitter.setSizes([360, 720])
-        main_splitter.setSizes([520, 380])
+        main_splitter.setSizes([520, 280])
 
     def add_float_input(
         self,
@@ -250,7 +234,6 @@ class ModelTab(QWidget):
         # Clear first so embedded resources (e.g. Monte Carlo PNGs) do not persist
         # across runs when the next output omits them.
         self.output_text.clear()
-        self.geometry_schematic.clear()
         self.set_monte_carlo_export_state(None, "")
         self._xlsx_input_columns = None
         self._xlsx_output_rows = None
@@ -260,16 +243,6 @@ class ModelTab(QWidget):
             self.output_text.setHtml(text)
         else:
             self.output_text.setPlainText(text)
-
-    def set_geometry_schematic(self, model_id: str | None, result: object | None) -> None:
-        """Drive interactive 3D schematic (same logic as web PWA)."""
-        if model_id is None or result is None:
-            self.geometry_schematic.clear()
-            return
-        from source.geometry_schematic import build_geometry_payload
-
-        payload = build_geometry_payload(model_id, self, result)
-        self.geometry_schematic.set_schematic(model_id, payload)
 
     def set_monte_carlo_export_state(
         self,
@@ -426,7 +399,6 @@ class ModelTab(QWidget):
 
     def _clear_all(self) -> None:
         self.output_text.clear()
-        self.geometry_schematic.clear()
         self.set_monte_carlo_export_state(None, "")
         self._xlsx_input_columns = None
         self._xlsx_output_rows = None

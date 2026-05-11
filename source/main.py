@@ -1,25 +1,8 @@
 from __future__ import annotations
 
-"""
-Desktop entry: ``python -m source.main`` → Matplotlib schematic (default).
-``python -m source.main --js`` → Qt WebEngine + embedded JS (same as PWA).
-"""
+"""Desktop entry: ``python -m source.main``."""
 
 import sys
-
-
-def _consume_schematic_argv() -> None:
-    """Strip ``--js`` from argv and force WebEngine schematic before importing the app."""
-    if "--js" not in sys.argv:
-        return
-    sys.argv = [a for a in sys.argv if a != "--js"]
-    from source.geometry_schematic import set_desktop_force_webengine
-
-    set_desktop_force_webengine(True)
-
-
-_consume_schematic_argv()
-
 from pathlib import Path
 
 from PySide6.QtGui import QFont, QIcon

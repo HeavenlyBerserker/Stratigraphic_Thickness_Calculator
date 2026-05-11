@@ -1,4 +1,4 @@
-const CACHE_NAME = "stc-mobile-v2";
+const CACHE_NAME = "stc-mobile-v3";
 const ASSETS = [
   "./index.html",
   "./desktop-formula-where.js",

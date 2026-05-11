@@ -191,15 +191,9 @@ pip install -r requirements.txt
 python -m source.main
 ```
 
-By default the desktop app uses **Matplotlib** for the geometry schematic (same as the standard frozen build). To run with **Qt WebEngine** and the same **JavaScript** schematic as the PWA (larger dependency surface), use:
-
-```powershell
-python -m source.main --js
-```
-
 If you already maintain other Conda environments, you can install `requirements.txt` into one of those instead (if you are comfortable mixing project dependencies in that environment).
 
-If you prefer not to use Conda, you can run with a standard Python virtual environment (`venv`) instead. With `venv`, the same default applies (Matplotlib schematic); use `python -m source.main --js` for WebEngine + JS.
+If you prefer not to use Conda, you can run with a standard Python virtual environment (`venv`) instead.
 
 Windows (PowerShell):
 
@@ -233,8 +227,6 @@ This script:
 - Detects OS and uses the correct executable name
 - Copies the built executable from `dist/` to the project root
 
-**Geometry schematic:** the default build uses **Matplotlib** (smaller executable, no bundled Chromium). To produce a build that embeds **Qt WebEngine** and the same **JS** schematic as the web app (larger binary), pass **`-js`** on Windows or **`--js`** with the shell script.
-
 Build on each target OS (cross-compiling is generally not supported by PyInstaller).
 
 #### Windows (PowerShell)
@@ -243,12 +235,6 @@ Run in PowerShell from project root:
 
 ```powershell
 .\build_executable.ps1
-```
-
-Optional WebEngine + JS schematic (larger `exe`):
-
-```powershell
-.\build_executable.ps1 -js
 ```
 
 Built artifact:
@@ -260,12 +246,6 @@ Built artifact:
 bash build_executable.sh
 ```
 
-Optional WebEngine + JS schematic:
-
-```bash
-bash build_executable.sh --js
-```
-
 Built artifact:
 - `stratigraphic-thickness-calculator` (project root)
 
@@ -273,12 +253,6 @@ Built artifact:
 
 ```bash
 bash build_executable.sh
-```
-
-Optional WebEngine + JS schematic:
-
-```bash
-bash build_executable.sh --js
 ```
 
 Built artifact:

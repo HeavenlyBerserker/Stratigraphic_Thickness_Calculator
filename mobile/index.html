@@ -199,15 +199,6 @@
     #mcPlotAnchor canvas#mcPlot {
       margin-top: 0;
     }
-    canvas#geometryCanvas {
-      display: block;
-      width: 100%;
-      max-width: 100%;
-      margin-top: 10px;
-      background: #ffffff;
-      border-radius: 8px;
-      border: 1px solid #e2e8f0;
-    }
     .warn { color: var(--warn); }
     @media (max-width: 640px) {
       .row, .actions { grid-template-columns: 1fr; }
@@ -242,7 +233,6 @@
     <div class="card">
       <label>Output</label>
       <div id="output" class="output-html">Ready.</div>
-      <canvas id="geometryCanvas" style="display:none;"></canvas>
       <canvas id="mcPlot" style="display:none; width:100%; max-width:100%; margin-top:10px; background:#0b1220; border-radius:8px;"></canvas>
       <div class="exports">
         <button id="btnXlsx" class="secondary">Save Results (.xlsx)</button>
@@ -267,10 +257,6 @@
   </dialog>
 
   <script src="./desktop-formula-where.js"></script>
-  <script>
-    globalThis.STC_LEGEND_LAYOUT = "bottom";
-  </script>
-  <script src="./geometry-schematic.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
   <script>
@@ -422,16 +408,10 @@
     const modelSelect = document.getElementById("model");
     const fieldsRoot = document.getElementById("fields");
     const output = document.getElementById("output");
-    const geometryCanvas = document.getElementById("geometryCanvas");
     const mcPlot = document.getElementById("mcPlot");
     /** Move canvas out of #output before innerHTML/textContent so it is not destroyed. */
     function detachMcPlotCanvas() {
       if (mcPlot.parentNode) mcPlot.parentNode.removeChild(mcPlot);
-    }
-    function detachGeometryCanvas() {
-      if (geometryCanvas && geometryCanvas.parentNode) {
-        geometryCanvas.parentNode.removeChild(geometryCanvas);
-      }
     }
     function attachMcPlotBeforeExports() {
       const card = output.parentElement;
@@ -439,19 +419,6 @@
       const exportsDiv = card.querySelector(".exports");
       if (exportsDiv) card.insertBefore(mcPlot, exportsDiv);
       else card.appendChild(mcPlot);
-    }
-    function attachGeometryBeforeExports() {
-      const card = output.parentElement;
-      if (!card || !geometryCanvas) return;
-      const exportsDiv = card.querySelector(".exports");
-      if (exportsDiv) card.insertBefore(geometryCanvas, exportsDiv);
-      else card.appendChild(geometryCanvas);
-    }
-    /** After #output.innerHTML is set: schematic after Quantities, before Monte Carlo. */
-    function mountGeometryAfterOutputHtml() {
-      const anchor = output.querySelector("#geometryAnchor");
-      if (anchor && geometryCanvas) anchor.appendChild(geometryCanvas);
-      else attachGeometryBeforeExports();
     }
     /** After #output.innerHTML is set: inline plot under Monte Carlo title, or fallback slot. */
     function mountMcPlotAfterOutputHtml() {
@@ -539,7 +506,6 @@
       lastPayload = null;
       lastSpec = null;
       lastModelId = null;
-      if (geometryCanvas) geometryCanvas.style.display = "none";
       mcPlot.style.display = "none";
       updateExportVisibility();
       const head = document.createElement("div");
@@ -1079,31 +1045,20 @@
       const fw = globalThis.STC_FORMULA_WHERE && globalThis.STC_FORMULA_WHERE[modelId];
       if (!fw) {
         detachMcPlotCanvas();
-        detachGeometryCanvas();
         output.classList.add("warn");
         output.textContent = "Missing desktop formula/where template (desktop-formula-where.js).";
-        attachGeometryBeforeExports();
         attachMcPlotBeforeExports();
-        if (geometryCanvas) geometryCanvas.style.display = "none";
         return;
       }
       const html =
         buildResultHtml(modelId, res) +
         buildQuantitiesHtml(modelId, res) +
-        '<b>Schematic</b><br><div id="geometryAnchor"></div>' +
         formatMonteCarloHtml(payload.monte_carlo) +
         fw;
       detachMcPlotCanvas();
-      detachGeometryCanvas();
       output.classList.remove("warn");
       output.innerHTML = html;
-      mountGeometryAfterOutputHtml();
       mountMcPlotAfterOutputHtml();
-      if (globalThis.STC_DRAW_GEOMETRY && geometryCanvas) {
-        globalThis.STC_DRAW_GEOMETRY(geometryCanvas, modelId, payload);
-      } else if (geometryCanvas) {
-        geometryCanvas.style.display = "none";
-      }
       drawHistogram(payload.monte_carlo ? payload.monte_carlo.thicknesses : null);
       lastPayload = payload;
       lastSpec = activeSpec;
@@ -1274,23 +1229,17 @@
     function exportXlsx() {
       if (!lastPayload || !lastSpec || !lastModelId) {
         detachMcPlotCanvas();
-        detachGeometryCanvas();
         output.classList.add("warn");
         output.textContent = "Run Calculate first, then export.";
-        attachGeometryBeforeExports();
         attachMcPlotBeforeExports();
-        if (geometryCanvas) geometryCanvas.style.display = "none";
         return;
       }
       const xspec = modelSpecs[lastModelId];
       if (!xspec || !Array.isArray(xspec.xlsxInputColumns)) {
         detachMcPlotCanvas();
-        detachGeometryCanvas();
         output.classList.add("warn");
         output.textContent = "Missing model export layout; recalculate and try again.";
-        attachGeometryBeforeExports();
         attachMcPlotBeforeExports();
-        if (geometryCanvas) geometryCanvas.style.display = "none";
         return;
       }
       const inputs = lastPayload.inputs;
@@ -1336,12 +1285,9 @@
     function exportPlotPng() {
       if (!lastPayload || !lastPayload.monte_carlo || mcPlot.style.display === "none") {
         detachMcPlotCanvas();
-        detachGeometryCanvas();
         output.classList.add("warn");
         output.textContent = "Run Monte Carlo first, then export PNG.";
-        attachGeometryBeforeExports();
         attachMcPlotBeforeExports();
-        if (geometryCanvas) geometryCanvas.style.display = "none";
         return;
       }
       const plotBase =
@@ -1357,12 +1303,9 @@
     function exportPlotSvg() {
       if (!lastPayload || !lastPayload.monte_carlo || mcPlot.style.display === "none") {
         detachMcPlotCanvas();
-        detachGeometryCanvas();
         output.classList.add("warn");
         output.textContent = "Run Monte Carlo first, then export SVG.";
-        attachGeometryBeforeExports();
         attachMcPlotBeforeExports();
-        if (geometryCanvas) geometryCanvas.style.display = "none";
         return;
       }
       const plotBase =
@@ -1543,12 +1486,9 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         lastSpec = null;
         lastModelId = null;
         detachMcPlotCanvas();
-        detachGeometryCanvas();
         output.classList.add("warn");
         output.textContent = "Calculation failed:\n" + err.message;
-        attachGeometryBeforeExports();
         attachMcPlotBeforeExports();
-        if (geometryCanvas) geometryCanvas.style.display = "none";
         mcPlot.style.display = "none";
         updateExportVisibility();
       }
@@ -1575,15 +1515,12 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
         btnCalc.disabled = false;
         btnCalc.textContent = "Calculate";
         detachMcPlotCanvas();
-        detachGeometryCanvas();
         output.classList.add("warn");
         output.textContent = "Failed to initialize app:\n" + err.message;
-        attachGeometryBeforeExports();
         attachMcPlotBeforeExports();
         lastPayload = null;
         lastSpec = null;
         lastModelId = null;
-        if (geometryCanvas) geometryCanvas.style.display = "none";
         mcPlot.style.display = "none";
         updateExportVisibility();
       }
