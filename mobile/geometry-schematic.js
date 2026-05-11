@@ -88,28 +88,28 @@
     return [p00, p10, p11, p01];
   }
 
-  /** Slanted rectangular prism: extrude quad along +n̂ by thickness. */
-  function buildSlabMesh(center, n, size, thickness, fill, stroke) {
+  /** Slanted rectangular prism: extrude quad along +n̂ by thickness; caps vs wall fills may differ (T1). */
+  function buildSlabMesh(center, n, size, thickness, fillCap, strokeCap, fillWall, strokeWall) {
     const n1 = V.unit(n);
     const bot = quadInBedPlane(center, n, size);
     const off = V.scale(thickness, n1);
     const top = bot.map((p) => V.add(p, off));
-    return boxMeshFromQuads(bot, top, fill, stroke);
+    return boxMeshFromQuads(bot, top, fillCap, strokeCap, fillCap, strokeCap, fillWall, strokeWall);
   }
 
-  function boxMeshFromQuads(bot, top, fill, stroke) {
+  function boxMeshFromQuads(bot, top, fillBase, strokeBase, fillTop, strokeTop, fillSide, strokeSide) {
     const faces = [];
-    const quad = (a, b, c, d, surface) => ({
+    const quad = (a, b, c, d, fill, stroke, surface) => ({
       verts: [a, b, c, d],
       fill,
       stroke,
       surface,
     });
-    faces.push(quad(bot[0], bot[1], bot[2], bot[3], "base"));
-    faces.push(quad(top[3], top[2], top[1], top[0], "top"));
+    faces.push(quad(bot[0], bot[1], bot[2], bot[3], fillBase, strokeBase, "base"));
+    faces.push(quad(top[3], top[2], top[1], top[0], fillTop, strokeTop, "top"));
     for (let i = 0; i < 4; i++) {
       const j = (i + 1) % 4;
-      faces.push(quad(bot[i], bot[j], top[j], top[i], "side"));
+      faces.push(quad(bot[i], bot[j], top[j], top[i], fillSide, strokeSide, "side"));
     }
     return faces;
   }
@@ -138,8 +138,8 @@
       V.add(Ct, V.add(V.scale(s, tb.u), V.scale(s, tb.v))),
       V.add(Ct, V.add(V.scale(-s, tb.u), V.scale(s, tb.v))),
     ];
-    const fillSide = "rgba(40, 130, 95, 0.42)";
-    const strokeSide = "rgba(25, 95, 70, 0.9)";
+    const fillSide = "rgba(40, 130, 95, 0.07)";
+    const strokeSide = "rgba(25, 95, 70, 0.34)";
     const faces = [];
     const quad = (a, b, c, d, fill, stroke, surface) => ({
       verts: [a, b, c, d],
@@ -160,7 +160,7 @@
    * Wedging bed (paper §2.2.6 / Fig. 6): upper and lower boundaries are planes ⊥ Ud1 and ⊥ Ud2;
    * they intersect along hinge H ∥ N_dp = Ud1 × Ud2. Solid is a tetrahedron with one edge on the
    * hinge and two triangular faces on the top and base beds — a literal wedge pinching to the hinge.
-   * Shallower face (+z down ⇒ smaller z centroid) is tagged ``top`` and drawn blue; the deeper is ``base`` (green).
+   * Shallower face (+z down ⇒ smaller z centroid) is tagged ``top`` and drawn blue; the deeper is ``base`` (red in collectScene).
    * T7 uses thickness ⊥ top; T8 uses the equal-angle construction on the same geometry (tDir differs).
    */
   function buildWedgingBedMesh(ud1, ud2, ndpHint, charLen, slabThick, fillTop, strokeTop, fillBase, strokeBase) {
@@ -200,10 +200,10 @@
     V2 = V.add(V2, shift);
     V3 = V.add(V3, shift);
 
-    const fillSide = "rgba(35, 125, 95, 0.42)";
-    const strokeSide = "rgba(22, 95, 72, 0.9)";
-    const fillEnd = "rgba(40, 118, 88, 0.38)";
-    const strokeEnd = "rgba(25, 88, 65, 0.88)";
+    const fillSide = "rgba(35, 125, 95, 0.07)";
+    const strokeSide = "rgba(22, 95, 72, 0.34)";
+    const fillEnd = "rgba(40, 118, 88, 0.07)";
+    const strokeEnd = "rgba(25, 88, 65, 0.34)";
     const tri = (a, b, c, fill, stroke, surface) => ({
       verts: [a, b, c],
       fill,
@@ -247,9 +247,12 @@
     const spread = V.norm(V.add(n1, n2)) < 1e-5 ? { x: 0, y: 0, z: 0 } : V.scale(size * 0.07, bis);
     const s = size * 0.86;
     const t = thick * 0.88;
+    const fillWallA = "rgba(28, 135, 85, 0.07)";
+    const fillWallB = "rgba(40, 125, 195, 0.07)";
+    const strokeFoldWall = "rgba(24, 72, 58, 0.38)";
     return [
-      ...buildSlabMesh(V.scale(-0.5, spread), n1, s, t, fillA, strokeA),
-      ...buildSlabMesh(V.scale(0.5, spread), n2, s, t, fillB, strokeB),
+      ...buildSlabMesh(V.scale(-0.5, spread), n1, s, t, fillA, strokeA, fillWallA, strokeFoldWall),
+      ...buildSlabMesh(V.scale(0.5, spread), n2, s, t, fillB, strokeB, fillWallB, strokeFoldWall),
     ];
   }
 
@@ -308,8 +311,8 @@
     const nArc = 22;
     const Hm = V.scale(-hw, H);
     const Hp = V.scale(hw, H);
-    const fillCap = "rgba(30, 150, 110, 0.48)";
-    const strokeCap = "rgba(18, 110, 82, 0.92)";
+    const fillCap = "rgba(30, 150, 110, 0.09)";
+    const strokeCap = "rgba(18, 110, 82, 0.36)";
     const quad = (aa, bb, cc, dd, fill, stroke, surface) => ({
       verts: [aa, bb, cc, dd],
       fill,
@@ -950,14 +953,31 @@
     let volumeKind = "";
     let meshFaces = [];
 
-    const fillTop = "rgba(22, 140, 55, 0.4)";
-    const strokeTop = "rgba(15, 100, 40, 0.92)";
-    const fillBase = "rgba(30, 130, 200, 0.38)";
-    const strokeBase = "rgba(20, 95, 165, 0.92)";
+    const fillSlabTop = "rgba(22, 140, 55, 0.44)";
+    const strokeSlabTop = "rgba(15, 100, 40, 0.92)";
+    const fillSlabWall = "rgba(22, 140, 55, 0.08)";
+    const strokeSlabWall = "rgba(15, 100, 40, 0.34)";
+    const fillBedBottom = "rgba(200, 48, 48, 0.32)";
+    const strokeBedBottom = "rgba(110, 18, 18, 0.84)";
+    const fillBase = "rgba(30, 130, 200, 0.3)";
+    const strokeBase = "rgba(20, 95, 165, 0.84)";
+    const fillBedOpaqueShallow = "rgba(30, 130, 200, 0.52)";
+    const strokeBedOpaqueShallow = "rgba(20, 95, 165, 0.86)";
+    const fillBedOpaqueDeep = "rgba(200, 48, 48, 0.52)";
+    const strokeBedOpaqueDeep = "rgba(110, 18, 18, 0.86)";
 
     if (modelId === "t1") {
       volumeKind = "Slanted slab";
-      meshFaces = buildSlabMesh({ x: 0, y: 0, z: 0 }, ud1, planeSize, slabThick, fillTop, strokeTop);
+      meshFaces = buildSlabMesh(
+        { x: 0, y: 0, z: 0 },
+        ud1,
+        planeSize,
+        slabThick,
+        fillSlabTop,
+        strokeSlabTop,
+        fillSlabWall,
+        strokeSlabWall
+      );
     } else if (modelId === "t2" || modelId === "t3" || modelId === "t4") {
       volumeKind = "Single bed (top / base dips)";
       const u1 = V.from(res.ud1_vector);
@@ -969,35 +989,75 @@
         planeSize * 0.72,
         slabThick * 1.05,
         tDir,
-        fillTop,
-        strokeTop,
-        fillBase,
-        strokeBase
+        fillBedOpaqueDeep,
+        strokeBedOpaqueDeep,
+        fillBedOpaqueShallow,
+        strokeBedOpaqueShallow
       );
     } else if (modelId === "t5") {
       volumeKind = "Semi-arch (concentric fold)";
       const u1 = V.from(res.ud1_vector);
       const u2 = V.from(res.ud2_prime_vector);
       const hint = res.ndc_vector ? V.from(res.ndc_vector) : null;
-      meshFaces = buildSemiArchFoldMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
+      meshFaces = buildSemiArchFoldMesh(
+        u1,
+        u2,
+        hint,
+        L,
+        slabThick,
+        fillBedBottom,
+        strokeBedBottom,
+        fillBase,
+        strokeBase
+      );
     } else if (modelId === "t6") {
       volumeKind = "Semi-arch (plunging fold)";
       const u1 = V.from(res.ud1_vector);
       const u2 = V.from(res.ud2_vector);
       const hint = res.ndp_vector ? V.from(res.ndp_vector) : null;
-      meshFaces = buildSemiArchFoldMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
+      meshFaces = buildSemiArchFoldMesh(
+        u1,
+        u2,
+        hint,
+        L,
+        slabThick,
+        fillBedBottom,
+        strokeBedBottom,
+        fillBase,
+        strokeBase
+      );
     } else if (modelId === "t7") {
       volumeKind = "Wedging bed (top-normal, Fig. 6a)";
       const u1 = V.from(res.ud1_vector);
       const u2 = V.from(res.ud2_vector);
       const hint = res.ndp_vector ? V.from(res.ndp_vector) : null;
-      meshFaces = buildWedgingBedMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
+      meshFaces = buildWedgingBedMesh(
+        u1,
+        u2,
+        hint,
+        L,
+        slabThick,
+        fillBedOpaqueDeep,
+        strokeBedOpaqueDeep,
+        fillBedOpaqueShallow,
+        strokeBedOpaqueShallow
+      );
     } else if (modelId === "t8") {
       volumeKind = "Wedging bed (equal-angle, Fig. 6b)";
       const u1 = V.from(res.ud1_vector);
       const u2 = V.from(res.ud2_vector);
       const hint = res.ndp_vector ? V.from(res.ndp_vector) : null;
-      meshFaces = buildWedgingBedMesh(u1, u2, hint, L, slabThick, fillTop, strokeTop, fillBase, strokeBase);
+      meshFaces = buildWedgingBedMesh(
+        u1,
+        u2,
+        hint,
+        L,
+        slabThick,
+        fillBedOpaqueDeep,
+        strokeBedOpaqueDeep,
+        fillBedOpaqueShallow,
+        strokeBedOpaqueShallow
+      );
     }
 
     const cMid = meshAabbCenter(meshFaces);
@@ -1061,7 +1121,9 @@
   const STC_DEFAULT_ZOOM = 1.1;
   const STC_LEGEND_W_FRAC = 0.24;
   const STC_LEGEND_MIN_W = 100;
-  const STC_LEGEND_H = 96;
+  const STC_LEGEND_H = 118;
+  /** Models with two bedding caps in the mesh (legend swatches). */
+  const STC_BED_LEGEND_IDS = new Set(["t2", "t3", "t4", "t5", "t6", "t7", "t8"]);
   const STC_ROT_SENS = 0.006;
 
   function bindStcCamera(canvas) {
@@ -1256,6 +1318,7 @@
       canvas.style.display = "none";
       return;
     }
+    const showBedLegend = STC_BED_LEGEND_IDS.has(modelId);
 
     const cam = canvas._stcCam || { yaw: 0, pitch: 0, zoom: STC_DEFAULT_ZOOM };
     canvas._stcCam = cam;
@@ -1651,6 +1714,10 @@
       }
       ly = legendLineCol(ly, "#dc2626", "M", true);
       ly = legendLineCol(ly, "#2563eb", "T", true);
+      if (showBedLegend) {
+        ly = legendLineCol(ly, "rgb(30, 130, 200)", "Top bed (shallow)", false);
+        ly = legendLineCol(ly, "rgb(200, 48, 48)", "Bottom bed (deep)", false);
+      }
       ctx.fillStyle = "#475569";
       ctx.font = fs(8);
       for (const ln of wordWrap(
@@ -1728,6 +1795,11 @@
       legendLineRow(lx0 + Math.round(348 * layoutS), ly, "#dc2626", "M", true);
       legendLineRow(lx0 + Math.round(398 * layoutS), ly, "#2563eb", "T", true);
       ly += Math.round(16 * layoutS);
+      if (showBedLegend) {
+        legendLineRow(lx0, ly, "rgb(30, 130, 200)", "Top bed (shallow)", false);
+        legendLineRow(lx0 + Math.round(195 * layoutS), ly, "rgb(200, 48, 48)", "Bottom bed (deep)", false);
+        ly += Math.round(16 * layoutS);
+      }
       ctx.fillStyle = "#475569";
       ctx.font = fs(8);
       ctx.fillText(

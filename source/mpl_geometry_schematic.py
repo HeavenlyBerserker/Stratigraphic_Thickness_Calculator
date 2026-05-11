@@ -12,7 +12,7 @@ from typing import Any
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from matplotlib.patches import Polygon
+from matplotlib.patches import Polygon, Rectangle
 from matplotlib import colors as mcolors
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
@@ -28,6 +28,10 @@ from source.mpl_schematic_scene import (
     segment_depth_for_sort,
 )
 
+
+_STC_LEGEND_TOP_BED = "__stc_legend_top_bed__"
+_STC_LEGEND_BOT_BED = "__stc_legend_bot_bed__"
+_BED_LEGEND_MODEL_IDS = frozenset({"t2", "t3", "t4", "t5", "t6", "t7", "t8"})
 
 PITCH_LIM = (85.0 * math.pi) / 180.0
 ZOOM_MIN = 0.4
@@ -407,6 +411,8 @@ class MplGeometrySchematicWidget(QWidget):
             lines.append(
                 "If η (between poles) is small, the drawn arc opens to ≥28° for visibility."
             )
+        if self._model_id in _BED_LEGEND_MODEL_IDS:
+            lines.extend([_STC_LEGEND_TOP_BED, _STC_LEGEND_BOT_BED])
         fs = max(6.5, min(8.2, (plot_w / 520.0) * 8.2))
         n = len(lines)
         top_m, bot_m = 0.98, 0.04
@@ -415,18 +421,70 @@ class MplGeometrySchematicWidget(QWidget):
         else:
             span = top_m - bot_m
             ys = [top_m - span * i / (n - 1) for i in range(n)]
+        leg = self._ax_leg
         for ln, y in zip(lines, ys):
-            self._ax_leg.text(
-                0.04,
-                y,
-                ln,
-                transform=self._ax_leg.transAxes,
-                va="center",
-                ha="left",
-                fontsize=fs,
-                color="#334155",
-                clip_on=False,
-            )
+            if ln == _STC_LEGEND_TOP_BED:
+                patch_h, patch_w = 0.026, 0.052
+                leg.add_patch(
+                    Rectangle(
+                        (0.035, y - patch_h * 0.5),
+                        patch_w,
+                        patch_h,
+                        transform=leg.transAxes,
+                        facecolor=(48 / 255, 124 / 255, 232 / 255, 0.92),
+                        edgecolor=(18 / 255, 72 / 255, 168 / 255, 1.0),
+                        linewidth=0.8,
+                        clip_on=False,
+                    )
+                )
+                leg.text(
+                    0.095,
+                    y,
+                    "Top bed (shallow)",
+                    transform=leg.transAxes,
+                    va="center",
+                    ha="left",
+                    fontsize=fs,
+                    color="#334155",
+                    clip_on=False,
+                )
+            elif ln == _STC_LEGEND_BOT_BED:
+                patch_h, patch_w = 0.026, 0.052
+                leg.add_patch(
+                    Rectangle(
+                        (0.035, y - patch_h * 0.5),
+                        patch_w,
+                        patch_h,
+                        transform=leg.transAxes,
+                        facecolor=(200 / 255, 48 / 255, 48 / 255, 0.92),
+                        edgecolor=(110 / 255, 18 / 255, 18 / 255, 1.0),
+                        linewidth=0.8,
+                        clip_on=False,
+                    )
+                )
+                leg.text(
+                    0.095,
+                    y,
+                    "Bottom bed (deep)",
+                    transform=leg.transAxes,
+                    va="center",
+                    ha="left",
+                    fontsize=fs,
+                    color="#334155",
+                    clip_on=False,
+                )
+            else:
+                leg.text(
+                    0.04,
+                    y,
+                    ln,
+                    transform=leg.transAxes,
+                    va="center",
+                    ha="left",
+                    fontsize=fs,
+                    color="#334155",
+                    clip_on=False,
+                )
 
         self._fig.canvas.draw_idle()
 

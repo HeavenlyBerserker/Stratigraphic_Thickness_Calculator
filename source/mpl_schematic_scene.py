@@ -149,8 +149,8 @@ def _build_single_bed_two_slants_mesh(
         _v_add(ct, _v_add(_v_scale(s, tu_uv), _v_scale(s, tv))),
         _v_add(ct, _v_add(_v_scale(-s, tu_uv), _v_scale(s, tv))),
     ]
-    fill_side = "rgba(45, 118, 92, 0.16)"
-    stroke_side = "rgba(22, 88, 65, 0.92)"
+    fill_side = "rgba(45, 118, 92, 0.07)"
+    stroke_side = "rgba(22, 88, 65, 0.34)"
     faces: list[dict[str, Any]] = []
 
     def qf(
@@ -191,7 +191,7 @@ def _build_wedging_bed_mesh(
 ) -> list[dict[str, Any]]:
     """
     Tetrahedral wedge; +z = down so the **shallower** bedding (smaller ``z`` centroid) is stratigraphic
-    ``top`` (blue ``fill_base``); the deeper is ``base`` (green ``fill_top``).
+    ``top`` (blue ``fill_base``); the deeper ``base`` uses the first fill pair (red in ``collect_scene`` for T2–T8).
     """
     u1 = _v_unit(ud1)
     u2 = _v_unit(ud2)
@@ -227,16 +227,16 @@ def _build_wedging_bed_mesh(
     v1 = _v_add(v1, shift)
     v2 = _v_add(v2, shift)
     v3 = _v_add(v3, shift)
-    fill_side = "rgba(40, 120, 95, 0.14)"
-    stroke_side = "rgba(22, 88, 66, 0.9)"
-    fill_end = "rgba(38, 115, 88, 0.16)"
-    stroke_end = "rgba(24, 82, 62, 0.9)"
+    fill_side = "rgba(40, 120, 95, 0.07)"
+    stroke_side = "rgba(22, 88, 66, 0.34)"
+    fill_end = "rgba(38, 115, 88, 0.07)"
+    stroke_end = "rgba(24, 82, 62, 0.34)"
 
     def tri(a: Vec3, b: Vec3, c: Vec3, ff: str, ss: str, surf: str) -> dict[str, Any]:
         return {"verts": [a, b, c], "fill": ff, "stroke": ss, "surface": surf}
 
     # +z = down: shallower (smaller z centroid) = stratigraphic **top** bed. Tag that face ``"top"``
-    # and use blue ``fill_base``; the deeper bed is ``"base"`` with green ``fill_top`` (matches JS).
+    # and use blue ``fill_base``; the deeper bed is ``"base"`` with red ``fill_top`` (matches JS).
     z_a = _centroid3([v0, v1, v2])[2]
     z_b = _centroid3([v0, v1, v3])[2]
     if z_a <= z_b:
@@ -271,17 +271,18 @@ def _build_fold_mesh(
         spread = _v_scale(size * 0.07, bis_u)
     s = size * 0.86
     t = thick * 0.88
-    fill_side_a = "rgba(28, 135, 85, 0.14)"
-    fill_side_b = "rgba(40, 125, 195, 0.14)"
+    fill_side_a = "rgba(28, 135, 85, 0.07)"
+    fill_side_b = "rgba(40, 125, 195, 0.07)"
+    stroke_fold_wall = "rgba(24, 72, 58, 0.38)"
     out: list[dict[str, Any]] = []
     out.extend(
         _build_slab_mesh(
-            _v_scale(-0.5, spread), n1, s, t, fill_a, stroke_a, fill_side_a, stroke_a
+            _v_scale(-0.5, spread), n1, s, t, fill_a, stroke_a, fill_side_a, stroke_fold_wall
         )
     )
     out.extend(
         _build_slab_mesh(
-            _v_scale(0.5, spread), n2, s, t, fill_b, stroke_b, fill_side_b, stroke_b
+            _v_scale(0.5, spread), n2, s, t, fill_b, stroke_b, fill_side_b, stroke_fold_wall
         )
     )
     return out
@@ -356,8 +357,8 @@ def _build_semi_arch_fold_mesh(
     n_arc = 22
     hm = _v_scale(-hw, h)
     hp = _v_scale(hw, h)
-    fill_cap = "rgba(34, 130, 100, 0.18)"
-    stroke_cap = "rgba(18, 95, 72, 0.9)"
+    fill_cap = "rgba(34, 130, 100, 0.09)"
+    stroke_cap = "rgba(18, 95, 72, 0.36)"
 
     def quad_faces(
         aa: Vec3, bb: Vec3, cc: Vec3, dd: Vec3, ff: str, ss: str, surf: str
@@ -1038,8 +1039,16 @@ def collect_scene(model_id: str, res: dict[str, Any], m_len: float, t_val: float
     stroke_top = "rgba(12, 92, 38, 0.95)"
     fill_base = "rgba(48, 124, 232, 0.42)"
     stroke_base = "rgba(18, 72, 168, 0.95)"
-    fill_t1_side = "rgba(34, 145, 82, 0.14)"
-    stroke_t1_side = "rgba(16, 88, 48, 0.9)"
+    # T2–T8 deeper / outer bedding (was green like T1 slab); red vs green-tinted side walls and blue top bed.
+    fill_bed_bottom = "rgba(200, 48, 48, 0.44)"
+    stroke_bed_bottom = "rgba(110, 18, 18, 0.95)"
+    # T2–T4 (single-bed lens) & T7–T8 (wedge Δ): nearly opaque top/base cap fills.
+    fill_bed_opaque_shallow = "rgba(48, 124, 232, 0.88)"
+    stroke_bed_opaque_shallow = "rgba(18, 72, 168, 0.98)"
+    fill_bed_opaque_deep = "rgba(200, 48, 48, 0.88)"
+    stroke_bed_opaque_deep = "rgba(110, 18, 18, 0.98)"
+    fill_t1_side = "rgba(34, 145, 82, 0.08)"
+    stroke_t1_side = "rgba(16, 88, 48, 0.36)"
 
     mesh: list[dict[str, Any]] = []
     vol = ""
@@ -1067,35 +1076,59 @@ def collect_scene(model_id: str, res: dict[str, Any], m_len: float, t_val: float
             plane_size * 0.72,
             slab_thick * 1.05,
             t_dir,
-            fill_top,
-            stroke_top,
-            fill_base,
-            stroke_base,
+            fill_bed_opaque_deep,
+            stroke_bed_opaque_deep,
+            fill_bed_opaque_shallow,
+            stroke_bed_opaque_shallow,
         )
     elif model_id == "t5":
         vol = "Semi-arch (concentric fold)"
         u1 = _v_from(res["ud1_vector"])
         u2 = _v_from(res["ud2_prime_vector"])
         hint = _v_from(res["ndc_vector"]) if res.get("ndc_vector") is not None else None
-        mesh = _build_semi_arch_fold_mesh(u1, u2, hint, ll, slab_thick, fill_top, stroke_top, fill_base, stroke_base)
+        mesh = _build_semi_arch_fold_mesh(
+            u1, u2, hint, ll, slab_thick, fill_bed_bottom, stroke_bed_bottom, fill_base, stroke_base
+        )
     elif model_id == "t6":
         vol = "Semi-arch (plunging fold)"
         u1 = _v_from(res["ud1_vector"])
         u2 = _v_from(res["ud2_vector"])
         hint = _v_from(res["ndp_vector"]) if res.get("ndp_vector") is not None else None
-        mesh = _build_semi_arch_fold_mesh(u1, u2, hint, ll, slab_thick, fill_top, stroke_top, fill_base, stroke_base)
+        mesh = _build_semi_arch_fold_mesh(
+            u1, u2, hint, ll, slab_thick, fill_bed_bottom, stroke_bed_bottom, fill_base, stroke_base
+        )
     elif model_id == "t7":
         vol = "Wedging bed (top-normal, Fig. 6a)"
         u1 = _v_from(res["ud1_vector"])
         u2 = _v_from(res["ud2_vector"])
         hint = _v_from(res["ndp_vector"]) if res.get("ndp_vector") is not None else None
-        mesh = _build_wedging_bed_mesh(u1, u2, hint, ll, slab_thick, fill_top, stroke_top, fill_base, stroke_base)
+        mesh = _build_wedging_bed_mesh(
+            u1,
+            u2,
+            hint,
+            ll,
+            slab_thick,
+            fill_bed_opaque_deep,
+            stroke_bed_opaque_deep,
+            fill_bed_opaque_shallow,
+            stroke_bed_opaque_shallow,
+        )
     elif model_id == "t8":
         vol = "Wedging bed (equal-angle, Fig. 6b)"
         u1 = _v_from(res["ud1_vector"])
         u2 = _v_from(res["ud2_vector"])
         hint = _v_from(res["ndp_vector"]) if res.get("ndp_vector") is not None else None
-        mesh = _build_wedging_bed_mesh(u1, u2, hint, ll, slab_thick, fill_top, stroke_top, fill_base, stroke_base)
+        mesh = _build_wedging_bed_mesh(
+            u1,
+            u2,
+            hint,
+            ll,
+            slab_thick,
+            fill_bed_opaque_deep,
+            stroke_bed_opaque_deep,
+            fill_bed_opaque_shallow,
+            stroke_bed_opaque_shallow,
+        )
     else:
         return None
 
