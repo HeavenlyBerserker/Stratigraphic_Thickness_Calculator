@@ -1,6 +1,6 @@
-<h1>
-  <img src="logo.png" alt="Stratigraphic Thickness Calculator logo" width="48" style="vertical-align: middle; margin-right: 10px;" />
-  Stratigraphic Thickness Calculator
+<h1 style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+  <img src="logo.png" alt="Stratigraphic Thickness Calculator logo" width="48" height="48" />
+  <span>Stratigraphic Thickness Calculator</span>
 </h1>
 
 Calculates true stratigraphic thickness using 3D borehole data. Two versions are available:
