@@ -7,9 +7,16 @@ Calculates true stratigraphic thickness using 3D borehole data. Two versions are
 
 This software is based on and intended as a companion to a coming-soon paper ([paper link coming soon](#)). Most users should use either the hosted web app via **Web App Link** or downloadable binaries from the **latest GitHub release**. The **Build Desktop App from Source** and **Developing on Mobile App (PWA)** sections are intended for code-savvy users who want to inspect/modify code, run from source, or build release artifacts themselves.
 
+**Note for editors.** The repo holds **individual source files** (not a zip-only submission). The README covers purpose, how to run the apps, an [example run](#example-run-and-test), the [MIT license](LICENSE), and optional [`examples/quick_test_models.py`](examples/quick_test_models.py) for developers.
+
+**Note for reviewers.** (1) [Download and open](#download-and-open-the-software) the **web** and **desktop** apps. (2) Follow [Example run and test](#example-run-and-test). That is enough to check results against the paper; see the [Index](#index) for license and other sections if needed.
+
 ## Index
 
 - [README (Top)](#stratigraphic_thickness_calculator)
+- [Download and open the software](#download-and-open-the-software)
+- [Example run and test](#example-run-and-test)
+- [License](#license)
 - [Software Guidelines](#software-guidelines)
   - [Instructions](#instructions)
   - [About This Software Package](#about-this-software-package)
@@ -26,6 +33,81 @@ This software is based on and intended as a companion to a coming-soon paper ([p
     - [Windows (PowerShell)](#windows-powershell)
     - [Linux](#linux)
     - [macOS](#macos)
+
+## Download and open the software
+
+**Web app (browser, no install)**
+
+1. Open the [Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) in a desktop or mobile browser.
+2. Wait for the page to finish loading (the **Calculate** button becomes active when the in-browser Python runtime is ready).
+3. On a phone or tablet, you can use the browser’s **Add to Home Screen** option for quicker access and cached offline use after the first visit.
+
+**Desktop app (offline executable)**
+
+1. Download the build for your operating system from the [latest GitHub release](https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator/releases/latest).
+2. Run the executable (`StratigraphicThicknessCalculator.exe` on Windows, `stratigraphic-thickness-calculator` on Linux, `StratigraphicThicknessCalculator` on macOS). No installer is required for the portable builds.
+3. Linux note: the Ubuntu build targets modern glibc-based distributions; it may not run on Alpine/musl or very old glibc systems.
+
+**From source (developers)**
+
+- Desktop: see [Run Locally (Conda: `geo_stc`)](#run-locally-conda-geo_stc) → `python -m source.main`.
+- Web/PWA locally: see [Developing on Mobile App (PWA)](#developing-on-mobile-app-pwa) → serve `mobile/index.html` over HTTP.
+
+## Example run and test
+
+These steps support **manual checks** that the calculators match the companion paper and give **coherent** results. **Please try both the web app and the desktop app** when you can; they share the same model logic (`source/models.py`), and running both checks the hosted PWA and the release build.
+
+### A. Deterministic run with default inputs
+
+Perform this on **web** and **desktop** (see [Download and open the software](#download-and-open-the-software)).
+
+1. Open the app and select **One-dip (T₁)** (or any model you are comparing with the paper).
+2. Leave the pre-filled default values unchanged (for T₁: **M = 100**, **δ = 20°**, **φᵦ = 120°**, **β = 15°**, **φd = 140°**; all **σ = 0**).
+3. Click **Calculate**.
+4. Record **T** and the displayed unit vectors (**U**d, **U**b, etc.).
+
+**Expected check for T₁ defaults:** **T₁ ≈ 82.449** on both platforms. Compare with the paper’s worked example or formula for the same inputs, if provided.
+
+Repeat on other tabs (T₂–T₈) with their defaults when verifying those methods against the manuscript.
+
+### B. Uncertainty (Monte Carlo) with non-zero σ
+
+Again, try this on **both web and desktop** when possible.
+
+1. Set a small non-zero **σ** on one or more inputs (e.g. **σ = 1** on **M**; angle **σ** often **0.1°** on desktop; on the web app, **M** uses σ step **1**, other fields **0.1**).
+2. Click **Calculate** again.
+3. Confirm that a **Monte Carlo** section appears (mean, percentiles, histogram where supported).
+
+**Monte Carlo note:** Each run uses random sampling, so **percentiles and plots will not be identical from run to run**, even with the same inputs. Means and spreads should still be **close** between runs and **similar in order of magnitude** between web and desktop for the same σ (the web app uses fewer samples than desktop for speed). If means diverge strongly between platforms with identical inputs, report the model tab and σ settings.
+
+4. Change **σ** or a dip angle and recalculate; the distribution should shift in a direction consistent with the input change (e.g. larger thickness uncertainty if **σ(M)** increases).
+
+### C. What to verify
+
+We invite reviewers and readers to confirm:
+
+1. **Agreement with the paper** — deterministic **T** values and intermediate quantities (where shown) match the equations and any worked examples in the manuscript for the same inputs.
+2. **Coherence** — results stay physically plausible (e.g. **T** positive for benign geometries, fold models respect stated angle domains, Monte Carlo spreads reflect input **σ**, geometry warnings appear when fold assumptions are strained).
+
+If you find a discrepancy, note the **model tab**, **exact inputs**, **σ** settings, and **web vs desktop** so it can be reproduced from this repository.
+
+### D. Automated computation check (optional, advanced)
+
+Not required for a paper review. Optional for developers or anyone who wants a command-line sanity check without opening the apps: [`examples/quick_test_models.py`](examples/quick_test_models.py) runs **T₁–T₈** at web defaults and Monte Carlo on **T₁** and **T₂** with **σ(M) = 1** (fixed random seed; mean and percentiles checked within tolerance). From the repository root, after `pip install -r requirements.txt`:
+
+```bash
+python examples/quick_test_models.py
+```
+
+Exit code **0** means the check passed. It is included mainly to satisfy common “example script in the repository” expectations; the interactive steps in A–C are the meaningful verification.
+
+## License
+
+This project is released under the **[MIT License](LICENSE)**.
+
+The MIT License is a **permissive open-source** license: you may use, copy, modify, merge, publish, distribute, sublicense, and sell copies of the software, subject only to including the **copyright notice and license text** in copies or substantial portions. There is no copyleft requirement to open-source your own derivative works.
+
+**If you redistribute this software or embed it in another product**, please **explicitly reference the MIT License** and retain the copyright notice (see the full text in [`LICENSE`](LICENSE)). Third-party use is otherwise governed by that file alone; this README is not a substitute for the legal text.
 
 ## Software Guidelines
 
