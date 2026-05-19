@@ -1,4 +1,8 @@
-# Stratigraphic_Thickness_Calculator
+<h1>
+  <img src="logo.png" alt="Stratigraphic Thickness Calculator logo" width="48" style="vertical-align: middle; margin-right: 10px;" />
+  Stratigraphic Thickness Calculator
+</h1>
+
 Calculates true stratigraphic thickness using 3D borehole data. Two versions are available:
 
 **The Web App:** Use [Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) to access and run the app directly in computer or phone browsers. *On mobile, you can use your browser's "Add to Home Screen" option to install it like an app for faster access and offline/cached use.*
@@ -11,14 +15,15 @@ This software is based on and intended as a companion to a coming-soon paper ([p
 
 **Note for reviewers.** (1) [Download and open](#download-and-open-the-software) the **web** and **desktop** apps. (2) Follow [Example run and test](#example-run-and-test). That is enough to check results against the paper; see the [Index](#index) for license and other sections if needed.
 
+![Desktop app (left) and web app input and output views (center and right)](screenshots.png)
+
 ## Index
 
 - [README (Top)](#stratigraphic_thickness_calculator)
 - [Download and open the software](#download-and-open-the-software)
+- [Instructions](#instructions)
 - [Example run and test](#example-run-and-test)
-- [License](#license)
 - [Software Guidelines](#software-guidelines)
-  - [Instructions](#instructions)
   - [About This Software Package](#about-this-software-package)
   - [Why These Calculations Matter](#why-these-calculations-matter)
   - [Model Scope, Assumptions, and Limits](#model-scope-assumptions-and-limits)
@@ -33,6 +38,7 @@ This software is based on and intended as a companion to a coming-soon paper ([p
     - [Windows (PowerShell)](#windows-powershell)
     - [Linux](#linux)
     - [macOS](#macos)
+- [License](#license)
 
 ## Download and open the software
 
@@ -53,9 +59,21 @@ This software is based on and intended as a companion to a coming-soon paper ([p
 - Desktop: see [Run Locally (Conda: `geo_stc`)](#run-locally-conda-geo_stc) → `python -m source.main`.
 - Web/PWA locally: see [Developing on Mobile App (PWA)](#developing-on-mobile-app-pwa) → serve `mobile/index.html` over HTTP.
 
+## Instructions
+
+1. Choose the model that matches your geometry assumptions.
+2. Enter measured values and angles using the documented conventions in this README.
+3. Optional: for uncertainty analysis, enter non-zero `σ` values to enable Monte Carlo outputs (leave `σ = 0` for deterministic runs). Click the `?` icon in the web app or hover over a `σ` value box for a quick cheatsheet of what to do with `σ`.
+4. Review geometry warnings in fold models before final interpretation.
+5. Export results/plots when needed for reporting and auditability.
+
+For best results, use high-quality field or interpreted inputs (e.g., calibrated dip/azimuth measurements and validated structural picks).
+
 ## Example run and test
 
 These steps support **manual checks** that the calculators match the companion paper and give **coherent** results. **Please try both the web app and the desktop app** when you can; they share the same model logic (`source/models.py`), and running both checks the hosted PWA and the release build.
+
+If you are unsure how to open the software or what the fields mean, read [Download and open the software](#download-and-open-the-software) and [Instructions](#instructions) first.
 
 ### A. Deterministic run with default inputs
 
@@ -101,25 +119,7 @@ python examples/quick_test_models.py
 
 Exit code **0** means the check passed. It is included mainly to satisfy common “example script in the repository” expectations; the interactive steps in A–C are the meaningful verification.
 
-## License
-
-This project is released under the **[MIT License](LICENSE)**.
-
-The MIT License is a **permissive open-source** license: you may use, copy, modify, merge, publish, distribute, sublicense, and sell copies of the software, subject only to including the **copyright notice and license text** in copies or substantial portions. There is no copyleft requirement to open-source your own derivative works.
-
-**If you redistribute this software or embed it in another product**, please **explicitly reference the MIT License** and retain the copyright notice (see the full text in [`LICENSE`](LICENSE)). Third-party use is otherwise governed by that file alone; this README is not a substitute for the legal text.
-
 ## Software Guidelines
-
-### Instructions
-
-1. Choose the model that matches your geometry assumptions.
-2. Enter measured values and angles using the documented conventions in this README.
-3. Optional: for uncertainty analysis, enter non-zero `σ` values to enable Monte Carlo outputs (leave `σ = 0` for deterministic runs). Click the `?` icon in the web app or hover over a `σ`value box for a quick cheatsheet of what to do with `σ`.
-4. Review geometry warnings in fold models before final interpretation.
-5. Export results/plots when needed for reporting and auditability.
-
-For best results, use high-quality field or interpreted inputs (e.g., calibrated dip/azimuth measurements and validated structural picks).
 
 ### About This Software Package
 
@@ -339,3 +339,11 @@ bash build_executable.sh
 
 Built artifact:
 - `StratigraphicThicknessCalculator` (project root)
+
+## License
+
+This project is released under the **[MIT License](LICENSE)**.
+
+The MIT License is a **permissive open-source** license: you may use, copy, modify, merge, publish, distribute, sublicense, and sell copies of the software, subject only to including the **copyright notice and license text** in copies or substantial portions. There is no copyleft requirement to open-source your own derivative works.
+
+**If you redistribute this software or embed it in another product**, please **explicitly reference the MIT License** and retain the copyright notice (see the full text in [`LICENSE`](LICENSE)). Third-party use is otherwise governed by that file alone; this README is not a substitute for the legal text.
