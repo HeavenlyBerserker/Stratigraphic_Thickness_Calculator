@@ -5,9 +5,9 @@
 
 Calculates true stratigraphic thickness using 3D borehole data. Two versions are available:
 
-**The Web App:** Use [Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) to access and run the app directly in computer or phone browsers. *On mobile, you can use your browser's "Add to Home Screen" option to install it like an app for faster access and offline/cached use.*
+**The Web App:** Use [⬇️ Web App Link](https://heavenlyberserker.github.io/Stratigraphic_Thickness_Calculator/mobile/index.html) to access and run the app directly in computer or phone browsers. *On mobile, you can use your browser's "Add to Home Screen" option to install it like an app for faster access and offline/cached use.*
 
-**The Desktop App:** Use the [latest GitHub release](https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator/releases/latest) to download portable desktop binaries for Windows, macOS, and Linux. The desktop app can be used anywhere after download, without requiring active internet access. Linux note: the Ubuntu build is generally intended for modern glibc-based Linux distributions (including Ubuntu/Debian families and many others), but it is not guaranteed on every Linux variant (for example Alpine/musl or much older glibc systems).
+**The Desktop App:** Use the [⬇️ latest GitHub release](https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator/releases/latest) to download portable desktop binaries for Windows, macOS, and Linux. The desktop app can be used anywhere after download, without requiring active internet access. Linux note: the Ubuntu build is generally intended for modern glibc-based Linux distributions (including Ubuntu/Debian families and many others), but it is not guaranteed on every Linux variant (for example Alpine/musl or much older glibc systems).
 
 This software is based on and intended as a companion to a coming-soon paper ([paper link coming soon](#)). Most users should use either the hosted web app via **Web App Link** or downloadable binaries from the **latest GitHub release**. The **Build Desktop App from Source** and **Developing on Mobile App (PWA)** sections are intended for code-savvy users who want to inspect/modify code, run from source, or build release artifacts themselves.
 
