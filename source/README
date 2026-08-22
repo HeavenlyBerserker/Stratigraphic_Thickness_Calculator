@@ -1,0 +1,10 @@
+macOS
+
+The macOS application is distributed as an unsigned academic application.
+
+On first launch, macOS may block the application. To open it:
+
+Attempt to open the application once.
+Open System Settings → Privacy & Security.
+Under Security, click Open Anyway.
+Confirm the prompt to launch the application.

@@ -33,7 +33,18 @@ MANIFEST
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
-*.spec
+# Project deploy specs (source/pysidedeploy.spec, StratigraphicThicknessCalculator.spec)
+# are tracked; ignore only auto-generated PyInstaller specs in build output dirs.
+build/**/*.spec
+
+# pyside6-deploy / Nuitka (macOS .app bundle)
+deployment/
+source/Stratigraphic_Thickness_Calculator_MacOS.app/
+source/Stratigraphic_Thickness_Calculator_MacOS.zip
+StratigraphicThicknessCalculator_1_0_0_macos
+
+# macOS metadata
+.DS_Store
 
 # Installer logs
 pip-log.txt

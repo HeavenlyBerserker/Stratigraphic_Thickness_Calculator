@@ -297,19 +297,20 @@ python -m source.main
 
 ### Build Portable Executables
 
+Build on each target OS (cross-compiling is generally not supported).
+
 Scripts:
-- Windows (PowerShell): `build_executable.ps1`
-- Linux/macOS (shell): `build_executable.sh`
+- Windows (PowerShell): `build_executable.ps1` (PyInstaller → `.exe`)
+- Linux (shell): `build_executable.sh` (PyInstaller → standalone binary)
+- macOS (shell): `build_macos.sh` (pyside6-deploy → double-clickable `.app`; see [macOS](#macos))
 
-This script:
-- Uses the currently active Python environment (Conda or `venv`)
-- Warns if a non-`geo_stc` Conda environment is active, but does not block builds
-- Installs `requirements.txt`
-- Runs PyInstaller with `--onefile --windowed --icon logo.png`
-- Detects OS and uses the correct executable name
-- Copies the built executable from `dist/` to the project root
-
-Build on each target OS (cross-compiling is generally not supported by PyInstaller).
+Windows and Linux scripts:
+- Use the currently active Python environment (Conda or `venv`)
+- Warn if a non-`geo_stc` Conda environment is active, but do not block builds
+- Install `requirements.txt`
+- Run PyInstaller with `--onefile --windowed --icon logo.png`
+- Detect OS and use the correct executable name
+- Copy the built executable from `dist/` to the project root
 
 #### Windows (PowerShell)
 
@@ -333,12 +334,65 @@ Built artifact:
 
 #### macOS
 
+macOS builds use **PySide6 Deploy** (`pyside6-deploy`) with Nuitka to produce a double-clickable `.app` bundle (similar to how Windows gets a double-clickable `.exe`). Do **not** use `build_executable.sh` on macOS; that script is for Linux only.
+
+**Prerequisites**
+
+1. Build on a Mac (Apple Silicon or Intel matching your target users).
+2. Activate your Python environment from [Run Locally](#run-locally-conda-geo_stc) (recommended: `geo_stc`).
+3. Install dependencies:
+
 ```bash
-bash build_executable.sh
+pip install -r requirements.txt
 ```
 
-Built artifact:
-- `StratigraphicThicknessCalculator` (project root)
+`pyside6-deploy` ships with PySide6. Nuitka is installed automatically on the first deploy run (see `packages` in `source/pysidedeploy.spec`).
+
+**Build the `.app` bundle**
+
+From the repository root (recommended):
+
+```bash
+conda activate geo_stc   # or base / your venv — any env with PySide6 installed
+bash build_macos.sh
+```
+
+Or manually:
+
+```bash
+cd source
+pyside6-deploy -c pysidedeploy.spec
+```
+
+Run the deploy command from `source/` (the `build_macos.sh` script does this for you). Running `pyside6-deploy -c pysidedeploy.spec` from the repo root fails because the spec file lives in `source/` and its relative paths assume that working directory.
+
+The first build can take several minutes. When it finishes, the app is written to:
+
+- `source/Stratigraphic_Thickness_Calculator_MacOS.app`
+
+Double-click that bundle in Finder, or run it from Terminal:
+
+```bash
+open source/Stratigraphic_Thickness_Calculator_MacOS.app
+```
+
+**How packaging is wired**
+
+- Development still uses `python -m source.main` from the repo root.
+- Deployment uses the repo-root `main.py` entry point (not `source/main.py`) so imports like `from source.app ...` resolve correctly inside the compiled app.
+- `source/pysidedeploy.spec` sets the menu bar name to **Stratigraphic Thickness Calculator** and includes the `source` package via Nuitka.
+- `python_path` in the spec is filled in automatically when you run `pyside6-deploy` from your active environment.
+
+**First launch on another Mac (unsigned app)**
+
+The bundle is unsigned. On first launch, macOS may block it:
+
+1. Try to open the app once.
+2. Open **System Settings → Privacy & Security**.
+3. Under **Security**, click **Open Anyway**.
+4. Confirm the prompt to launch the application.
+
+To share the app, zip the entire `.app` bundle (for example `Stratigraphic_Thickness_Calculator_MacOS.app.zip`) and send that file.
 
 ## License
 
