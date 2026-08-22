@@ -14,6 +14,8 @@ from source.theme import DARK_STYLESHEET, LIGHT_STYLESHEET, system_prefers_dark_
 
 def main() -> int:
     app = QApplication(sys.argv)
+    app.setApplicationName("Stratigraphic Thickness Calculator")
+    app.setApplicationDisplayName("Stratigraphic Thickness Calculator")
     use_dark = system_prefers_dark_mode(app)
     app.setStyleSheet(DARK_STYLESHEET if use_dark else LIGHT_STYLESHEET)
     # Increase default UI size globally for readability.
