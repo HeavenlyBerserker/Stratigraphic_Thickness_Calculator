@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 import json
-from typing import Any
+from typing import Any, Literal
 
 APP_NAME = "Stratigraphic Thickness Calculator"
 VERSION = "1.0.0"
@@ -24,6 +24,8 @@ PAPER_CITATION = (
 LICENSE_NAME = "MIT License"
 LICENSE_URL = "https://opensource.org/licenses/MIT"
 
+HelpTopic = Literal["calculator", "batch_desktop", "batch_web"]
+
 USAGE_INSTRUCTIONS: list[str] = [
     "Choose the model that matches your geometry assumptions.",
     "Enter measured values and angles using the documented conventions in the README.",
@@ -35,6 +37,47 @@ USAGE_INSTRUCTIONS: list[str] = [
     "Review geometry warnings in fold models before final interpretation.",
     "Export results and plots when needed for reporting and auditability.",
 ]
+
+BATCH_INSTRUCTIONS_DESKTOP: list[str] = [
+    "Optionally download the blank template or the 16-row example workbook.",
+    "Choose Monte Carlo plot format (PNG or SVG) for any wells with non-zero σ.",
+    "Click Choose File to Batch Process and select an .xlsx workbook (one well per row).",
+    "Click Batch Process, then choose where to save the results .xlsx file.",
+    (
+        "Wait for the run to finish. Progress appears in the status bar. "
+        "Results are written to your chosen file; if any row used Monte Carlo, "
+        "PDF and CDF plots are saved in a sibling folder named "
+        "{results_stem}_mc_plots."
+    ),
+    (
+        "Review the batch log: green Success with ✅ means all rows OK; "
+        "yellow warnings (⚠️) mean geometry warnings; red (❌) means one or "
+        "more row errors (other rows still ran)."
+    ),
+]
+
+BATCH_INSTRUCTIONS_WEB: list[str] = [
+    "Optionally download the blank template or the 16-row example workbook.",
+    "Choose Monte Carlo plot format (PNG or SVG) for any wells with non-zero σ.",
+    "Click Choose File to Batch Process and select an .xlsx workbook (one well per row).",
+    (
+        "Click Batch Process. The browser downloads batch_results.xlsx automatically "
+        "(you do not pick a save path first). If any row used Monte Carlo, a "
+        "batch_results_mc_plots.zip file with PDF and CDF plots also downloads."
+    ),
+    (
+        "Review the batch log: green Success with ✅ means all rows OK; "
+        "yellow warnings (⚠️) mean geometry warnings; red (❌) means one or "
+        "more row errors (other rows still ran)."
+    ),
+]
+
+BATCH_BEST_PRACTICES = (
+    "Use the template column names (well_id, T, M, sigma_M, …). "
+    "T must be 1–8 (or T1–T8). For T₁, leave beta2_deg and phid2_deg blank. "
+    "Set σ = 0 for deterministic rows; set one or more σ > 0 to enable Monte Carlo "
+    "for that well."
+)
 
 BEST_PRACTICES = (
     "For best results, use high-quality field or interpreted inputs "
@@ -140,8 +183,17 @@ def _paper_link_plain() -> str:
     return PAPER_LABEL
 
 
-def help_documentation_html() -> str:
+def _instructions_for_topic(topic: HelpTopic) -> tuple[list[str], str]:
+    if topic == "batch_desktop":
+        return BATCH_INSTRUCTIONS_DESKTOP, BATCH_BEST_PRACTICES
+    if topic == "batch_web":
+        return BATCH_INSTRUCTIONS_WEB, BATCH_BEST_PRACTICES
+    return USAGE_INSTRUCTIONS, BEST_PRACTICES
+
+
+def help_documentation_html(topic: HelpTopic = "calculator") -> str:
     """Rich HTML for QTextBrowser / web Help dialog."""
+    instructions, best = _instructions_for_topic(topic)
     parts: list[str] = [
         "<h3>About</h3>",
         f"<p><b>{html.escape(APP_NAME)}</b> v{html.escape(VERSION)}</p>",
@@ -157,10 +209,10 @@ def help_documentation_html() -> str:
         "<h3>Instructions</h3>",
         "<ol>",
     ]
-    for step in USAGE_INSTRUCTIONS:
+    for step in instructions:
         parts.append(f"<li>{html.escape(step)}</li>")
     parts.append("</ol>")
-    parts.append(f"<p>{html.escape(BEST_PRACTICES)}</p>")
+    parts.append(f"<p>{html.escape(best)}</p>")
     parts.append("<h3>Model references</h3>")
     parts.append("<p>Formulas in each tab are based on:</p>")
     parts.append("<ul>")
@@ -182,8 +234,9 @@ def help_documentation_html() -> str:
     return "".join(parts)
 
 
-def help_documentation_plain() -> str:
+def help_documentation_plain(topic: HelpTopic = "calculator") -> str:
     """Plain text fallback (e.g. browsers without &lt;dialog&gt;)."""
+    instructions, best = _instructions_for_topic(topic)
     lines = [
         f"{APP_NAME} v{VERSION}",
         f"Implemented by {', '.join(IMPLEMENTERS)}.",
@@ -192,13 +245,12 @@ def help_documentation_plain() -> str:
         "",
         "Instructions:",
     ]
-    for i, step in enumerate(USAGE_INSTRUCTIONS, start=1):
+    for i, step in enumerate(instructions, start=1):
         lines.append(f"  {i}. {step}")
-    lines.extend(["", BEST_PRACTICES, "", "Model references:"])
+    lines.extend(["", best, "", "Model references:"])
     for entry in MODEL_REFERENCES:
         lines.append(f"  {entry['label']}:")
         for ref in entry["references"]:
-            # Strip simple HTML tags for plain text.
             plain_ref = (
                 ref.replace("<sub>", "")
                 .replace("</sub>", "")
@@ -233,7 +285,9 @@ def to_js_object() -> dict[str, Any]:
         "licenseName": LICENSE_NAME,
         "licenseUrl": LICENSE_URL,
         "usageInstructions": USAGE_INSTRUCTIONS,
+        "batchInstructionsWeb": BATCH_INSTRUCTIONS_WEB,
         "bestPractices": BEST_PRACTICES,
+        "batchBestPractices": BATCH_BEST_PRACTICES,
         "generalReferences": GENERAL_REFERENCES,
         "modelReferences": MODEL_REFERENCES,
     }
@@ -247,12 +301,26 @@ def to_js_file_content() -> str:
 
 const APP_INFO = {payload};
 
-function helpDocumentationHtml() {{
+function _helpInstructionsForTopic(topic) {{
+  if (topic === "batch" || topic === "batch_web") {{
+    return {{
+      instructions: APP_INFO.batchInstructionsWeb,
+      bestPractices: APP_INFO.batchBestPractices,
+    }};
+  }}
+  return {{
+    instructions: APP_INFO.usageInstructions,
+    bestPractices: APP_INFO.bestPractices,
+  }};
+}}
+
+function helpDocumentationHtml(topic) {{
   const esc = (s) => String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+  const {{ instructions, bestPractices }} = _helpInstructionsForTopic(topic || "calculator");
   const paperLink = APP_INFO.paperUrl
     ? `<a href="${{esc(APP_INFO.paperUrl)}}" target="_blank" rel="noopener noreferrer">${{esc(APP_INFO.paperLabel)}}</a>`
     : `<span>${{esc(APP_INFO.paperLabel)}}</span>`;
@@ -262,11 +330,11 @@ function helpDocumentationHtml() {{
   html += `<p>Implemented by ${{esc(APP_INFO.implementers.join(", "))}}.</p>`;
   html += `<p><a href="${{esc(APP_INFO.repoUrl)}}" target="_blank" rel="noopener noreferrer">${{esc(APP_INFO.repoLabel)}}</a> · ${{paperLink}}</p>`;
   html += "<h3>Instructions</h3><ol>";
-  for (const step of APP_INFO.usageInstructions) {{
+  for (const step of instructions) {{
     html += `<li>${{esc(step)}}</li>`;
   }}
   html += "</ol>";
-  html += `<p>${{esc(APP_INFO.bestPractices)}}</p>`;
+  html += `<p>${{esc(bestPractices)}}</p>`;
   html += "<h3>Model references</h3><p>Formulas in each tab are based on:</p><ul>";
   for (const entry of APP_INFO.modelReferences) {{
     html += `<li><b>${{entry.label}}</b><ul>`;
@@ -285,7 +353,8 @@ function helpDocumentationHtml() {{
   return html;
 }}
 
-function helpDocumentationPlain() {{
+function helpDocumentationPlain(topic) {{
+  const {{ instructions, bestPractices }} = _helpInstructionsForTopic(topic || "calculator");
   const lines = [
     `${{APP_INFO.appName}} v${{APP_INFO.version}}`,
     `Implemented by ${{APP_INFO.implementers.join(", ")}}.`,
@@ -294,8 +363,8 @@ function helpDocumentationPlain() {{
     "",
     "Instructions:",
   ];
-  APP_INFO.usageInstructions.forEach((step, i) => lines.push(`  ${{i + 1}}. ${{step}}`));
-  lines.push("", APP_INFO.bestPractices, "", "Model references:");
+  instructions.forEach((step, i) => lines.push(`  ${{i + 1}}. ${{step}}`));
+  lines.push("", bestPractices, "", "Model references:");
   for (const entry of APP_INFO.modelReferences) {{
     lines.push(`  ${{entry.label}}:`);
     for (const ref of entry.references) {{

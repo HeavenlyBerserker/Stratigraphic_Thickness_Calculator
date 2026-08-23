@@ -216,8 +216,90 @@
       margin-top: 0;
     }
     .warn { color: var(--warn); }
+    .view-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .view-tabs button.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .batch-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .batch-file-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) 1.4fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .batch-format-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .batch-format-row label {
+      margin: 0;
+      white-space: nowrap;
+    }
+    #batchFileLabel,
+    #batchOutputLabel {
+      margin: 0;
+      word-break: break-word;
+    }
+    #batchProgress {
+      width: 100%;
+      height: 18px;
+      margin: 0;
+      display: block;
+    }
+    .batch-status-bar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin: 10px 0;
+    }
+    #batchStatusIcon {
+      min-width: 1.5rem;
+      text-align: center;
+      font-size: 1.25rem;
+      line-height: 1;
+    }
+    #batchLog {
+      min-height: 140px;
+      max-height: 280px;
+      overflow: auto;
+      font-family: Consolas, monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input);
+      color: var(--text);
+      padding: 10px;
+      margin-bottom: 0;
+    }
+    #batchLog .log-success { color: #15803d; }
+    #batchLog .log-warning { color: #a16207; }
+    #batchLog .log-error { color: #b91c1c; }
+    html[data-theme="dark"] #batchLog .log-success { color: #4ade80; }
+    html[data-theme="dark"] #batchLog .log-warning { color: #facc15; }
+    html[data-theme="dark"] #batchLog .log-error { color: #f87171; }
+    .hidden { display: none !important; }
     @media (max-width: 640px) {
       .row, .actions { grid-template-columns: 1fr; }
+      .batch-actions,
+      .batch-file-row,
+      .batch-format-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -235,6 +317,14 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="view-tabs">
+        <button type="button" id="btnViewCalc" class="active">Calculator</button>
+        <button type="button" id="btnViewBatch" class="secondary">Batch</button>
+      </div>
+    </div>
+
+    <div id="calculatorView">
     <div class="card">
       <label for="model">Model</label>
       <select id="model"></select>
@@ -256,6 +346,44 @@
         <button id="btnSvg" class="secondary">Save MC Plot (SVG)</button>
       </div>
     </div>
+    </div>
+
+    <div id="batchView" class="hidden">
+      <div class="card">
+        <h2 style="margin:0 0 8px 0; font-size:1.05rem;">Batch Processing</h2>
+        <p class="muted" style="margin:0 0 10px 0;">
+          Load an Excel workbook with one well per row. Column T selects the model (1–8).
+          Value and σ columns follow the downloadable template.
+        </p>
+        <div class="batch-actions">
+          <button type="button" id="btnBatchTemplate" class="secondary">Download Template (.xlsx)</button>
+          <button type="button" id="btnBatchExample" class="secondary">Download Example (.xlsx)</button>
+          <button type="button" id="btnBatchHelp" class="secondary">Help &amp; Documentation</button>
+        </div>
+        <div class="batch-format-row">
+          <label for="batchPlotFormat">Monte Carlo plot format</label>
+          <select id="batchPlotFormat">
+            <option value="png" selected>PNG</option>
+            <option value="svg">SVG</option>
+          </select>
+        </div>
+        <div class="batch-file-row">
+          <button type="button" id="btnBatchChoose" class="secondary">Choose File to Batch Process</button>
+          <p id="batchFileLabel" class="muted">No batch file selected.</p>
+        </div>
+        <div class="batch-file-row">
+          <button type="button" id="btnBatchRun">Batch Process</button>
+          <p id="batchOutputLabel" class="muted">No output file selected.</p>
+        </div>
+        <input type="file" id="batchFileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
+        <label for="batchLog">Batch log</label>
+        <div id="batchLog" role="log" aria-live="polite"></div>
+        <div class="batch-status-bar">
+          <progress id="batchProgress" max="100" value="0"></progress>
+          <span id="batchStatusIcon" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
   </div>
   <dialog id="helpDialog" class="help-dialog">
     <h3 style="margin:0 0 8px 0;">Help &amp; Documentation</h3>
@@ -264,9 +392,12 @@
   </dialog>
 
   <script src="./app-info.js"></script>
+  <script src="./batch-schema.js"></script>
+  <script src="./batch.js"></script>
   <script src="./desktop-formula-where.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script>
     const defaults = {
       measured_thickness: 100,
@@ -486,7 +617,7 @@
     const helpDialogBody = document.getElementById("helpDialogBody");
     const btnCloseHelp = document.getElementById("btnCloseHelp");
     if (helpDialogBody && typeof helpDocumentationHtml === "function") {
-      helpDialogBody.innerHTML = helpDocumentationHtml();
+      helpDialogBody.innerHTML = helpDocumentationHtml("calculator");
     }
     const btnXlsx = document.getElementById("btnXlsx");
     const btnPng = document.getElementById("btnPng");
@@ -1208,9 +1339,8 @@
     /** Bold one cell (0-based row/col). Requires xlsx-js-style for .s to persist. */
     function xlsxSetCellBold(ws, r, c) {
       const addr = XLSX.utils.encode_cell({ r, c });
-      const cell = ws[addr];
-      if (!cell) return;
-      cell.s = { font: { bold: true } };
+      if (!ws[addr]) return;
+      ws[addr].s = { font: { bold: true } };
     }
 
     /**
@@ -1410,6 +1540,32 @@ def _sample(mu, sigma, lo, hi, wrap):
         return ((raw - lo) % w) + lo
     return min(max(raw, lo), hi)
 
+_VEC_PREFIX = {
+    "ud1": "Ud1", "ud2": "Ud2", "ud2_prime": "Ud2_prime", "uav": "Uav",
+    "ub": "Ub", "ndc": "Ndc", "ndp": "Ndp", "c": "Uc", "ub_prime": "Ub_prime",
+}
+
+def format_intermediate_values(model_id, result):
+    data = asdict(result)
+    warnings = data.pop("geometry_warnings", ()) or ()
+    lines = [f"{model_id.upper()}={result.true_stratigraphic_thickness:.6f}"]
+    skip = {"true_stratigraphic_thickness", "geometry_warnings"}
+    for key, value in data.items():
+        if key in skip:
+            continue
+        if key.endswith("_vector") and isinstance(value, (list, tuple)) and len(value) == 3:
+            prefix = _VEC_PREFIX.get(key.replace("_vector", ""), key.replace("_vector", ""))
+            lines.append(f"{prefix}_x={float(value[0]):.6f}")
+            lines.append(f"{prefix}_y={float(value[1]):.6f}")
+            lines.append(f"{prefix}_z={float(value[2]):.6f}")
+        elif isinstance(value, bool):
+            lines.append(f"{key}={int(value)}")
+        elif isinstance(value, (int, float)):
+            lines.append(f"{key}={float(value):.6f}")
+    if warnings:
+        lines.append("geometry_warnings=" + "; ".join(str(w) for w in warnings))
+    return "; ".join(lines)
+
 def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
     C, fn = _MAP[model_id]
     vals = {k: float(v) for k, v in values.items()}
@@ -1438,7 +1594,13 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
             "p90": _pct(ts, 0.90),
             "thicknesses": ts,
         }
-    return json.dumps({"result": asdict(result), "inputs": vals, "stds": sds, "monte_carlo": mc})
+    return json.dumps({
+        "result": asdict(result),
+        "inputs": vals,
+        "stds": sds,
+        "monte_carlo": mc,
+        "intermediate_values": format_intermediate_values(model_id, result),
+    })
       `);
       runtimeReady = true;
       btnCalc.disabled = false;
@@ -1460,10 +1622,13 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
     modelSelect.addEventListener("change", () => renderFields(modelSelect.value));
     document.getElementById("btnReset").addEventListener("click", () => renderFields(modelSelect.value));
     btnHelp.addEventListener("click", () => {
+      if (helpDialogBody && typeof helpDocumentationHtml === "function") {
+        helpDialogBody.innerHTML = helpDocumentationHtml("calculator");
+      }
       if (typeof helpDialog.showModal === "function") {
         helpDialog.showModal();
       } else if (typeof helpDocumentationPlain === "function") {
-        alert(helpDocumentationPlain());
+        alert(helpDocumentationPlain("calculator"));
       }
     });
     btnCloseHelp.addEventListener("click", () => helpDialog.close());
@@ -1508,6 +1673,166 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
     }
 
     initThemeToggle();
+
+    const calculatorView = document.getElementById("calculatorView");
+    const batchView = document.getElementById("batchView");
+    const btnViewCalc = document.getElementById("btnViewCalc");
+    const btnViewBatch = document.getElementById("btnViewBatch");
+    const btnBatchTemplate = document.getElementById("btnBatchTemplate");
+    const btnBatchExample = document.getElementById("btnBatchExample");
+    const btnBatchChoose = document.getElementById("btnBatchChoose");
+    const btnBatchRun = document.getElementById("btnBatchRun");
+    const btnBatchHelp = document.getElementById("btnBatchHelp");
+    const batchFileInput = document.getElementById("batchFileInput");
+    const batchFileLabel = document.getElementById("batchFileLabel");
+    const batchOutputLabel = document.getElementById("batchOutputLabel");
+    const batchPlotFormat = document.getElementById("batchPlotFormat");
+    const batchProgress = document.getElementById("batchProgress");
+    const batchStatusIcon = document.getElementById("batchStatusIcon");
+    const batchLog = document.getElementById("batchLog");
+    let batchFileBuffer = null;
+    let batchFileName = "";
+    let batchOutputName = "";
+
+    function appendBatchLog(text, kind) {
+      const line = document.createElement("div");
+      if (kind === "success" || kind === "warning" || kind === "error") {
+        line.className = `log-${kind}`;
+      }
+      line.textContent = text;
+      batchLog.appendChild(line);
+      batchLog.scrollTop = batchLog.scrollHeight;
+    }
+
+    function setBatchStatusIcon(icon) {
+      batchStatusIcon.textContent = icon || "";
+    }
+
+    function setActiveView(view) {
+      const calcActive = view === "calc";
+      calculatorView.classList.toggle("hidden", !calcActive);
+      batchView.classList.toggle("hidden", calcActive);
+      btnViewCalc.classList.toggle("active", calcActive);
+      btnViewBatch.classList.toggle("active", !calcActive);
+      btnViewCalc.classList.toggle("secondary", !calcActive);
+      btnViewBatch.classList.toggle("secondary", calcActive);
+    }
+
+    btnViewCalc.addEventListener("click", () => setActiveView("calc"));
+    btnViewBatch.addEventListener("click", () => setActiveView("batch"));
+
+    btnBatchTemplate.addEventListener("click", () => {
+      STCBatch.downloadWorkbook(STCBatch.templateWorkbook(), "batch_template.xlsx");
+      appendBatchLog("Downloaded batch_template.xlsx");
+    });
+
+    btnBatchExample.addEventListener("click", () => {
+      STCBatch.downloadWorkbook(STCBatch.exampleWorkbook(), "batch_example.xlsx");
+      appendBatchLog("Downloaded batch_example.xlsx (8 deterministic + 8 Monte Carlo rows).");
+    });
+
+    btnBatchChoose.addEventListener("click", () => batchFileInput.click());
+
+    batchFileInput.addEventListener("change", async () => {
+      const file = batchFileInput.files && batchFileInput.files[0];
+      if (!file) return;
+      batchFileName = file.name;
+      batchFileBuffer = await file.arrayBuffer();
+      batchFileLabel.textContent = batchFileName;
+      appendBatchLog(`Selected batch file: ${batchFileName}`);
+    });
+
+    btnBatchHelp.addEventListener("click", () => {
+      if (helpDialogBody && typeof helpDocumentationHtml === "function") {
+        helpDialogBody.innerHTML = helpDocumentationHtml("batch_web");
+      }
+      if (typeof helpDialog.showModal === "function") {
+        helpDialog.showModal();
+      } else if (typeof helpDocumentationPlain === "function") {
+        alert(helpDocumentationPlain("batch_web"));
+      }
+    });
+
+    btnBatchRun.addEventListener("click", async () => {
+      if (!batchFileBuffer) {
+        appendBatchLog("Choose a batch input workbook first.", "error");
+        setBatchStatusIcon("❌");
+        return;
+      }
+      try {
+        btnBatchRun.disabled = true;
+        btnBatchChoose.disabled = true;
+        btnBatchTemplate.disabled = true;
+        btnBatchExample.disabled = true;
+        batchPlotFormat.disabled = true;
+        batchProgress.value = 0;
+        setBatchStatusIcon("");
+        const plotFormat = batchPlotFormat.value || "png";
+        batchOutputName = "batch_results.xlsx";
+        batchOutputLabel.textContent = batchOutputName;
+        appendBatchLog(`Starting batch: ${batchFileName || "input.xlsx"}`);
+        appendBatchLog(`Output: ${batchOutputName} (browser download)`);
+        appendBatchLog(`Monte Carlo plot format: ${plotFormat.toUpperCase()}`);
+        if (!runtimeReady) {
+          appendBatchLog("Initializing calculation runtime...");
+          await initPyodideRuntime();
+        }
+        const rows = STCBatch.readWorkbookRows(batchFileBuffer);
+        const results = await STCBatch.runBatch(pyodide, rows, (current, total, message) => {
+          batchProgress.value = Math.round((100 * current) / Math.max(total, 1));
+          appendBatchLog(message);
+        });
+        const errors = results.filter((r) => r.status !== "OK");
+        const warned = results.filter((r) => r.status === "OK" && r.warnings && r.warnings.length);
+        for (const result of errors) {
+          appendBatchLog(`${result.well_id}: ${result.error}`, "error");
+        }
+        for (const result of warned) {
+          for (const warning of result.warnings) {
+            appendBatchLog(`${result.well_id}: ${warning}`, "warning");
+          }
+        }
+        STCBatch.downloadWorkbook(STCBatch.writeResultsWorkbook(results), batchOutputName);
+        const zipBlob = await STCBatch.buildMcPlotsZip(results, plotFormat);
+        let plotsNote = "";
+        if (zipBlob) {
+          const zipName = "batch_results_mc_plots.zip";
+          downloadBlob(zipBlob, zipName);
+          plotsNote = `\nMonte Carlo plots: ${zipName}`;
+          appendBatchLog(`Saved ${zipName} (${plotFormat.toUpperCase()} PDF/CDF plots for Monte Carlo wells).`);
+        }
+        const okCount = results.length - errors.length;
+        if (errors.length) {
+          appendBatchLog(
+            `Batch finished with ${errors.length} error(s), ${okCount} OK. Results: ${batchOutputName}${plotsNote}`,
+            "error"
+          );
+          setBatchStatusIcon("❌");
+        } else if (warned.length) {
+          appendBatchLog(
+            `Success with ${warned.length} warning(s). Processed ${results.length} row(s). Results: ${batchOutputName}${plotsNote}`,
+            "warning"
+          );
+          setBatchStatusIcon("⚠️");
+        } else {
+          appendBatchLog(
+            `Success. Processed ${results.length} row(s). Results: ${batchOutputName}${plotsNote}`,
+            "success"
+          );
+          setBatchStatusIcon("✅");
+        }
+        batchProgress.value = 100;
+      } catch (err) {
+        appendBatchLog("Batch failed: " + err.message, "error");
+        setBatchStatusIcon("❌");
+      } finally {
+        btnBatchRun.disabled = false;
+        btnBatchChoose.disabled = false;
+        btnBatchTemplate.disabled = false;
+        btnBatchExample.disabled = false;
+        batchPlotFormat.disabled = false;
+      }
+    });
 
     (async () => {
       try {

@@ -21,7 +21,15 @@ const APP_INFO = {
     "Review geometry warnings in fold models before final interpretation.",
     "Export results and plots when needed for reporting and auditability."
   ],
+  "batchInstructionsWeb": [
+    "Optionally download the blank template or the 16-row example workbook.",
+    "Choose Monte Carlo plot format (PNG or SVG) for any wells with non-zero σ.",
+    "Click Choose File to Batch Process and select an .xlsx workbook (one well per row).",
+    "Click Batch Process. The browser downloads batch_results.xlsx automatically (you do not pick a save path first). If any row used Monte Carlo, a batch_results_mc_plots.zip file with PDF and CDF plots also downloads.",
+    "Review the batch log: green Success with ✅ means all rows OK; yellow warnings (⚠️) mean geometry warnings; red (❌) means one or more row errors (other rows still ran)."
+  ],
   "bestPractices": "For best results, use high-quality field or interpreted inputs (e.g., calibrated dip/azimuth measurements and validated structural picks).",
+  "batchBestPractices": "Use the template column names (well_id, T, M, sigma_M, …). T must be 1–8 (or T1–T8). For T₁, leave beta2_deg and phid2_deg blank. Set σ = 0 for deterministic rows; set one or more σ > 0 to enable Monte Carlo for that well.",
   "generalReferences": [
     "Berg, R.R. (2011). Cross-validation of geometric models for calculating true stratigraphic thickness from wellbore data. <i>AAPG Bulletin</i>, 95(6), 975–992.",
     "Xu, H., Berg, R.R., et al. (2007, 2010). Concentric-fold thickness correction methods (see companion paper for full citations).",
@@ -93,12 +101,26 @@ const APP_INFO = {
   ]
 };
 
-function helpDocumentationHtml() {
+function _helpInstructionsForTopic(topic) {
+  if (topic === "batch" || topic === "batch_web") {
+    return {
+      instructions: APP_INFO.batchInstructionsWeb,
+      bestPractices: APP_INFO.batchBestPractices,
+    };
+  }
+  return {
+    instructions: APP_INFO.usageInstructions,
+    bestPractices: APP_INFO.bestPractices,
+  };
+}
+
+function helpDocumentationHtml(topic) {
   const esc = (s) => String(s)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+  const { instructions, bestPractices } = _helpInstructionsForTopic(topic || "calculator");
   const paperLink = APP_INFO.paperUrl
     ? `<a href="${esc(APP_INFO.paperUrl)}" target="_blank" rel="noopener noreferrer">${esc(APP_INFO.paperLabel)}</a>`
     : `<span>${esc(APP_INFO.paperLabel)}</span>`;
@@ -108,11 +130,11 @@ function helpDocumentationHtml() {
   html += `<p>Implemented by ${esc(APP_INFO.implementers.join(", "))}.</p>`;
   html += `<p><a href="${esc(APP_INFO.repoUrl)}" target="_blank" rel="noopener noreferrer">${esc(APP_INFO.repoLabel)}</a> · ${paperLink}</p>`;
   html += "<h3>Instructions</h3><ol>";
-  for (const step of APP_INFO.usageInstructions) {
+  for (const step of instructions) {
     html += `<li>${esc(step)}</li>`;
   }
   html += "</ol>";
-  html += `<p>${esc(APP_INFO.bestPractices)}</p>`;
+  html += `<p>${esc(bestPractices)}</p>`;
   html += "<h3>Model references</h3><p>Formulas in each tab are based on:</p><ul>";
   for (const entry of APP_INFO.modelReferences) {
     html += `<li><b>${entry.label}</b><ul>`;
@@ -131,7 +153,8 @@ function helpDocumentationHtml() {
   return html;
 }
 
-function helpDocumentationPlain() {
+function helpDocumentationPlain(topic) {
+  const { instructions, bestPractices } = _helpInstructionsForTopic(topic || "calculator");
   const lines = [
     `${APP_INFO.appName} v${APP_INFO.version}`,
     `Implemented by ${APP_INFO.implementers.join(", ")}.`,
@@ -140,8 +163,8 @@ function helpDocumentationPlain() {
     "",
     "Instructions:",
   ];
-  APP_INFO.usageInstructions.forEach((step, i) => lines.push(`  ${i + 1}. ${step}`));
-  lines.push("", APP_INFO.bestPractices, "", "Model references:");
+  instructions.forEach((step, i) => lines.push(`  ${i + 1}. ${step}`));
+  lines.push("", bestPractices, "", "Model references:");
   for (const entry of APP_INFO.modelReferences) {
     lines.push(`  ${entry.label}:`);
     for (const ref of entry.references) {

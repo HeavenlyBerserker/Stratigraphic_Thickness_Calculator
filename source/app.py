@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget, QToolButton
 
+from source.batch_tab import BatchTab
 from source.help_dialog import show_help_documentation
 
 from source.models import (
@@ -49,6 +50,8 @@ class StratigraphicCalculatorWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
         self._build_tabs()
+        self._batch_tab = BatchTab()
+        self.tabs.addTab(self._batch_tab, "Batch")
         self._dark_mode = initial_dark
         self._setup_theme_toggle()
         self._sync_all_model_tab_themes()
@@ -101,6 +104,8 @@ class StratigraphicCalculatorWindow(QMainWindow):
         for idx in range(self.tabs.count()):
             w = self.tabs.widget(idx)
             if isinstance(w, ModelTab):
+                w.apply_theme(self._dark_mode)
+            elif isinstance(w, BatchTab):
                 w.apply_theme(self._dark_mode)
 
     def _set_window_logo(self) -> None:

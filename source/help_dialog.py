@@ -10,20 +10,20 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
-from source.app_info import help_documentation_html
+from source.app_info import HelpTopic, help_documentation_html
 
 
 class HelpDocumentationDialog(QDialog):
     """Modal dialog showing usage instructions, implementer info, and references."""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent=None, *, topic: HelpTopic = "calculator") -> None:
         super().__init__(parent)
         self.setWindowTitle("Help && Documentation")
         self.resize(640, 520)
 
         self._browser = QTextBrowser()
         self._browser.setOpenExternalLinks(True)
-        self._browser.setHtml(help_documentation_html())
+        self._browser.setHtml(help_documentation_html(topic))
         self._browser.setReadOnly(True)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
@@ -37,8 +37,12 @@ class HelpDocumentationDialog(QDialog):
         layout.addWidget(buttons)
 
 
-def show_help_documentation(parent=None) -> None:
+def show_help_documentation(
+    parent=None,
+    *,
+    topic: HelpTopic = "calculator",
+) -> None:
     """Open the Help & Documentation dialog."""
-    dialog = HelpDocumentationDialog(parent)
+    dialog = HelpDocumentationDialog(parent, topic=topic)
     dialog.setWindowModality(Qt.WindowModality.ApplicationModal)
     dialog.exec()

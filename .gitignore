@@ -43,6 +43,15 @@ source/Stratigraphic_Thickness_Calculator_MacOS.app/
 source/Stratigraphic_Thickness_Calculator_MacOS.zip
 StratigraphicThicknessCalculator_1_0_0_macos
 
+# Local release binaries (download from GitHub Releases instead)
+StratigraphicThicknessCalculator_1_0_0_Windows.exe
+stratigraphic-thickness-calculator_1_0_0_Ubuntu
+StratigraphicThicknessCalculator_1_0_0_MacOS
+
+# Local batch run outputs (templates/examples are generated in-app)
+batch_*.xlsx
+*_mc_plots/
+
 # macOS metadata
 .DS_Store
 
