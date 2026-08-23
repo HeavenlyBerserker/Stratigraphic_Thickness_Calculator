@@ -150,7 +150,7 @@ class TopNormalInputs:
 class TopNormalResult:
     true_stratigraphic_thickness: float
     m_prime: float
-    alpha_deg: float
+    theta_deg: float  # θ = arccos(Ud1 · U'b); distinct from T5/T6 α
     eta_deg: float
     s_value: float
     uses_positive_s_branch: bool
@@ -178,7 +178,7 @@ class EqualAngleResult:
     true_stratigraphic_thickness: float
     top_normal_thickness: float
     m_prime: float
-    alpha_deg: float
+    theta_deg: float  # θ from top-normal geometry (not T5/T6 α)
     eta_deg: float
     s_value: float
     uses_positive_s_branch: bool
@@ -683,7 +683,8 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
     """
     Top-normal (wedging) bed: M is measured normal to the top bed.
     M' from Berg (2011) projection onto the plane of Ud1 and Ud2 with N_dp.
-    Thickness = M' cos(α ∓ η)/cos(η) (paper T7) with S = N_dp · U'b selecting the branch.
+    Thickness = M' cos(θ ∓ η)/cos(η) (paper T7) with S = N_dp · U'b selecting the branch.
+    θ = arccos(Ud1 · U'b); η = arccos(Ud1 · Ud2). Named θ (not α) to avoid clash with T5/T6.
     """
     _validate_survey_angles(
         wellbore_inclination_deg=inputs.wellbore_inclination_deg,
@@ -729,7 +730,7 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
         mb_prime[2] / m_prime,
     )
 
-    alpha_rad = acos(_clip_unit(_dot(ud1, ub_prime)))
+    theta_rad = acos(_clip_unit(_dot(ud1, ub_prime)))
     eta_rad = acos(_clip_unit(_dot(ud1, ud2)))
 
     cos_eta = cos(eta_rad)
@@ -738,10 +739,10 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
 
     s_val = _dot(ndp, ub_prime)
     if s_val >= 0.0:
-        t_top_normal = m_prime * cos(alpha_rad + eta_rad) / cos_eta
+        t_top_normal = m_prime * cos(theta_rad + eta_rad) / cos_eta
         uses_positive = True
     else:
-        t_top_normal = m_prime * cos(alpha_rad - eta_rad) / cos_eta
+        t_top_normal = m_prime * cos(theta_rad - eta_rad) / cos_eta
         uses_positive = False
 
     eta_deg_check = eta_rad * 180.0 / pi
@@ -751,7 +752,7 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
     return TopNormalResult(
         true_stratigraphic_thickness=t_top_normal,
         m_prime=m_prime,
-        alpha_deg=alpha_rad * 180.0 / pi,
+        theta_deg=theta_rad * 180.0 / pi,
         eta_deg=eta_rad * 180.0 / pi,
         s_value=s_val,
         uses_positive_s_branch=uses_positive,
@@ -786,7 +787,7 @@ def compute_equal_angle(inputs: EqualAngleInputs) -> EqualAngleResult:
         true_stratigraphic_thickness=t8,
         top_normal_thickness=tn.true_stratigraphic_thickness,
         m_prime=tn.m_prime,
-        alpha_deg=tn.alpha_deg,
+        theta_deg=tn.theta_deg,
         eta_deg=tn.eta_deg,
         s_value=tn.s_value,
         uses_positive_s_branch=tn.uses_positive_s_branch,

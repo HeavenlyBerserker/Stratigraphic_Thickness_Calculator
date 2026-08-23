@@ -1054,8 +1054,8 @@
 
     function branchNoteHtml(usesPositive) {
       return usesPositive
-        ? "Top-normal = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
-        : "Top-normal = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)";
+        ? "Top-normal = M' cos(θ+η)/cos(η) &nbsp; (S ≥ 0)"
+        : "Top-normal = M' cos(θ−η)/cos(η) &nbsp; (S &lt; 0)";
     }
 
     function buildResultHtml(modelId, res) {
@@ -1277,8 +1277,8 @@
           "M' = " +
           fmtNum(res.m_prime) +
           "<br>" +
-          "α = " +
-          fmtNum(res.alpha_deg) +
+          "θ = " +
+          fmtNum(res.theta_deg) +
           " deg<br>" +
           "η = " +
           fmtNum(res.eta_deg) +
@@ -1315,8 +1315,8 @@
           "M' = " +
           fmtNum(res.m_prime) +
           "<br>" +
-          "α = " +
-          fmtNum(res.alpha_deg) +
+          "θ = " +
+          fmtNum(res.theta_deg) +
           " deg<br>" +
           "η = " +
           fmtNum(res.eta_deg) +
@@ -1456,7 +1456,7 @@
         case "t7":
           rows.push(["T7", res.true_stratigraphic_thickness]);
           rows.push(["M_prime", res.m_prime]);
-          rows.push(["alpha_deg", res.alpha_deg]);
+          rows.push(["theta_deg", res.theta_deg]);
           rows.push(["eta_deg", res.eta_deg]);
           rows.push(["S_Ndp_dot_Ub_prime", res.s_value]);
           rows.push(["Top_normal_positive_S_branch", xlsxSBranchFlag(res.uses_positive_s_branch)]);
@@ -1470,7 +1470,7 @@
           rows.push(["T8", res.true_stratigraphic_thickness]);
           rows.push(["Top_normal_intermediate", res.top_normal_thickness]);
           rows.push(["M_prime", res.m_prime]);
-          rows.push(["alpha_deg", res.alpha_deg]);
+          rows.push(["theta_deg", res.theta_deg]);
           rows.push(["eta_deg", res.eta_deg]);
           rows.push(["S_Ndp_dot_Ub_prime", res.s_value]);
           rows.push(["Top_normal_positive_S_branch", xlsxSBranchFlag(res.uses_positive_s_branch)]);

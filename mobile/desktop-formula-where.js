@@ -2,16 +2,21 @@
 globalThis.STC_FORMULA_WHERE = {
   t1:
     "<b>Formula</b><br>" +
-    "T<sub>1</sub> = M(cosδ - sinδ(cos(φ<sub>d1</sub> - φ<sub>b</sub>))" +
-    "tanβ<sub>1</sub>)cosβ<sub>1</sub><br><br>" +
+    "T<sub>1</sub> = M (U<sub>d1</sub> · U<sub>b</sub>)<br>" +
+    "U<sub>d1</sub> = (−cosφ<sub>d1</sub> sinβ<sub>1</sub>, " +
+    "−sinφ<sub>d1</sub> sinβ<sub>1</sub>, cosβ<sub>1</sub>)<br>" +
+    "U<sub>b</sub> = (sinδ cosφ<sub>b</sub>, sinφ<sub>b</sub> sinδ, cosδ)<br>" +
+    "Equivalent (Setchell) form: T<sub>1</sub> = M(cosδ − sinδ " +
+    "cos(φ<sub>d1</sub> − φ<sub>b</sub>) tanβ<sub>1</sub>) cosβ<sub>1</sub><br><br>" +
     "<b>Where</b><br>" +
     "T<sub>1</sub>: true stratigraphic thickness<br>" +
-    "M: measured thickness along the well path<br>" +
+    "M: measured (apparent) thickness along the borehole between top and base<br>" +
+    "· : dot product<br>" +
+    "U<sub>d1</sub>: downward unit vector normal to the bed<br>" +
+    "U<sub>b</sub>: unit vector of the borehole direction<br>" +
     "δ: borehole inclination from vertical down, 0° ≤ δ ≤ 180°<br>" +
     "β<sub>1</sub>: bed dip, 0° ≤ β ≤ 90°<br>" +
-    "φ<sub>b</sub>, φ<sub>d1</sub>: azimuths clockwise from north, 0° ≤ φ ≤ 360°<br>" +
-    "U<sub>d1</sub>: downward dip-pole unit vector<br>" +
-    "U<sub>b</sub>: borehole direction unit vector",
+    "φ<sub>b</sub>, φ<sub>d1</sub>: azimuths clockwise from north, 0° ≤ φ ≤ 360°",
   t2:
     "<b>Formula</b><br>" +
     "U<sub>av</sub> = (U<sub>d1</sub> + U<sub>d2</sub>) / " +
@@ -103,20 +108,25 @@ globalThis.STC_FORMULA_WHERE = {
     "M<sub>b</sub> = M U<sub>b</sub><br>" +
     "U'<sub>b</sub> = M'<sub>b</sub> / ||M'<sub>b</sub>|| with M'<sub>b</sub> = " +
     "M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>)<br>" +
-    "α = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>" +
+    "θ = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>" +
     "η = arccos(U<sub>d1</sub> . U<sub>d2</sub>)<br>" +
     "S = N<sub>dp</sub> . U'<sub>b</sub><br>" +
-    "If S &lt; 0: Top-normal = M' cos(α − η) / cos(η) &nbsp; (paper T<sub>7</sub>)<br>" +
-    "If S ≥ 0: Top-normal = M' cos(α + η) / cos(η) &nbsp; (paper T<sub>7</sub>)<br>" +
-    "Also Top-normal = M' (sinγ / sinμ) = M' cos(α ∓ η) / cos(η) (Berg, 2011)<br><br>" +
+    "If S &lt; 0: T<sub>7</sub> = M' cos(θ − η) / cos(η)<br>" +
+    "If S ≥ 0: T<sub>7</sub> = M' cos(θ + η) / cos(η)<br>" +
+    "Also T<sub>7</sub> = M' (sinγ / sinμ) = M' cos(θ ∓ η) / cos(η)<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed; paper T<sub>7</sub>)<br>" +
+    "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed)<br>" +
+    "θ: angle between U<sub>d1</sub> and U'<sub>b</sub> " +
+    "(distinct from α in the T<sub>5</sub>/T<sub>6</sub> models)<br>" +
     "η: angle between dip poles at top and base; S selects thickening sense<br>",
   t8:
     "<b>Formula</b><br>" +
-    "Same intermediate quantities as Top-normal (N<sub>dp</sub>, M', U'<sub>b</sub>, α, η, S)<br>" +
-    "Top-normal = M' cos(α ∓ η) / cos(η) per S (paper T<sub>7</sub>)<br>" +
-    "T<sub>8</sub> = Top-normal × cos(η / 2) &nbsp; (equal-angle method)<br><br>" +
+    "Same intermediate quantities as Top-normal (N<sub>dp</sub>, M', U'<sub>b</sub>, θ, η, S)<br>" +
+    "T<sub>7</sub> = M' cos(θ ∓ η) / cos(η) per S<br>" +
+    "T<sub>8</sub> = T<sub>7</sub> × cos(η / 2) &nbsp; (equal-angle method)<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; η = arccos(U<sub>d1</sub> · U<sub>d2</sub>))<br>",
+    "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; " +
+    "η = arccos(U<sub>d1</sub> · U<sub>d2</sub>))<br>" +
+    "θ: same angle as in the Top-normal (T<sub>7</sub>) method " +
+    "(not the α of T<sub>5</sub>/T<sub>6</sub>)<br>",
 };

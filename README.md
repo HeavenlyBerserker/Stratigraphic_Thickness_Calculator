@@ -227,7 +227,10 @@ Each tab has:
 
 Currently implemented:
 - One-dip model with formula:
-  `T₁ = M(cosδ - sinδ(cos(φd₁ - φᵦ))tanβ₁)cosβ₁`
+  `T₁ = M (U_d1 · U_b)` with
+  `U_d1 = (−cosφ_d1 sinβ₁, −sinφ_d1 sinβ₁, cosβ₁)`,
+  `U_b = (sinδ cosφ_b, sinφ_b sinδ, cosδ)`
+  (equivalent Setchell form: `T₁ = M(cosδ − sinδ cos(φ_d1 − φ_b) tanβ₁) cosβ₁`)
 - Average-vector model (Berg, 2011) with:
   - `Uav = (Ud₁ + Ud₂) / ||Ud₁ + Ud₂||`
   - `T₂ = M × (Uav • Uᵦ)`
@@ -247,8 +250,8 @@ Currently implemented:
   - `U_c = (U_d1 - U_d2) / ||U_d1 - U_d2||`; `γ = arccos(U_c · U'_b)`, `α = arccos(U_d1 · U_c)` with `U'_b = M'_b / ||M'_b||`
   - `T₆ = M' (sinγ / sinα)`
 - Top-normal model (`M` measured normal to the top bed; Berg, 2011):
-  - Same `N_dp`, `M'`, `U'_b` as Berg (2011) projection; `α = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)`
-  - **Top-normal** (paper `T₇`): `S = N_dp · U'_b`; if `S < 0`: `M' cos(α − η) / cos(η)`; if `S ≥ 0`: `M' cos(α + η) / cos(η)` (also `M' (sinγ / sinμ)`)
+  - Same `N_dp`, `M'`, `U'_b` as Berg (2011) projection; `θ = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)`
+  - **Top-normal** (paper `T₇`): `S = N_dp · U'_b`; if `S < 0`: `M' cos(θ − η) / cos(η)`; if `S ≥ 0`: `M' cos(θ + η) / cos(η)` (also `M' (sinγ / sinμ)`)
 - Equal-angle (`T₈`) tab: same inputs as Top-normal; `T₈ =` Top-normal `× cos(η/2)` (equal-angle method)
 - Computed vectors:
   - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector at top contact (`beta1`, `phi_d1`)

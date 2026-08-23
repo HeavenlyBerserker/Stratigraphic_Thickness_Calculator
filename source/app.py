@@ -869,16 +869,21 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.ub_vector[2]:.6f})<br><br>"
             f"{mc_section}"
             "<b>Formula</b><br>"
-            "T<sub>1</sub> = M(cosδ - sinδ(cos(φ<sub>d1</sub> - φ<sub>b</sub>))"
-            "tanβ<sub>1</sub>)cosβ<sub>1</sub><br><br>"
+            "T<sub>1</sub> = M (U<sub>d1</sub> · U<sub>b</sub>)<br>"
+            "U<sub>d1</sub> = (−cosφ<sub>d1</sub> sinβ<sub>1</sub>, "
+            "−sinφ<sub>d1</sub> sinβ<sub>1</sub>, cosβ<sub>1</sub>)<br>"
+            "U<sub>b</sub> = (sinδ cosφ<sub>b</sub>, sinφ<sub>b</sub> sinδ, cosδ)<br>"
+            "Equivalent (Setchell) form: T<sub>1</sub> = M(cosδ − sinδ "
+            "cos(φ<sub>d1</sub> − φ<sub>b</sub>) tanβ<sub>1</sub>) cosβ<sub>1</sub><br><br>"
             "<b>Where</b><br>"
             "T<sub>1</sub>: true stratigraphic thickness<br>"
-            "M: measured thickness along the well path<br>"
+            "M: measured (apparent) thickness along the borehole between top and base<br>"
+            "· : dot product<br>"
+            "U<sub>d1</sub>: downward unit vector normal to the bed<br>"
+            "U<sub>b</sub>: unit vector of the borehole direction<br>"
             "δ: borehole inclination from vertical down, 0° ≤ δ ≤ 180°<br>"
             "β<sub>1</sub>: bed dip, 0° ≤ β ≤ 90°<br>"
-            "φ<sub>b</sub>, φ<sub>d1</sub>: azimuths clockwise from north, 0° ≤ φ ≤ 360°<br>"
-            "U<sub>d1</sub>: downward dip-pole unit vector<br>"
-            "U<sub>b</sub>: borehole direction unit vector"
+            "φ<sub>b</sub>, φ<sub>d1</sub>: azimuths clockwise from north, 0° ≤ φ ≤ 360°"
         )
         xlsx_in = [
             self._xlsx_input_column(tab, "m", "M"),
@@ -1408,9 +1413,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         mc_section = self._format_monte_carlo_section(mc_stats)
         branch_note = (
-            "Top-normal = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
+            "Top-normal = M' cos(θ+η)/cos(η) &nbsp; (S ≥ 0)"
             if result.uses_positive_s_branch
-            else "Top-normal = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)"
+            else "Top-normal = M' cos(θ−η)/cos(η) &nbsp; (S &lt; 0)"
         )
         warn_html = self._geometry_warnings_after_result_html(result.geometry_warnings)
         output = (
@@ -1421,7 +1426,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "<br>"
             "<b>Quantities</b><br>"
             f"M' = {result.m_prime:.6f}<br>"
-            f"α = {result.alpha_deg:.6f} deg<br>"
+            f"θ = {result.theta_deg:.6f} deg<br>"
             f"η = {result.eta_deg:.6f} deg<br>"
             f"S = N<sub>dp</sub> . U'<sub>b</sub> = {result.s_value:.6f}<br>"
             f"Branch: {branch_note}<br>"
@@ -1448,14 +1453,16 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "M<sub>b</sub> = M U<sub>b</sub><br>"
             "U'<sub>b</sub> = M'<sub>b</sub> / ||M'<sub>b</sub>|| with M'<sub>b</sub> = "
             "M<sub>b</sub> - N<sub>dp</sub>(N<sub>dp</sub> . M<sub>b</sub>)<br>"
-            "α = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>"
+            "θ = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>"
             "η = arccos(U<sub>d1</sub> . U<sub>d2</sub>)<br>"
             "S = N<sub>dp</sub> . U'<sub>b</sub><br>"
-            "If S &lt; 0: Top-normal = M' cos(α − η) / cos(η) &nbsp; (paper T<sub>7</sub>)<br>"
-            "If S ≥ 0: Top-normal = M' cos(α + η) / cos(η) &nbsp; (paper T<sub>7</sub>)<br>"
-            "Also Top-normal = M' (sinγ / sinμ) = M' cos(α ∓ η) / cos(η) (Berg, 2011)<br><br>"
+            "If S &lt; 0: T<sub>7</sub> = M' cos(θ − η) / cos(η)<br>"
+            "If S ≥ 0: T<sub>7</sub> = M' cos(θ + η) / cos(η)<br>"
+            "Also T<sub>7</sub> = M' (sinγ / sinμ) = M' cos(θ ∓ η) / cos(η)<br><br>"
             "<b>Where</b><br>"
-            "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed; paper T<sub>7</sub>)<br>"
+            "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed)<br>"
+            "θ: angle between U<sub>d1</sub> and U'<sub>b</sub> "
+            "(distinct from α in the T<sub>5</sub>/T<sub>6</sub> models)<br>"
             "η: angle between dip poles at top and base; S selects thickening sense<br>"
         )
         xlsx_in = [
@@ -1470,7 +1477,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         xlsx_out = [
             ("T7", result.true_stratigraphic_thickness),
             ("M_prime", result.m_prime),
-            ("alpha_deg", result.alpha_deg),
+            ("theta_deg", result.theta_deg),
             ("eta_deg", result.eta_deg),
             ("S_Ndp_dot_Ub_prime", result.s_value),
             (
@@ -1521,9 +1528,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
         )
         mc_section = self._format_monte_carlo_section(mc_stats)
         branch_note = (
-            "Top-normal = M' cos(α+η)/cos(η) &nbsp; (S ≥ 0)"
+            "Top-normal = M' cos(θ+η)/cos(η) &nbsp; (S ≥ 0)"
             if result.uses_positive_s_branch
-            else "Top-normal = M' cos(α−η)/cos(η) &nbsp; (S &lt; 0)"
+            else "Top-normal = M' cos(θ−η)/cos(η) &nbsp; (S &lt; 0)"
         )
         warn_html = self._geometry_warnings_after_result_html(result.geometry_warnings)
         output = (
@@ -1536,7 +1543,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"Top-normal (intermediate, paper T<sub>7</sub>): "
             f"{result.top_normal_thickness:.6f}<br>"
             f"M' = {result.m_prime:.6f}<br>"
-            f"α = {result.alpha_deg:.6f} deg<br>"
+            f"θ = {result.theta_deg:.6f} deg<br>"
             f"η = {result.eta_deg:.6f} deg<br>"
             f"S = N<sub>dp</sub> . U'<sub>b</sub> = {result.s_value:.6f}<br>"
             f"Branch: {branch_note}<br>"
@@ -1557,11 +1564,14 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{result.ub_prime_vector[2]:.6f})<br><br>"
             f"{mc_section}"
             "<b>Formula</b><br>"
-            "Same intermediate quantities as Top-normal (N<sub>dp</sub>, M', U'<sub>b</sub>, α, η, S)<br>"
-            "Top-normal = M' cos(α ∓ η) / cos(η) per S (paper T<sub>7</sub>)<br>"
-            "T<sub>8</sub> = Top-normal × cos(η / 2) &nbsp; (equal-angle method)<br><br>"
+            "Same intermediate quantities as Top-normal (N<sub>dp</sub>, M', U'<sub>b</sub>, θ, η, S)<br>"
+            "T<sub>7</sub> = M' cos(θ ∓ η) / cos(η) per S<br>"
+            "T<sub>8</sub> = T<sub>7</sub> × cos(η / 2) &nbsp; (equal-angle method)<br><br>"
             "<b>Where</b><br>"
-            "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; η = arccos(U<sub>d1</sub> · U<sub>d2</sub>))<br>"
+            "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; "
+            "η = arccos(U<sub>d1</sub> · U<sub>d2</sub>))<br>"
+            "θ: same angle as in the Top-normal (T<sub>7</sub>) method "
+            "(not the α of T<sub>5</sub>/T<sub>6</sub>)<br>"
         )
         xlsx_in = [
             self._xlsx_input_column(tab, "m8", "M"),
@@ -1576,7 +1586,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             ("T8", result.true_stratigraphic_thickness),
             ("Top_normal_intermediate", result.top_normal_thickness),
             ("M_prime", result.m_prime),
-            ("alpha_deg", result.alpha_deg),
+            ("theta_deg", result.theta_deg),
             ("eta_deg", result.eta_deg),
             ("S_Ndp_dot_Ub_prime", result.s_value),
             (

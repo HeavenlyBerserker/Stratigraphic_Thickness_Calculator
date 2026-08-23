@@ -71,11 +71,16 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth_deg"},
         label="One-dip (T1)",
         formula=[
-            "T1 = M(cosδ - sinδ cos(φd - φb) tanβ) cosβ",
+            "T1 = M (Ud1 · Ub)",
+            "Ud1 = (−cosφd1 sinβ1, −sinφd1 sinβ1, cosβ1)",
+            "Ub = (sinδ cosφb, sinφb sinδ, cosδ)",
+            "Equivalent (Setchell): T1 = M(cosδ − sinδ cos(φd1 − φb) tanβ1) cosβ1",
         ],
         where=[
-            "T1: one-dip true stratigraphic thickness",
-            "M: measured thickness along well path",
+            "T1: true stratigraphic thickness",
+            "M: measured (apparent) thickness along the borehole between top and base",
+            "Ud1: downward unit vector normal to the bed",
+            "Ub: unit vector of the borehole direction",
         ],
     ),
     "t2": ModelSpec(
@@ -187,10 +192,14 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"},
         label="Top-normal (T7)",
         formula=[
-            "If S < 0: T7 = M' cos(α−η) / cosη",
-            "If S ≥ 0: T7 = M' cos(α+η) / cosη",
+            "θ = arccos(Ud1 · U'b); η = arccos(Ud1 · Ud2)",
+            "If S < 0: T7 = M' cos(θ−η) / cosη",
+            "If S ≥ 0: T7 = M' cos(θ+η) / cosη",
         ],
-        where=["T7: top-normal thickness"],
+        where=[
+            "T7: top-normal thickness",
+            "θ: angle between Ud1 and U'b (not the α of T5/T6)",
+        ],
     ),
     "t8": ModelSpec(
         input_builder=lambda d: EqualAngleInputs(**d),
@@ -207,10 +216,13 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"},
         label="Equal-angle (T8)",
         formula=[
-            "Top-normal intermediate from T7 branch rule",
-            "T8 = Top-normal × cos(η/2)",
+            "T7 from top-normal branch rule (θ, η, S)",
+            "T8 = T7 × cos(η/2)",
         ],
-        where=["T8: equal-angle thickness"],
+        where=[
+            "T8: equal-angle thickness",
+            "θ: same as in Top-normal (T7); not the α of T5/T6",
+        ],
     ),
 }
 
