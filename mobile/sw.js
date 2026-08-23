@@ -1,4 +1,4 @@
-const CACHE_NAME = "stc-mobile-v9";
+const CACHE_NAME = "stc-mobile-v15";
 const ASSETS = [
   "./index.html",
   "./app-info.js",
@@ -8,6 +8,12 @@ const ASSETS = [
   "./manifest.json",
   "../logo.png",
   "../source/models.py",
+  "../diagrams/Fig_T1.svg",
+  "../diagrams/Fig_T2_T3_T4.svg",
+  "../diagrams/Fig_T5.svg",
+  "../diagrams/Fig_T6.svg",
+  "../diagrams/Fig_T7.svg",
+  "../diagrams/Fig_T8.svg",
 ];
 
 self.addEventListener("install", (event) => {
@@ -36,4 +42,3 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
-

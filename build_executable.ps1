@@ -26,7 +26,7 @@ if (Get-Command conda -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "Executable name: $appName"
-Write-Host "Bundling asset: $logoFile"
+Write-Host "Bundling assets: $logoFile, diagrams/"
 
 python -m pip install -r requirements.txt
 if ($LASTEXITCODE -ne 0) {
@@ -35,6 +35,8 @@ if ($LASTEXITCODE -ne 0) {
 
 $extraArgs = @(
     '--hidden-import', 'matplotlib.backends.backend_qtagg',
+    '--hidden-import', 'PySide6.QtSvg',
+    '--hidden-import', 'PySide6.QtSvgWidgets',
     '--exclude-module', 'PySide6.QtWebEngineWidgets',
     '--exclude-module', 'PySide6.QtWebEngineCore',
     '--exclude-module', 'PySide6.QtWebEngineQuick'
@@ -46,6 +48,7 @@ python -m PyInstaller `
     --windowed `
     --icon "$logoFile" `
     --add-data "$logoFile;." `
+    --add-data "diagrams;diagrams" `
     @extraArgs `
     --name "$appName" `
     "$appMain"

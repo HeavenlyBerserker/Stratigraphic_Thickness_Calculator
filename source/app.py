@@ -7,7 +7,7 @@ import sys
 from statistics import mean, pstdev
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMainWindow, QTabWidget, QToolButton
 
@@ -55,16 +55,25 @@ class StratigraphicCalculatorWindow(QMainWindow):
         self._setup_theme_toggle()
         self._sync_all_model_tab_themes()
 
+    def enable_diagrams(self) -> None:
+        """Enable diagram loading after the main window is on screen."""
+        for idx in range(self.tabs.count()):
+            w = self.tabs.widget(idx)
+            if isinstance(w, ModelTab):
+                w.model_diagram.allow_loading()
+
     def _new_model_tab(
         self,
         title: str,
         on_calculate,
         export_basename: str,
+        diagram_id: str,
     ) -> ModelTab:
         return ModelTab(
             title,
             on_calculate,
             export_basename,
+            diagram_id,
             on_help=lambda: show_help_documentation(self),
         )
 
@@ -118,7 +127,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
 
     def _build_tabs(self) -> None:
         one_dip_tab = self._new_model_tab(
-            "One-dip (T₁) Model", self._compute_one_dip, "One-dip (T₁)"
+            "One-dip (T₁) Model", self._compute_one_dip, "One-dip (T₁)", "t1"
         )
         one_dip_tab.add_float_input(
             "m",
@@ -161,6 +170,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "Average-vector (T₂) Model",
             self._compute_average_vector,
             "Average-vector (T₂)",
+            "t2",
         )
         average_vector_tab.add_float_input(
             "m2",
@@ -216,6 +226,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "Average-thickness (T₃) Model",
             self._compute_average_thickness,
             "Average-thickness (T₃)",
+            "t3",
         )
         average_thickness_tab.add_float_input(
             "m3",
@@ -271,6 +282,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "Mixed Average (T₄) Model",
             self._compute_mixed_average,
             "Mixed Average (T₄)",
+            "t4",
         )
         mixed_average_tab.add_float_input(
             "m4",
@@ -326,6 +338,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "Concentric Fold (T₅) Model",
             self._compute_concentric_fold,
             "Concentric Fold (T₅)",
+            "t5",
         )
         concentric_fold_tab.add_float_input(
             "m5",
@@ -381,6 +394,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "Plunging Concentric Fold (T₆) Model",
             self._compute_plunging_concentric_fold,
             "Plunging Concentric Fold (T₆)",
+            "t6",
         )
         plunging_fold_tab.add_float_input(
             "m6",
@@ -434,7 +448,10 @@ class StratigraphicCalculatorWindow(QMainWindow):
         self.tabs.addTab(plunging_fold_tab, "Plunging Concentric Fold (T₆)")
 
         top_normal_tab = self._new_model_tab(
-            "Top-normal (T₇) Model", self._compute_top_normal, "Top-normal (T₇)"
+            "Top-normal (T₇) Model",
+            self._compute_top_normal,
+            "Top-normal (T₇)",
+            "t7",
         )
         top_normal_tab.add_float_input(
             "m7",
@@ -488,7 +505,10 @@ class StratigraphicCalculatorWindow(QMainWindow):
         self.tabs.addTab(top_normal_tab, "Top-normal (T₇)")
 
         equal_angle_tab = self._new_model_tab(
-            "Equal-angle (T₈) Model", self._compute_equal_angle, "Equal-angle (T₈)"
+            "Equal-angle (T₈) Model",
+            self._compute_equal_angle,
+            "Equal-angle (T₈)",
+            "t8",
         )
         equal_angle_tab.add_float_input(
             "m8",

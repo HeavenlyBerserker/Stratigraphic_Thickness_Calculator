@@ -118,6 +118,51 @@
       color: var(--muted);
       font-size: 0.85rem;
     }
+    .model-diagram-slot {
+      margin-top: 12px;
+      display: none;
+    }
+    .model-diagram-frame {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+    .model-diagram-tab {
+      display: block;
+      width: 100%;
+      margin: 0;
+      padding: 11px 14px;
+      border: none;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 0;
+      background: linear-gradient(to bottom, #cbd5e1 0%, #e2e8f0 45%, #ffffff 100%);
+      color: #475569;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      line-height: 1.3;
+      text-align: center;
+      cursor: pointer;
+    }
+    .model-diagram-tab:hover {
+      color: #1e293b;
+      background: linear-gradient(to bottom, #94a3b8 0%, #cbd5e1 40%, #ffffff 100%);
+    }
+    .model-diagram-body {
+      background: #ffffff;
+    }
+    .model-diagram-body img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    .model-diagram-slot.is-collapsed .model-diagram-body {
+      display: none;
+    }
+    .model-diagram-slot.is-collapsed .model-diagram-tab {
+      border-bottom: none;
+    }
     .cell-label { align-self: center; }
     .sigma-wrap {
       display: flex;
@@ -334,6 +379,16 @@
       <label for="model">Model</label>
       <select id="model"></select>
       <div id="fields" style="margin-top:10px;"></div>
+      <div id="modelDiagramSlot" class="model-diagram-slot" aria-hidden="true">
+        <div class="model-diagram-frame">
+          <button type="button" id="btnToggleDiagram" class="model-diagram-tab" aria-expanded="true">
+            Click to hide image
+          </button>
+          <div id="modelDiagramWrap" class="model-diagram-body">
+            <img id="modelDiagram" alt="Model diagram" />
+          </div>
+        </div>
+      </div>
       <div class="actions">
         <button id="btnCalc">Calculate</button>
         <button id="btnReset" class="secondary">Reset Defaults</button>
@@ -553,8 +608,59 @@
       },
     };
 
+    const diagramBasenames = {
+      t1: "Fig_T1",
+      t2: "Fig_T2_T3_T4",
+      t3: "Fig_T2_T3_T4",
+      t4: "Fig_T2_T3_T4",
+      t5: "Fig_T5",
+      t6: "Fig_T6",
+      t7: "Fig_T7",
+      t8: "Fig_T8",
+    };
+
     const modelSelect = document.getElementById("model");
     const fieldsRoot = document.getElementById("fields");
+    const modelDiagramSlot = document.getElementById("modelDiagramSlot");
+    const modelDiagramWrap = document.getElementById("modelDiagramWrap");
+    const modelDiagram = document.getElementById("modelDiagram");
+    const btnToggleDiagram = document.getElementById("btnToggleDiagram");
+    const DIAGRAM_HIDDEN_KEY = "stc-diagram-hidden";
+    let diagramAvailable = false;
+
+    function isDiagramCollapsed() {
+      return localStorage.getItem(DIAGRAM_HIDDEN_KEY) === "1";
+    }
+
+    function applyDiagramCollapsedState() {
+      if (!modelDiagramSlot) return;
+      const collapsed = isDiagramCollapsed();
+      modelDiagramSlot.classList.toggle("is-collapsed", collapsed);
+      if (btnToggleDiagram) {
+        btnToggleDiagram.textContent = collapsed ? "Show image" : "Click to hide image";
+        btnToggleDiagram.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      }
+    }
+
+    function setDiagramSlotVisible(visible) {
+      diagramAvailable = !!visible;
+      if (!modelDiagramSlot) return;
+      if (!visible) {
+        modelDiagramSlot.style.display = "none";
+        modelDiagramSlot.setAttribute("aria-hidden", "true");
+        return;
+      }
+      modelDiagramSlot.style.display = "block";
+      modelDiagramSlot.setAttribute("aria-hidden", "false");
+      applyDiagramCollapsedState();
+    }
+
+    if (btnToggleDiagram) {
+      btnToggleDiagram.addEventListener("click", () => {
+        localStorage.setItem(DIAGRAM_HIDDEN_KEY, isDiagramCollapsed() ? "0" : "1");
+        applyDiagramCollapsedState();
+      });
+    }
     const output = document.getElementById("output");
     const mcPlot = document.getElementById("mcPlot");
     /** Move canvas out of #output before innerHTML/textContent so it is not destroyed. */
@@ -653,6 +759,32 @@
       btnSvg.style.display = hasPlot ? "block" : "none";
     }
 
+    function setModelDiagram(modelId) {
+      const base = diagramBasenames[modelId];
+      if (!base || !modelDiagramSlot || !modelDiagram) {
+        setDiagramSlotVisible(false);
+        return;
+      }
+      const label = modelSpecs[modelId] ? modelSpecs[modelId].label : modelId;
+      modelDiagram.alt = label + " diagram";
+      modelDiagram.onload = () => {
+        setDiagramSlotVisible(true);
+      };
+      modelDiagram.onerror = () => {
+        if (modelDiagram.dataset.fallback === "png") {
+          setDiagramSlotVisible(false);
+          return;
+        }
+        modelDiagram.dataset.fallback = "png";
+        modelDiagram.src = "../diagrams/" + base + ".png";
+      };
+      delete modelDiagram.dataset.fallback;
+      // Keep slot visible while loading so layout does not jump oddly on model change
+      // when a diagram was already showing.
+      if (diagramAvailable) setDiagramSlotVisible(true);
+      modelDiagram.src = "../diagrams/" + base + ".svg";
+    }
+
     function renderFields(modelId) {
       const m = modelSpecs[modelId];
       fieldsRoot.innerHTML = "";
@@ -717,6 +849,7 @@
         row.appendChild(col3);
         fieldsRoot.appendChild(row);
       });
+      setModelDiagram(modelId);
     }
 
     function readValuesAndStds(modelId) {

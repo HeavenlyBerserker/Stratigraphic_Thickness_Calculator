@@ -26,6 +26,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from source.diagram_widget import DiagramWidget
+from source.diagrams import resolve_diagram_path
+
 # Placeholder in output HTML; replaced with the live PDF/CDF image on refresh.
 MC_PLOT_MARKER = "<!--MC_PLOT-->"
 
@@ -66,7 +69,7 @@ class ModelTab(QWidget):
     Generic tab layout:
     - input and output side by side
     - calculate / clear row
-    - resizable splitters: input | output; stdout/stderr below
+    - resizable splitters: input | output; diagram | stdout/stderr below
     """
 
     def __init__(
@@ -74,11 +77,13 @@ class ModelTab(QWidget):
         title: str,
         on_calculate: Callable[["ModelTab"], None],
         export_basename: str,
+        diagram_id: str | None = None,
         on_help: Callable[[], None] | None = None,
     ) -> None:
         super().__init__()
         self.on_calculate = on_calculate
         self.export_basename = export_basename
+        self.diagram_id = diagram_id
         self.on_help = on_help
         self.inputs: dict[str, QDoubleSpinBox] = {}
         self.std_inputs: dict[str, QDoubleSpinBox] = {}
@@ -99,29 +104,29 @@ class ModelTab(QWidget):
         root_layout = QVBoxLayout()
         self.setLayout(root_layout)
 
-        self._title_label = QLabel(title)
+        self._title_label = QLabel(title, self)
 
-        self.input_group = QGroupBox("Input")
+        self.input_group = QGroupBox("Input", self)
         self.input_form = QFormLayout()
         self.input_group.setLayout(self.input_form)
 
-        self.output_group = QGroupBox("Output")
+        self.output_group = QGroupBox("Output", self)
         output_layout = QVBoxLayout()
         self.output_text = QTextEdit()
         self.output_text.setReadOnly(True)
         output_layout.addWidget(self.output_text)
 
         mc_row = QHBoxLayout()
-        self._save_excel_btn = QPushButton("Save Results to Excel")
+        self._save_excel_btn = QPushButton("Save Results to Excel", self)
         self._save_excel_btn.clicked.connect(self._on_save_excel)
         self._save_excel_btn.setVisible(False)
-        self._mc_plot_kind = QComboBox()
+        self._mc_plot_kind = QComboBox(self)
         self._mc_plot_kind.addItem("PDF (histogram)", "pdf")
         self._mc_plot_kind.addItem("CDF (cumulative)", "cdf")
         self._mc_plot_kind.setVisible(False)
         self._mc_plot_kind.currentIndexChanged.connect(self._on_mc_plot_kind_changed)
-        self._mc_save_png_btn = QPushButton("Save MC plot (PNG)")
-        self._mc_save_svg_btn = QPushButton("Save MC plot (SVG)")
+        self._mc_save_png_btn = QPushButton("Save MC plot (PNG)", self)
+        self._mc_save_svg_btn = QPushButton("Save MC plot (SVG)", self)
         self._mc_save_png_btn.setVisible(False)
         self._mc_save_svg_btn.setVisible(False)
         self._mc_save_png_btn.clicked.connect(self._on_save_mc_png)
@@ -135,7 +140,7 @@ class ModelTab(QWidget):
 
         self.output_group.setLayout(output_layout)
 
-        content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        content_splitter = QSplitter(Qt.Orientation.Horizontal, self)
         content_splitter.setChildrenCollapsible(False)
         content_splitter.addWidget(self.input_group)
         content_splitter.addWidget(self.output_group)
@@ -143,25 +148,25 @@ class ModelTab(QWidget):
         content_splitter.setStretchFactor(1, 1)
 
         button_row = QHBoxLayout()
-        self.calculate_button = QPushButton("Calculate")
+        self.calculate_button = QPushButton("Calculate", self)
         self.calculate_button.clicked.connect(self._run_calculation)
-        self.clear_button = QPushButton("Clear")
+        self.clear_button = QPushButton("Clear", self)
         self.clear_button.clicked.connect(self._clear_all)
         button_row.addWidget(self.calculate_button)
         button_row.addWidget(self.clear_button)
         if self.on_help is not None:
-            self.help_button = QPushButton("Help && Documentation")
+            self.help_button = QPushButton("Help && Documentation", self)
             self.help_button.clicked.connect(self.on_help)
             button_row.addWidget(self.help_button)
         button_row.addStretch()
 
-        top_area = QWidget()
+        top_area = QWidget(self)
         top_layout = QVBoxLayout(top_area)
         top_layout.addWidget(self._title_label)
         top_layout.addWidget(content_splitter, stretch=1)
         top_layout.addLayout(button_row)
 
-        logs_group = QGroupBox("Stdout / Stderr")
+        logs_group = QGroupBox("Stdout / Stderr", self)
         logs_layout = QVBoxLayout()
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
@@ -171,10 +176,25 @@ class ModelTab(QWidget):
         logs_layout.addWidget(self.log_text)
         logs_group.setLayout(logs_layout)
 
-        main_splitter = QSplitter(Qt.Orientation.Vertical)
+        diagram_group = QGroupBox("Diagram", self)
+        diagram_layout = QVBoxLayout()
+        self.model_diagram = DiagramWidget(self.diagram_id, diagram_group)
+        diagram_layout.addWidget(self.model_diagram)
+        diagram_group.setLayout(diagram_layout)
+        has_diagram = bool(self.diagram_id and resolve_diagram_path(self.diagram_id))
+        diagram_group.setVisible(has_diagram)
+
+        bottom_splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        bottom_splitter.setChildrenCollapsible(False)
+        bottom_splitter.addWidget(diagram_group)
+        bottom_splitter.addWidget(logs_group)
+        bottom_splitter.setStretchFactor(0, 1)
+        bottom_splitter.setStretchFactor(1, 1)
+
+        main_splitter = QSplitter(Qt.Orientation.Vertical, self)
         main_splitter.setChildrenCollapsible(False)
         main_splitter.addWidget(top_area)
-        main_splitter.addWidget(logs_group)
+        main_splitter.addWidget(bottom_splitter)
         main_splitter.setStretchFactor(0, 1)
         main_splitter.setStretchFactor(1, 1)
 
@@ -182,6 +202,7 @@ class ModelTab(QWidget):
 
         content_splitter.setSizes([520, 520])
         main_splitter.setSizes([520, 280])
+        bottom_splitter.setSizes([500, 500])
 
     def add_float_input(
         self,
@@ -207,7 +228,7 @@ class ModelTab(QWidget):
         std_box.setPrefix("σ=")
         std_box.setToolTip(MONTE_CARLO_SIGMA_TOOLTIP)
 
-        row_widget = QWidget()
+        row_widget = QWidget(self)
         row_layout = QHBoxLayout(row_widget)
         row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.addWidget(value_box, stretch=3)

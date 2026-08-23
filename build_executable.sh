@@ -52,7 +52,7 @@ esac
 
 echo "Detected OS: $OS_NAME"
 echo "Executable name: $APP_NAME"
-echo "Bundling asset: $LOGO_FILE"
+echo "Bundling assets: $LOGO_FILE, diagrams/"
 
 python -m pip install -r requirements.txt
 
@@ -62,7 +62,10 @@ python -m PyInstaller \
   --windowed \
   --icon "$LOGO_FILE" \
   --add-data "${LOGO_FILE}${ADD_DATA_SEP}." \
+  --add-data "diagrams${ADD_DATA_SEP}diagrams" \
   --hidden-import matplotlib.backends.backend_qtagg \
+  --hidden-import PySide6.QtSvg \
+  --hidden-import PySide6.QtSvgWidgets \
   --exclude-module PySide6.QtWebEngineWidgets \
   --exclude-module PySide6.QtWebEngineCore \
   --exclude-module PySide6.QtWebEngineQuick \

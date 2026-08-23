@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtWidgets import QApplication
 
@@ -18,7 +19,6 @@ def main() -> int:
     app.setApplicationDisplayName("Stratigraphic Thickness Calculator")
     use_dark = system_prefers_dark_mode(app)
     app.setStyleSheet(DARK_STYLESHEET if use_dark else LIGHT_STYLESHEET)
-    # Increase default UI size globally for readability.
     app.setFont(QFont("Segoe UI", 12))
     base_dir = Path(__file__).resolve().parent.parent
     icon_path = base_dir / "logo.png"
@@ -26,6 +26,9 @@ def main() -> int:
         app.setWindowIcon(QIcon(str(icon_path)))
     window = StratigraphicCalculatorWindow(initial_dark=use_dark)
     window.show()
+    # Load diagrams only after the main window has painted, so tab construction
+    # cannot flash temporary top-level widgets on Windows.
+    QTimer.singleShot(0, window.enable_diagrams)
     return app.exec()
 
 
