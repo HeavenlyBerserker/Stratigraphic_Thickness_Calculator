@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import html
 import io
 import random
@@ -38,7 +37,7 @@ from source.theme import (
     LIGHT_STYLESHEET,
     geometry_warning_callout_colors,
 )
-from source.widgets import ModelTab
+from source.widgets import MC_PLOT_MARKER, ModelTab
 
 
 class StratigraphicCalculatorWindow(QMainWindow):
@@ -549,6 +548,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
             w = self.tabs.widget(idx)
             if isinstance(w, ModelTab):
                 w.mc_save_fn = self._save_monte_carlo_figure_file
+                w.mc_build_plot_png_fn = self._monte_carlo_plot_png_bytes
 
     def _apply_model_output(
         self,
@@ -691,7 +691,6 @@ class StratigraphicCalculatorWindow(QMainWindow):
             f"{self.tabs.tabText(self.tabs.currentIndex())} "
             "Monte Carlo Thickness Distribution"
         )
-        plot_html = self._build_monte_carlo_plot_html(thicknesses, plot_title)
         return {
             "n": float(len(thicknesses)),
             "mean": mean(thicknesses),
@@ -701,30 +700,62 @@ class StratigraphicCalculatorWindow(QMainWindow):
             "p50": self._percentile(thicknesses, 0.50),
             "p75": self._percentile(thicknesses, 0.75),
             "p90": self._percentile(thicknesses, 0.90),
-            "plot_html": plot_html,
             "thicknesses": thicknesses,
             "plot_title": plot_title,
         }
 
-    def _create_monte_carlo_figure(self, thicknesses: list[float], title: str):
+    def _create_monte_carlo_figure(
+        self,
+        thicknesses: list[float],
+        title: str,
+        plot_kind: str = "pdf",
+    ):
         import matplotlib.pyplot as plt
+        import numpy as np
 
+        kind = (plot_kind or "pdf").lower()
         fig, ax = plt.subplots(figsize=(8, 4.5))
         if thicknesses:
-            n = len(thicknesses)
-            pct_weight = 100.0 / n
-            ax.hist(
-                thicknesses,
-                bins=60,
-                weights=[pct_weight] * n,
-                color="#4C78A8",
-                edgecolor="white",
-            )
-        ax.set_title(title)
+            arr = np.asarray(thicknesses, dtype=float)
+            n = len(arr)
+            if kind == "cdf":
+                sorted_vals = np.sort(arr)
+                ys = np.arange(1, n + 1) / n * 100.0
+                ax.plot(sorted_vals, ys, color="#4C78A8", linewidth=2.0)
+                ax.set_ylim(0, 100)
+                ax.set_ylabel("Cumulative percentage (%)")
+                kind_title = "CDF"
+            else:
+                pct_weight = 100.0 / n
+                ax.hist(
+                    arr,
+                    bins=60,
+                    weights=[pct_weight] * n,
+                    color="#4C78A8",
+                    edgecolor="white",
+                )
+                ax.set_ylabel("Percentage (%)")
+                kind_title = "PDF"
+        else:
+            kind_title = "PDF" if kind != "cdf" else "CDF"
+        ax.set_title(f"{title} ({kind_title})")
         ax.set_xlabel("Thickness")
-        ax.set_ylabel("Percentage (%)")
         fig.tight_layout()
         return fig
+
+    def _monte_carlo_plot_png_bytes(
+        self,
+        thicknesses: list[float],
+        title: str,
+        plot_kind: str = "pdf",
+    ) -> bytes:
+        import matplotlib.pyplot as plt
+
+        fig = self._create_monte_carlo_figure(thicknesses, title, plot_kind)
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png", dpi=120)
+        plt.close(fig)
+        return buffer.getvalue()
 
     def _save_monte_carlo_figure_file(
         self,
@@ -732,37 +763,21 @@ class StratigraphicCalculatorWindow(QMainWindow):
         title: str,
         fmt: str,
         path: str,
+        plot_kind: str = "pdf",
     ) -> None:
         import matplotlib.pyplot as plt
 
         try:
-            fig = self._create_monte_carlo_figure(thicknesses, title)
+            fig = self._create_monte_carlo_figure(thicknesses, title, plot_kind)
             save_kw: dict = {"format": fmt}
             if fmt == "png":
                 save_kw["dpi"] = 120
             fig.savefig(path, **save_kw)
             plt.close(fig)
-            print(f"Saved Monte Carlo histogram to {path}")
+            kind_label = "CDF" if (plot_kind or "pdf").lower() == "cdf" else "PDF"
+            print(f"Saved Monte Carlo {kind_label} plot to {path}")
         except Exception as exc:
             print(f"Could not save Monte Carlo plot: {exc}")
-
-    def _build_monte_carlo_plot_html(self, thicknesses: list[float], title: str) -> str:
-        try:
-            import matplotlib.pyplot as plt
-
-            fig = self._create_monte_carlo_figure(thicknesses, title)
-            buffer = io.BytesIO()
-            fig.savefig(buffer, format="png", dpi=120)
-            plt.close(fig)
-            encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
-            print("Embedded Monte Carlo histogram into output panel.")
-            return (
-                '<img src="data:image/png;base64,'
-                f'{encoded}" style="max-width:100%; height:auto;" />'
-            )
-        except Exception as exc:
-            print(f"Could not render Monte Carlo histogram: {exc}")
-            return ""
 
     def _geometry_warnings_after_result_html(self, warnings: tuple[str, ...]) -> str:
         """Call-out after Result when intermediate angles are outside expected ranges."""
@@ -784,11 +799,10 @@ class StratigraphicCalculatorWindow(QMainWindow):
     def _format_monte_carlo_section(self, stats: dict[str, float | str] | None) -> str:
         if stats is None:
             return ""
-        plot_html = str(stats.get("plot_html", ""))
-        plot_block = f"{plot_html}<br>" if plot_html else ""
+        # MC_PLOT_MARKER is filled by ModelTab with the live PDF/CDF image.
         return (
             "<b>Monte Carlo Distribution</b><br>"
-            f"{plot_block}"
+            f"{MC_PLOT_MARKER}"
             f"N = {int(stats['n'])}<br>"
             f"Mean = {stats['mean']:.6f}<br>"
             f"Std = {stats['std']:.6f}<br>"

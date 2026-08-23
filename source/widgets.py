@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import html
 import io
 import traceback
@@ -10,6 +11,7 @@ from typing import Callable
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import (
+    QComboBox,
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
@@ -23,6 +25,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+# Placeholder in output HTML; replaced with the live PDF/CDF image on refresh.
+MC_PLOT_MARKER = "<!--MC_PLOT-->"
 
 # Shown on every σ (Monte Carlo uncertainty) spin box — short, plain language.
 MONTE_CARLO_SIGMA_TOOLTIP = (
@@ -79,10 +84,14 @@ class ModelTab(QWidget):
         self.std_inputs: dict[str, QDoubleSpinBox] = {}
         self._mc_thicknesses: list[float] | None = None
         self._mc_title: str = ""
+        self._output_html_base: str | None = None
         self._xlsx_input_columns: list[tuple[str, float, float]] | None = None
         self._xlsx_output_rows: list[tuple[str, float | int]] | None = None
         self._xlsx_mc_rows: list[tuple[str, float | int]] | None = None
-        self.mc_save_fn: Callable[[list[float], str, str, str], None] | None = None
+        self.mc_save_fn: Callable[[list[float], str, str, str, str], None] | None = None
+        self.mc_build_plot_png_fn: (
+            Callable[[list[float], str, str], bytes] | None
+        ) = None
         self._log_normal_fg = QColor(0, 0, 0)
         self._build_ui(title)
 
@@ -106,6 +115,11 @@ class ModelTab(QWidget):
         self._save_excel_btn = QPushButton("Save Results to Excel")
         self._save_excel_btn.clicked.connect(self._on_save_excel)
         self._save_excel_btn.setVisible(False)
+        self._mc_plot_kind = QComboBox()
+        self._mc_plot_kind.addItem("PDF (histogram)", "pdf")
+        self._mc_plot_kind.addItem("CDF (cumulative)", "cdf")
+        self._mc_plot_kind.setVisible(False)
+        self._mc_plot_kind.currentIndexChanged.connect(self._on_mc_plot_kind_changed)
         self._mc_save_png_btn = QPushButton("Save MC plot (PNG)")
         self._mc_save_svg_btn = QPushButton("Save MC plot (SVG)")
         self._mc_save_png_btn.setVisible(False)
@@ -113,6 +127,7 @@ class ModelTab(QWidget):
         self._mc_save_png_btn.clicked.connect(self._on_save_mc_png)
         self._mc_save_svg_btn.clicked.connect(self._on_save_mc_svg)
         mc_row.addWidget(self._save_excel_btn)
+        mc_row.addWidget(self._mc_plot_kind)
         mc_row.addWidget(self._mc_save_png_btn)
         mc_row.addWidget(self._mc_save_svg_btn)
         mc_row.addStretch()
@@ -240,13 +255,15 @@ class ModelTab(QWidget):
         # Clear first so embedded resources (e.g. Monte Carlo PNGs) do not persist
         # across runs when the next output omits them.
         self.output_text.clear()
+        self._output_html_base = text if is_html else None
         self.set_monte_carlo_export_state(None, "")
         self._xlsx_input_columns = None
         self._xlsx_output_rows = None
         self._xlsx_mc_rows = None
         self._save_excel_btn.setVisible(False)
         if is_html:
-            self.output_text.setHtml(text)
+            # Show base HTML without plot; set_monte_carlo_export_state injects it.
+            self.output_text.setHtml(text.replace(MC_PLOT_MARKER, ""))
         else:
             self.output_text.setPlainText(text)
 
@@ -258,8 +275,45 @@ class ModelTab(QWidget):
         self._mc_thicknesses = list(thicknesses) if thicknesses else None
         self._mc_title = title
         visible = bool(self._mc_thicknesses)
+        self._mc_plot_kind.setVisible(visible)
         self._mc_save_png_btn.setVisible(visible)
         self._mc_save_svg_btn.setVisible(visible)
+        self._refresh_mc_plot()
+
+    def mc_plot_kind(self) -> str:
+        return str(self._mc_plot_kind.currentData() or "pdf")
+
+    def _on_mc_plot_kind_changed(self) -> None:
+        self._refresh_mc_plot()
+
+    def _refresh_mc_plot(self) -> None:
+        """Embed PDF/CDF image into the Output HTML at the Monte Carlo marker."""
+        if self._output_html_base is None:
+            return
+
+        plot_block = ""
+        if self._mc_thicknesses and self.mc_build_plot_png_fn:
+            try:
+                png_bytes = self.mc_build_plot_png_fn(
+                    self._mc_thicknesses,
+                    self._mc_title,
+                    self.mc_plot_kind(),
+                )
+                encoded = base64.b64encode(png_bytes).decode("ascii")
+                plot_block = (
+                    f'<img src="data:image/png;base64,{encoded}" '
+                    'style="max-width:100%; height:auto;" '
+                    'alt="Monte Carlo plot" /><br>'
+                )
+            except Exception:
+                plot_block = ""
+
+        scroll = self.output_text.verticalScrollBar()
+        scroll_pos = scroll.value()
+        html_out = self._output_html_base.replace(MC_PLOT_MARKER, plot_block)
+        self.output_text.clear()
+        self.output_text.setHtml(html_out)
+        scroll.setValue(scroll_pos)
 
     def set_export_snapshot_sections(
         self,
@@ -390,9 +444,11 @@ class ModelTab(QWidget):
     def _save_mc_plot_dialog(self, fmt: str, name_filter: str) -> None:
         if not self._mc_thicknesses or not self.mc_save_fn:
             return
+        kind = self.mc_plot_kind()
+        kind_label = "PDF" if kind == "pdf" else "CDF"
         path, _ = QFileDialog.getSaveFileName(
             self,
-            f"Save Monte Carlo histogram ({fmt.upper()})",
+            f"Save Monte Carlo {kind_label} plot ({fmt.upper()})",
             self._default_export_path(fmt),
             name_filter,
         )
@@ -401,10 +457,17 @@ class ModelTab(QWidget):
         ext = f".{fmt}"
         if not path.lower().endswith(ext):
             path += ext
-        self.mc_save_fn(self._mc_thicknesses, self._mc_title, fmt, path)
+        self.mc_save_fn(
+            self._mc_thicknesses,
+            self._mc_title,
+            fmt,
+            path,
+            kind,
+        )
 
     def _clear_all(self) -> None:
         self.output_text.clear()
+        self._output_html_base = None
         self.set_monte_carlo_export_state(None, "")
         self._xlsx_input_columns = None
         self._xlsx_output_rows = None

@@ -176,9 +176,14 @@
     .help-dialog-body ol { margin: 0.25em 0 0.5em 0; padding-left: 1.35em; }
     .exports {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
       gap: 10px;
       margin-top: 10px;
+      align-items: center;
+    }
+    #mcPlotKind {
+      display: none;
+      margin: 0;
     }
     button {
       background: #2563eb;
@@ -296,7 +301,7 @@
     html[data-theme="dark"] #batchLog .log-error { color: #f87171; }
     .hidden { display: none !important; }
     @media (max-width: 640px) {
-      .row, .actions { grid-template-columns: 1fr; }
+      .row, .actions, .exports { grid-template-columns: 1fr; }
       .batch-actions,
       .batch-file-row,
       .batch-format-row { grid-template-columns: 1fr; }
@@ -341,6 +346,10 @@
       <div id="output" class="output-html">Ready.</div>
       <canvas id="mcPlot" style="display:none; width:100%; max-width:100%; margin-top:10px; background:#0b1220; border-radius:8px;"></canvas>
       <div class="exports">
+        <select id="mcPlotKind" aria-label="Monte Carlo plot type">
+          <option value="pdf" selected>PDF (histogram)</option>
+          <option value="cdf">CDF (cumulative)</option>
+        </select>
         <button id="btnXlsx" class="secondary">Save Results (.xlsx)</button>
         <button id="btnPng" class="secondary">Save MC Plot (PNG)</button>
         <button id="btnSvg" class="secondary">Save MC Plot (SVG)</button>
@@ -622,6 +631,7 @@
     const btnXlsx = document.getElementById("btnXlsx");
     const btnPng = document.getElementById("btnPng");
     const btnSvg = document.getElementById("btnSvg");
+    const mcPlotKind = document.getElementById("mcPlotKind");
     let pyodide = null;
     let runtimeReady = false;
     let lastPayload = null;
@@ -638,6 +648,7 @@
         mcPlot.style.display !== "none"
       );
       btnXlsx.style.display = hasResult ? "block" : "none";
+      mcPlotKind.style.display = hasPlot ? "block" : "none";
       btnPng.style.display = hasPlot ? "block" : "none";
       btnSvg.style.display = hasPlot ? "block" : "none";
     }
@@ -721,22 +732,12 @@
       return { vals, stds };
     }
 
-    function drawHistogram(values) {
+    function drawMcPlot(values, plotKind) {
       if (!Array.isArray(values) || values.length < 2) {
         mcPlot.style.display = "none";
         return;
       }
-      const bins = 40;
-      const min = Math.min(...values);
-      const max = Math.max(...values);
-      const width = max - min || 1;
-      const counts = new Array(bins).fill(0);
-      for (const v of values) {
-        let i = Math.floor(((v - min) / width) * bins);
-        if (i < 0) i = 0;
-        if (i >= bins) i = bins - 1;
-        counts[i] += 1;
-      }
+      const kind = (plotKind || "pdf").toLowerCase();
       const dpr = window.devicePixelRatio || 1;
       const cssW = mcPlot.clientWidth || 600;
       const cssH = 280;
@@ -744,30 +745,59 @@
       mcPlot.height = Math.floor(cssH * dpr);
       mcPlot.style.height = cssH + "px";
       const ctx = mcPlot.getContext("2d");
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, cssW, cssH);
       const margin = { top: 34, right: 18, bottom: 52, left: 58 };
       const plotW = cssW - margin.left - margin.right;
       const plotH = cssH - margin.top - margin.bottom;
-      const maxC = Math.max(...counts);
-      const pctPerCount = 100.0 / values.length;
-      const maxPct = maxC * pctPerCount;
+      const sorted = values.slice().sort((a, b) => a - b);
+      const min = sorted[0];
+      const max = sorted[sorted.length - 1];
+      const width = max - min || 1;
 
-      // Background for plot area
       ctx.fillStyle = "#0b1220";
       ctx.fillRect(margin.left, margin.top, plotW, plotH);
 
-      // Bars
-      ctx.fillStyle = "#4C78A8";
-      for (let i = 0; i < bins; i++) {
-        const barW = plotW / bins;
-        const h = maxC ? (counts[i] / maxC) * plotH : 0;
-        const x = margin.left + i * barW;
-        const y = margin.top + (plotH - h);
-        ctx.fillRect(x + 1, y, Math.max(1, barW - 2), h);
+      let yLabel = "Frequency (%)";
+      let title = "Monte Carlo Thickness Distribution (PDF)";
+      let maxPct = 100;
+
+      if (kind === "cdf") {
+        title = "Monte Carlo Thickness Distribution (CDF)";
+        yLabel = "Cumulative (%)";
+        ctx.strokeStyle = "#4C78A8";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < sorted.length; i++) {
+          const x = margin.left + ((sorted[i] - min) / width) * plotW;
+          const y = margin.top + plotH - ((i + 1) / sorted.length) * plotH;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      } else {
+        const bins = 40;
+        const counts = new Array(bins).fill(0);
+        for (const v of values) {
+          let i = Math.floor(((v - min) / width) * bins);
+          if (i < 0) i = 0;
+          if (i >= bins) i = bins - 1;
+          counts[i] += 1;
+        }
+        const maxC = Math.max(...counts);
+        const pctPerCount = 100.0 / values.length;
+        maxPct = maxC * pctPerCount;
+        ctx.fillStyle = "#4C78A8";
+        for (let i = 0; i < bins; i++) {
+          const barW = plotW / bins;
+          const h = maxC ? (counts[i] / maxC) * plotH : 0;
+          const x = margin.left + i * barW;
+          const y = margin.top + (plotH - h);
+          ctx.fillRect(x + 1, y, Math.max(1, barW - 2), h);
+        }
       }
 
-      // Axes
       ctx.strokeStyle = "#9ca3af";
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -776,7 +806,6 @@
       ctx.lineTo(margin.left + plotW, margin.top + plotH);
       ctx.stroke();
 
-      // Y ticks and labels (percentage)
       ctx.fillStyle = "#d1d5db";
       ctx.font = "12px Arial";
       ctx.textAlign = "right";
@@ -795,7 +824,6 @@
         ctx.fillText(val, margin.left - 8, y);
       }
 
-      // X ticks and labels (thickness)
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       const xTicks = 4;
@@ -812,7 +840,6 @@
         ctx.fillText(val, x, margin.top + plotH + 8);
       }
 
-      // Axis labels + title
       ctx.fillStyle = "#f3f4f6";
       ctx.font = "bold 13px Arial";
       ctx.textAlign = "center";
@@ -824,14 +851,18 @@
       ctx.rotate(-Math.PI / 2);
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillText("Frequency (%)", 0, 0);
+      ctx.fillText(yLabel, 0, 0);
       ctx.restore();
 
       ctx.font = "bold 14px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillText("Monte Carlo Thickness Distribution", margin.left + plotW / 2, 10);
+      ctx.fillText(title, margin.left + plotW / 2, 10);
       mcPlot.style.display = "block";
+    }
+
+    function drawHistogram(values) {
+      drawMcPlot(values, mcPlotKind ? mcPlotKind.value : "pdf");
     }
 
     function escapeHtml(s) {
@@ -1635,6 +1666,16 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
     btnXlsx.addEventListener("click", exportXlsx);
     btnPng.addEventListener("click", exportPlotPng);
     btnSvg.addEventListener("click", exportPlotSvg);
+    mcPlotKind.addEventListener("change", () => {
+      if (
+        lastPayload &&
+        lastPayload.monte_carlo &&
+        Array.isArray(lastPayload.monte_carlo.thicknesses)
+      ) {
+        drawMcPlot(lastPayload.monte_carlo.thicknesses, mcPlotKind.value);
+        updateExportVisibility();
+      }
+    });
     updateExportVisibility();
     btnCalc.addEventListener("click", async () => {
       try {
