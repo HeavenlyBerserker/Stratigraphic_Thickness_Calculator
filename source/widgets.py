@@ -69,10 +69,12 @@ class ModelTab(QWidget):
         title: str,
         on_calculate: Callable[["ModelTab"], None],
         export_basename: str,
+        on_help: Callable[[], None] | None = None,
     ) -> None:
         super().__init__()
         self.on_calculate = on_calculate
         self.export_basename = export_basename
+        self.on_help = on_help
         self.inputs: dict[str, QDoubleSpinBox] = {}
         self.std_inputs: dict[str, QDoubleSpinBox] = {}
         self._mc_thicknesses: list[float] | None = None
@@ -132,6 +134,10 @@ class ModelTab(QWidget):
         self.clear_button.clicked.connect(self._clear_all)
         button_row.addWidget(self.calculate_button)
         button_row.addWidget(self.clear_button)
+        if self.on_help is not None:
+            self.help_button = QPushButton("Help && Documentation")
+            self.help_button.clicked.connect(self.on_help)
+            button_row.addWidget(self.help_button)
         button_row.addStretch()
 
         top_area = QWidget()

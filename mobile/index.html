@@ -150,14 +150,30 @@
       border-radius: 10px;
       background: var(--panel);
       color: var(--text);
-      max-width: 540px;
+      max-width: 640px;
       width: calc(100% - 32px);
       padding: 14px;
+      max-height: min(85vh, 720px);
+      overflow: hidden;
     }
     .help-dialog::backdrop {
       background: var(--help-backdrop);
     }
     .help-dialog a { color: var(--link); }
+    .help-dialog-body {
+      overflow-y: auto;
+      max-height: min(70vh, 600px);
+      margin-bottom: 12px;
+      line-height: 1.4;
+      font-size: 0.95rem;
+    }
+    .help-dialog-body h3 {
+      margin: 0.75em 0 0.35em 0;
+      font-size: 1.05rem;
+    }
+    .help-dialog-body h3:first-child { margin-top: 0; }
+    .help-dialog-body ul { margin: 0.25em 0 0.5em 0; padding-left: 1.25em; }
+    .help-dialog-body ol { margin: 0.25em 0 0.5em 0; padding-left: 1.35em; }
     .exports {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -226,7 +242,7 @@
       <div class="actions">
         <button id="btnCalc">Calculate</button>
         <button id="btnReset" class="secondary">Reset Defaults</button>
-        <button id="btnHelp" class="secondary">Help</button>
+        <button id="btnHelp" class="secondary">Help &amp; Documentation</button>
       </div>
     </div>
 
@@ -242,20 +258,12 @@
     </div>
   </div>
   <dialog id="helpDialog" class="help-dialog">
-    <h3 style="margin:0 0 8px 0;">Help</h3>
-    <ol style="margin:0 0 10px 20px; padding:0;">
-      <li style="margin-bottom:6px;">Choose the model that matches your geometry assumptions.</li>
-      <li style="margin-bottom:6px;">Enter measured values and angles using the documented conventions in the README.</li>
-      <li style="margin-bottom:6px;">Optional: enter non-zero standard deviations (σ) to enable Monte Carlo outputs (leave σ = 0 for deterministic runs). Click the `?` icon for a quick cheatsheet of what to do with σ.</li>
-      <li style="margin-bottom:6px;">Review geometry warnings in fold models before final interpretation.</li>
-      <li style="margin-bottom:0;">Export results/plots when needed for reporting and auditability.</li>
-    </ol>
-    <p style="margin:0 0 12px 0;">
-      Visit <a href="https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator" target="_blank" rel="noopener noreferrer">the repository</a> for additional instructions, or <a href="#" title="Paper link coming soon">the paper (coming soon)</a> for yet more details.
-    </p>
+    <h3 style="margin:0 0 8px 0;">Help &amp; Documentation</h3>
+    <div id="helpDialogBody" class="help-dialog-body"></div>
     <button id="btnCloseHelp" class="secondary">Close</button>
   </dialog>
 
+  <script src="./app-info.js"></script>
   <script src="./desktop-formula-where.js"></script>
   <script src="https://cdn.jsdelivr.net/pyodide/v0.27.5/full/pyodide.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
@@ -475,7 +483,11 @@
 
     const btnHelp = document.getElementById("btnHelp");
     const helpDialog = document.getElementById("helpDialog");
+    const helpDialogBody = document.getElementById("helpDialogBody");
     const btnCloseHelp = document.getElementById("btnCloseHelp");
+    if (helpDialogBody && typeof helpDocumentationHtml === "function") {
+      helpDialogBody.innerHTML = helpDocumentationHtml();
+    }
     const btnXlsx = document.getElementById("btnXlsx");
     const btnPng = document.getElementById("btnPng");
     const btnSvg = document.getElementById("btnSvg");
@@ -1450,17 +1462,8 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
     btnHelp.addEventListener("click", () => {
       if (typeof helpDialog.showModal === "function") {
         helpDialog.showModal();
-      } else {
-        alert(
-          "1) Choose the model that matches your geometry assumptions.\n" +
-          "2) Enter measured values and angles using the documented conventions in the README.\n" +
-          "3) Optional: enter non-zero standard deviations (σ) to enable Monte Carlo outputs (leave σ = 0 for deterministic runs). Click the ? icon for a quick cheatsheet of what to do with σ.\n" +
-          "4) Review geometry warnings in fold models before final interpretation.\n" +
-          "5) Export results/plots when needed for reporting and auditability.\n\n" +
-          "Visit the repository for additional instructions:\n" +
-          "https://github.com/HeavenlyBerserker/Stratigraphic_Thickness_Calculator\n\n" +
-          "Paper link: coming soon."
-        );
+      } else if (typeof helpDocumentationPlain === "function") {
+        alert(helpDocumentationPlain());
       }
     });
     btnCloseHelp.addEventListener("click", () => helpDialog.close());

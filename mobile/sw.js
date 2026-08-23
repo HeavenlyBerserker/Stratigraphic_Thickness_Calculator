@@ -1,6 +1,7 @@
-const CACHE_NAME = "stc-mobile-v3";
+const CACHE_NAME = "stc-mobile-v4";
 const ASSETS = [
   "./index.html",
+  "./app-info.js",
   "./desktop-formula-where.js",
   "./manifest.json",
   "../logo.png",
