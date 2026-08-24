@@ -8,9 +8,9 @@ from pathlib import Path
 # Maps calculator model id → diagram file basename (without extension).
 MODEL_DIAGRAM_BASENAMES: dict[str, str] = {
     "t1": "Fig_T1",
-    "t2": "Fig_T2_T3_T4",
-    "t3": "Fig_T2_T3_T4",
-    "t4": "Fig_T2_T3_T4",
+    "t2": "Fig_T2",
+    "t3": "Fig_T3",
+    "t4": "Fig_T4",
     "t5": "Fig_T5",
     "t6": "Fig_T6",
     "t7": "Fig_T7",

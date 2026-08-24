@@ -1,4 +1,4 @@
-const CACHE_NAME = "stc-mobile-v16";
+const CACHE_NAME = "stc-mobile-v17";
 const ASSETS = [
   "./index.html",
   "./app-info.js",
@@ -9,7 +9,9 @@ const ASSETS = [
   "../logo.png",
   "../source/models.py",
   "../diagrams/Fig_T1.svg",
-  "../diagrams/Fig_T2_T3_T4.svg",
+  "../diagrams/Fig_T2.svg",
+  "../diagrams/Fig_T3.svg",
+  "../diagrams/Fig_T4.svg",
   "../diagrams/Fig_T5.svg",
   "../diagrams/Fig_T6.svg",
   "../diagrams/Fig_T7.svg",
