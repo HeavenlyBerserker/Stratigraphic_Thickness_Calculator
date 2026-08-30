@@ -506,7 +506,7 @@ def write_batch_results(
             and result.mc_thicknesses
             and result.status == "OK"
         ):
-            save_mc_pdf_cdf_plots(
+            save_mc_histogram_cumulative_plots(
                 result.mc_thicknesses,
                 created_plots_dir,
                 result.well_id,
@@ -528,7 +528,7 @@ def _safe_plot_stem(well_id: str, t_number: int) -> str:
     return f"{stem}_T{t_number}"
 
 
-def save_mc_pdf_cdf_plots(
+def save_mc_histogram_cumulative_plots(
     thicknesses: list[float],
     plots_dir: Path,
     well_id: str,
@@ -548,8 +548,8 @@ def save_mc_pdf_cdf_plots(
         raise ValueError(f"Unsupported Monte Carlo plot format: {plot_format!r}")
 
     stem = _safe_plot_stem(well_id, t_number)
-    pdf_path = plots_dir / f"{stem}_pdf.{fmt}"
-    cdf_path = plots_dir / f"{stem}_cdf.{fmt}"
+    hist_path = plots_dir / f"{stem}_histogram.{fmt}"
+    cumulative_path = plots_dir / f"{stem}_cumulative.{fmt}"
     arr = np.asarray(thicknesses, dtype=float)
     n = len(arr)
 
@@ -572,17 +572,17 @@ def save_mc_pdf_cdf_plots(
 
         xs = np.linspace(arr.min(), arr.max(), 200)
         kde = gaussian_kde(arr)
-        pdf = kde(xs)
-        pdf = pdf / pdf.sum() * 100.0
-        ax.plot(xs, pdf, color="#F58518", linewidth=2.0, label="KDE fit")
+        dens = kde(xs)
+        dens = dens / dens.sum() * 100.0
+        ax.plot(xs, dens, color="#F58518", linewidth=2.0, label="KDE fit")
         ax.legend(loc="best")
     except Exception:
         pass
-    ax.set_title(f"{well_id} — T{t_number} Monte Carlo PDF")
+    ax.set_title(f"{well_id} — T{t_number} Monte Carlo histogram")
     ax.set_xlabel("Thickness")
     ax.set_ylabel("Percentage (%)")
     fig.tight_layout()
-    fig.savefig(pdf_path, dpi=110, format=fmt)
+    fig.savefig(hist_path, dpi=110, format=fmt)
 
     fig = Figure(figsize=(8, 4.5))
     FigureCanvasAgg(fig)
@@ -590,13 +590,13 @@ def save_mc_pdf_cdf_plots(
     sorted_vals = np.sort(arr)
     ys = np.arange(1, n + 1) / n * 100.0
     ax.plot(sorted_vals, ys, color="#4C78A8", linewidth=2.0)
-    ax.set_title(f"{well_id} — T{t_number} Monte Carlo CDF")
+    ax.set_title(f"{well_id} — T{t_number} Monte Carlo cumulative")
     ax.set_xlabel("Thickness")
     ax.set_ylabel("Cumulative percentage (%)")
     ax.set_ylim(0, 100)
     fig.tight_layout()
-    fig.savefig(cdf_path, dpi=110, format=fmt)
-    return pdf_path, cdf_path
+    fig.savefig(cumulative_path, dpi=110, format=fmt)
+    return hist_path, cumulative_path
 
 
 def batch_schema_json() -> str:

@@ -25,7 +25,7 @@ const APP_INFO = {
     "Optionally download the blank template or the 16-row example workbook.",
     "Choose Monte Carlo plot format (PNG or SVG) for any wells with non-zero σ.",
     "Click Choose File to Batch Process and select an .xlsx workbook (one well per row).",
-    "Click Batch Process. The browser downloads batch_results.xlsx automatically (you do not pick a save path first). If any row used Monte Carlo, a batch_results_mc_plots.zip file with PDF and CDF plots also downloads.",
+    "Click Batch Process. The browser downloads batch_results.xlsx automatically (you do not pick a save path first). If any row used Monte Carlo, a batch_results_mc_plots.zip file with histogram and cumulative plots also downloads.",
     "Review the batch log: green Success with ✅ means all rows OK; yellow warnings (⚠️) mean geometry warnings; red (❌) means one or more row errors (other rows still ran)."
   ],
   "bestPractices": "For best results, use high-quality field or interpreted inputs (e.g., calibrated dip/azimuth measurements and validated structural picks).",

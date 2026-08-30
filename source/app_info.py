@@ -46,7 +46,7 @@ BATCH_INSTRUCTIONS_DESKTOP: list[str] = [
     (
         "Wait for the run to finish. Progress appears in the status bar. "
         "Results are written to your chosen file; if any row used Monte Carlo, "
-        "PDF and CDF plots are saved in a sibling folder named "
+        "histogram and cumulative plots are saved in a sibling folder named "
         "{results_stem}_mc_plots."
     ),
     (
@@ -63,7 +63,7 @@ BATCH_INSTRUCTIONS_WEB: list[str] = [
     (
         "Click Batch Process. The browser downloads batch_results.xlsx automatically "
         "(you do not pick a save path first). If any row used Monte Carlo, a "
-        "batch_results_mc_plots.zip file with PDF and CDF plots also downloads."
+        "batch_results_mc_plots.zip file with histogram and cumulative plots also downloads."
     ),
     (
         "Review the batch log: green Success with ✅ means all rows OK; "

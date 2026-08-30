@@ -402,8 +402,8 @@
       <canvas id="mcPlot" style="display:none; width:100%; max-width:100%; margin-top:10px; background:#0b1220; border-radius:8px;"></canvas>
       <div class="exports">
         <select id="mcPlotKind" aria-label="Monte Carlo plot type">
-          <option value="pdf" selected>PDF (histogram)</option>
-          <option value="cdf">CDF (cumulative)</option>
+          <option value="histogram" selected>Histogram</option>
+          <option value="cumulative">Cumulative</option>
         </select>
         <button id="btnXlsx" class="secondary">Save Results (.xlsx)</button>
         <button id="btnPng" class="secondary">Save MC Plot (PNG)</button>
@@ -870,7 +870,7 @@
         mcPlot.style.display = "none";
         return;
       }
-      const kind = (plotKind || "pdf").toLowerCase();
+      const kind = (plotKind || "histogram").toLowerCase();
       const dpr = window.devicePixelRatio || 1;
       const cssW = mcPlot.clientWidth || 600;
       const cssH = 280;
@@ -893,11 +893,11 @@
       ctx.fillRect(margin.left, margin.top, plotW, plotH);
 
       let yLabel = "Frequency (%)";
-      let title = "Monte Carlo Thickness Distribution (PDF)";
+      let title = "Monte Carlo Thickness Distribution (histogram)";
       let maxPct = 100;
 
-      if (kind === "cdf") {
-        title = "Monte Carlo Thickness Distribution (CDF)";
+      if (kind === "cumulative" || kind === "cdf") {
+        title = "Monte Carlo Thickness Distribution (cumulative)";
         yLabel = "Cumulative (%)";
         ctx.strokeStyle = "#4C78A8";
         ctx.lineWidth = 2;
@@ -995,7 +995,7 @@
     }
 
     function drawHistogram(values) {
-      drawMcPlot(values, mcPlotKind ? mcPlotKind.value : "pdf");
+      drawMcPlot(values, mcPlotKind ? mcPlotKind.value : "histogram");
     }
 
     function escapeHtml(s) {
@@ -1973,7 +1973,7 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
           const zipName = "batch_results_mc_plots.zip";
           downloadBlob(zipBlob, zipName);
           plotsNote = `\nMonte Carlo plots: ${zipName}`;
-          appendBatchLog(`Saved ${zipName} (${plotFormat.toUpperCase()} PDF/CDF plots for Monte Carlo wells).`);
+          appendBatchLog(`Saved ${zipName} (${plotFormat.toUpperCase()} histogram and cumulative plots for Monte Carlo wells).`);
         }
         const okCount = results.length - errors.length;
         if (errors.length) {

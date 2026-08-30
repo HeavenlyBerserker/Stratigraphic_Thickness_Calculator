@@ -238,7 +238,7 @@
     return canvas;
   }
 
-  function drawPdfPlot(ctx, w, h, thicknesses, title) {
+  function drawHistogramPlot(ctx, w, h, thicknesses, title) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
     const pad = { l: 52, r: 16, t: 36, b: 42 };
@@ -272,7 +272,7 @@
     ctx.fillText("Thickness", pad.l + pw / 2 - 30, h - 8);
   }
 
-  function drawCdfPlot(ctx, w, h, thicknesses, title) {
+  function drawCumulativePlot(ctx, w, h, thicknesses, title) {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
     const pad = { l: 52, r: 16, t: 36, b: 42 };
@@ -325,20 +325,20 @@
       if (result.status !== "OK" || !result.mc_thicknesses || !result.mc_thicknesses.length) continue;
       const stem = safeStem(result.well_id, result.t_number);
       const titleBase = `${result.well_id} — T${result.t_number}`;
-      const pdfCanvas = renderPlotCanvas(
-        (ctx, w, h) => drawPdfPlot(ctx, w, h, result.mc_thicknesses, `${titleBase} Monte Carlo PDF`),
+      const histCanvas = renderPlotCanvas(
+        (ctx, w, h) => drawHistogramPlot(ctx, w, h, result.mc_thicknesses, `${titleBase} Monte Carlo histogram`),
         800,
         450
       );
-      const cdfCanvas = renderPlotCanvas(
-        (ctx, w, h) => drawCdfPlot(ctx, w, h, result.mc_thicknesses, `${titleBase} Monte Carlo CDF`),
+      const cumulativeCanvas = renderPlotCanvas(
+        (ctx, w, h) => drawCumulativePlot(ctx, w, h, result.mc_thicknesses, `${titleBase} Monte Carlo cumulative`),
         800,
         450
       );
-      const pdfBlob = await canvasToBlob(pdfCanvas, fmt);
-      const cdfBlob = await canvasToBlob(cdfCanvas, fmt);
-      zip.file(`${stem}_pdf.${ext}`, pdfBlob);
-      zip.file(`${stem}_cdf.${ext}`, cdfBlob);
+      const histBlob = await canvasToBlob(histCanvas, fmt);
+      const cumulativeBlob = await canvasToBlob(cumulativeCanvas, fmt);
+      zip.file(`${stem}_histogram.${ext}`, histBlob);
+      zip.file(`${stem}_cumulative.${ext}`, cumulativeBlob);
       count++;
     }
     if (!count) return null;

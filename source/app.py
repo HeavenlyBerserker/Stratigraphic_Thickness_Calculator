@@ -728,23 +728,24 @@ class StratigraphicCalculatorWindow(QMainWindow):
         self,
         thicknesses: list[float],
         title: str,
-        plot_kind: str = "pdf",
+        plot_kind: str = "histogram",
     ):
         import matplotlib.pyplot as plt
         import numpy as np
 
-        kind = (plot_kind or "pdf").lower()
+        kind = (plot_kind or "histogram").lower()
+        is_cumulative = kind in {"cumulative", "cdf"}
         fig, ax = plt.subplots(figsize=(8, 4.5))
         if thicknesses:
             arr = np.asarray(thicknesses, dtype=float)
             n = len(arr)
-            if kind == "cdf":
+            if is_cumulative:
                 sorted_vals = np.sort(arr)
                 ys = np.arange(1, n + 1) / n * 100.0
                 ax.plot(sorted_vals, ys, color="#4C78A8", linewidth=2.0)
                 ax.set_ylim(0, 100)
                 ax.set_ylabel("Cumulative percentage (%)")
-                kind_title = "CDF"
+                kind_title = "cumulative"
             else:
                 pct_weight = 100.0 / n
                 ax.hist(
@@ -755,9 +756,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
                     edgecolor="white",
                 )
                 ax.set_ylabel("Percentage (%)")
-                kind_title = "PDF"
+                kind_title = "histogram"
         else:
-            kind_title = "PDF" if kind != "cdf" else "CDF"
+            kind_title = "cumulative" if is_cumulative else "histogram"
         ax.set_title(f"{title} ({kind_title})")
         ax.set_xlabel("Thickness")
         fig.tight_layout()
@@ -767,7 +768,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         self,
         thicknesses: list[float],
         title: str,
-        plot_kind: str = "pdf",
+        plot_kind: str = "histogram",
     ) -> bytes:
         import matplotlib.pyplot as plt
 
@@ -783,7 +784,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
         title: str,
         fmt: str,
         path: str,
-        plot_kind: str = "pdf",
+        plot_kind: str = "histogram",
     ) -> None:
         import matplotlib.pyplot as plt
 
@@ -794,7 +795,11 @@ class StratigraphicCalculatorWindow(QMainWindow):
                 save_kw["dpi"] = 120
             fig.savefig(path, **save_kw)
             plt.close(fig)
-            kind_label = "CDF" if (plot_kind or "pdf").lower() == "cdf" else "PDF"
+            kind_label = (
+                "cumulative"
+                if (plot_kind or "histogram").lower() in {"cumulative", "cdf"}
+                else "histogram"
+            )
             print(f"Saved Monte Carlo {kind_label} plot to {path}")
         except Exception as exc:
             print(f"Could not save Monte Carlo plot: {exc}")
@@ -819,7 +824,7 @@ class StratigraphicCalculatorWindow(QMainWindow):
     def _format_monte_carlo_section(self, stats: dict[str, float | str] | None) -> str:
         if stats is None:
             return ""
-        # MC_PLOT_MARKER is filled by ModelTab with the live PDF/CDF image.
+        # MC_PLOT_MARKER is filled by ModelTab with the live histogram/cumulative image.
         return (
             "<b>Monte Carlo Distribution</b><br>"
             f"{MC_PLOT_MARKER}"

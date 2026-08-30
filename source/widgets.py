@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 from source.diagram_widget import DiagramWidget
 from source.diagrams import resolve_diagram_path
 
-# Placeholder in output HTML; replaced with the live PDF/CDF image on refresh.
+# Placeholder in output HTML; replaced with the live histogram/cumulative image on refresh.
 MC_PLOT_MARKER = "<!--MC_PLOT-->"
 
 # Shown on every σ (Monte Carlo uncertainty) spin box — short, plain language.
@@ -121,8 +121,8 @@ class ModelTab(QWidget):
         self._save_excel_btn.clicked.connect(self._on_save_excel)
         self._save_excel_btn.setVisible(False)
         self._mc_plot_kind = QComboBox(self)
-        self._mc_plot_kind.addItem("PDF (histogram)", "pdf")
-        self._mc_plot_kind.addItem("CDF (cumulative)", "cdf")
+        self._mc_plot_kind.addItem("Histogram", "histogram")
+        self._mc_plot_kind.addItem("Cumulative", "cumulative")
         self._mc_plot_kind.setVisible(False)
         self._mc_plot_kind.currentIndexChanged.connect(self._on_mc_plot_kind_changed)
         self._mc_save_png_btn = QPushButton("Save MC plot (PNG)", self)
@@ -302,13 +302,13 @@ class ModelTab(QWidget):
         self._refresh_mc_plot()
 
     def mc_plot_kind(self) -> str:
-        return str(self._mc_plot_kind.currentData() or "pdf")
+        return str(self._mc_plot_kind.currentData() or "histogram")
 
     def _on_mc_plot_kind_changed(self) -> None:
         self._refresh_mc_plot()
 
     def _refresh_mc_plot(self) -> None:
-        """Embed PDF/CDF image into the Output HTML at the Monte Carlo marker."""
+        """Embed histogram/cumulative image into the Output HTML at the Monte Carlo marker."""
         if self._output_html_base is None:
             return
 
@@ -466,7 +466,7 @@ class ModelTab(QWidget):
         if not self._mc_thicknesses or not self.mc_save_fn:
             return
         kind = self.mc_plot_kind()
-        kind_label = "PDF" if kind == "pdf" else "CDF"
+        kind_label = "histogram" if kind != "cumulative" else "cumulative"
         path, _ = QFileDialog.getSaveFileName(
             self,
             f"Save Monte Carlo {kind_label} plot ({fmt.upper()})",
