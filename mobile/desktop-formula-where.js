@@ -2,14 +2,14 @@
 globalThis.STC_FORMULA_WHERE = {
   t1:
     "<b>Formula</b><br>" +
-    "T<sub>1</sub> = M (U<sub>d1</sub> · U<sub>b</sub>)<br>" +
+    "T<sub>1</sub> = |M (U<sub>d1</sub> · U<sub>b</sub>)|<br>" +
     "U<sub>d1</sub> = (−cosφ<sub>d1</sub> sinβ<sub>1</sub>, " +
     "−sinφ<sub>d1</sub> sinβ<sub>1</sub>, cosβ<sub>1</sub>)<br>" +
     "U<sub>b</sub> = (sinδ cosφ<sub>b</sub>, sinφ<sub>b</sub> sinδ, cosδ)<br>" +
-    "Equivalent (Setchell) form: T<sub>1</sub> = M(cosδ − sinδ " +
-    "cos(φ<sub>d1</sub> − φ<sub>b</sub>) tanβ<sub>1</sub>) cosβ<sub>1</sub><br><br>" +
+    "Equivalent (Setchell) form: T<sub>1</sub> = |M(cosδ − sinδ " +
+    "cos(φ<sub>d1</sub> − φ<sub>b</sub>) tanβ<sub>1</sub>) cosβ<sub>1</sub>|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>1</sub>: true stratigraphic thickness<br>" +
+    "T<sub>1</sub>: true stratigraphic thickness (absolute value)<br>" +
     "M: measured (apparent) thickness along the borehole between top and base<br>" +
     "· : dot product<br>" +
     "U<sub>d1</sub>: downward unit vector normal to the bed<br>" +
@@ -21,32 +21,32 @@ globalThis.STC_FORMULA_WHERE = {
     "<b>Formula</b><br>" +
     "U<sub>av</sub> = (U<sub>d1</sub> + U<sub>d2</sub>) / " +
     "||U<sub>d1</sub> + U<sub>d2</sub>||<br>" +
-    "T<sub>2</sub> = M (U<sub>av</sub> . U<sub>b</sub>)<br><br>" +
+    "T<sub>2</sub> = |M (U<sub>av</sub> . U<sub>b</sub>)|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>2</sub>: true stratigraphic thickness from average-vector model<br>" +
+    "T<sub>2</sub>: true stratigraphic thickness from average-vector model (absolute value)<br>" +
     "U<sub>d1</sub>, U<sub>d2</sub>: dip-pole unit vectors at top/base<br>" +
     "U<sub>av</sub>: normalized average dip-pole vector<br>" +
     "U<sub>b</sub>: borehole unit vector<br>" +
     "M: measured thickness along the well path",
   t3:
     "<b>Formula</b><br>" +
-    "T<sub>3</sub> = (M U<sub>d1</sub> . U<sub>b</sub> + " +
-    "M U<sub>d2</sub> . U<sub>b</sub>) / 2<br>" +
-    "T<sub>3</sub> = M (U<sub>d1</sub> + U<sub>d2</sub>) . " +
-    "U<sub>b</sub> / 2<br><br>" +
+    "T<sub>3</sub> = |(M U<sub>d1</sub> . U<sub>b</sub> + " +
+    "M U<sub>d2</sub> . U<sub>b</sub>) / 2|<br>" +
+    "T<sub>3</sub> = |M (U<sub>d1</sub> + U<sub>d2</sub>) . " +
+    "U<sub>b</sub> / 2|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>3</sub>: true stratigraphic thickness from average-thickness model<br>" +
+    "T<sub>3</sub>: true stratigraphic thickness from average-thickness model (absolute value)<br>" +
     "U<sub>d1</sub>, U<sub>d2</sub>: dip-pole unit vectors at top/base<br>" +
     "U<sub>b</sub>: borehole unit vector<br>" +
     "M: measured thickness along the well path<br>" +
     ". : dot product",
   t4:
     "<b>Formula</b><br>" +
-    "T<sub>4</sub> = (T<sub>2</sub> + T<sub>3</sub>) / 2<br><br>" +
+    "T<sub>4</sub> = |(T<sub>2</sub> + T<sub>3</sub>) / 2|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>4</sub>: mixed-average thickness (mean of T<sub>2</sub> and T<sub>3</sub>)<br>" +
-    "T<sub>2</sub>: average-vector thickness<br>" +
-    "T<sub>3</sub>: average-thickness value<br>" +
+    "T<sub>4</sub>: mixed-average thickness (mean of T<sub>2</sub> and T<sub>3</sub>; absolute value)<br>" +
+    "T<sub>2</sub>: average-vector thickness (absolute value)<br>" +
+    "T<sub>3</sub>: average-thickness value (absolute value)<br>" +
     "U<sub>d1</sub>, U<sub>d2</sub>, U<sub>av</sub>, U<sub>b</sub>: " +
     "supporting vectors from component models",
   t5:
@@ -69,9 +69,9 @@ globalThis.STC_FORMULA_WHERE = {
     "||U<sub>d1</sub> - U'<sub>d2</sub>||<br>" +
     "γ = arccos(U<sub>c</sub> . U'<sub>b</sub>); " +
     "η = arccos(U<sub>d1</sub> . U'<sub>d2</sub>)<br>" +
-    "α = 90° − η/2; T<sub>5</sub> = M' sinγ / cos(η/2)<br><br>" +
+    "α = 90° − η/2; T<sub>5</sub> = |M' sinγ / cos(η/2)|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>5</sub>: concentric-fold thickness (Xu et al.; M' after Berg, 2011)<br>" +
+    "T<sub>5</sub>: concentric-fold thickness (Xu et al.; M' after Berg, 2011; absolute value)<br>" +
     "β'<sub>2</sub>: azimuth-corrected base dip<br>" +
     "U<sub>d1</sub>, U'<sub>d2</sub>: top and corrected-base dip poles<br>" +
     "N<sub>dc</sub>: normal to dip-vector plane<br>" +
@@ -91,9 +91,9 @@ globalThis.STC_FORMULA_WHERE = {
     "||U<sub>d1</sub> - U<sub>d2</sub>||<br>" +
     "γ = arccos(U<sub>c</sub> . U'<sub>b</sub>)<br>" +
     "α = arccos(U<sub>d1</sub> . U<sub>c</sub>)<br>" +
-    "T<sub>6</sub> = M' (sinγ / sinα)<br><br>" +
+    "T<sub>6</sub> = |M' (sinγ / sinα)|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>6</sub>: plunging-fold thickness (no base azimuth correction)<br>" +
+    "T<sub>6</sub>: plunging-fold thickness (no base azimuth correction; absolute value)<br>" +
     "U<sub>d1</sub>, U<sub>d2</sub>: top and base dip-pole vectors<br>" +
     "N<sub>dp</sub>: normal to the plane of U<sub>d1</sub> and U<sub>d2</sub><br>" +
     "M<sub>b</sub>: well-path vector scaled by M; M': projected length<br>" +
@@ -111,21 +111,21 @@ globalThis.STC_FORMULA_WHERE = {
     "θ = arccos(U<sub>d1</sub> . U'<sub>b</sub>)<br>" +
     "η = arccos(U<sub>d1</sub> . U<sub>d2</sub>)<br>" +
     "S = N<sub>dp</sub> . U'<sub>b</sub><br>" +
-    "If S &lt; 0: T<sub>7</sub> = M' cos(θ − η) / cos(η)<br>" +
-    "If S ≥ 0: T<sub>7</sub> = M' cos(θ + η) / cos(η)<br>" +
-    "Also T<sub>7</sub> = M' (sinγ / sinμ) = M' cos(θ ∓ η) / cos(η)<br><br>" +
+    "If S &lt; 0: T<sub>7</sub> = |M' cos(θ − η) / cos(η)|<br>" +
+    "If S ≥ 0: T<sub>7</sub> = |M' cos(θ + η) / cos(η)|<br>" +
+    "Also T<sub>7</sub> = |M' (sinγ / sinμ)| = |M' cos(θ ∓ η) / cos(η)|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed)<br>" +
+    "T<sub>7</sub>: true stratigraphic thickness (M measured normal to the top bed; absolute value)<br>" +
     "θ: angle between U<sub>d1</sub> and U'<sub>b</sub> " +
     "(distinct from α in the T<sub>5</sub>/T<sub>6</sub> models)<br>" +
     "η: angle between dip poles at top and base; S selects thickening sense<br>",
   t8:
     "<b>Formula</b><br>" +
     "Same intermediate quantities as Top-normal (N<sub>dp</sub>, M', U'<sub>b</sub>, θ, η, S)<br>" +
-    "T<sub>7</sub> = M' cos(θ ∓ η) / cos(η) per S<br>" +
-    "T<sub>8</sub> = T<sub>7</sub> × cos(η / 2) &nbsp; (equal-angle method)<br><br>" +
+    "T<sub>7</sub> = |M' cos(θ ∓ η) / cos(η)| per S<br>" +
+    "T<sub>8</sub> = |T<sub>7</sub> × cos(η / 2)| &nbsp; (equal-angle method)<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; " +
+    "T<sub>8</sub>: true stratigraphic thickness (equal-angle method; absolute value; " +
     "η = arccos(U<sub>d1</sub> · U<sub>d2</sub>))<br>" +
     "θ: same angle as in the Top-normal (T<sub>7</sub>) method " +
     "(not the α of T<sub>5</sub>/T<sub>6</sub>)<br>",

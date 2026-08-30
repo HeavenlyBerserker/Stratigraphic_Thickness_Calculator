@@ -227,32 +227,33 @@ Each tab has:
 
 Currently implemented:
 - One-dip model with formula:
-  `T₁ = M (U_d1 · U_b)` with
+  `T₁ = |M (U_d1 · U_b)|` with
   `U_d1 = (−cosφ_d1 sinβ₁, −sinφ_d1 sinβ₁, cosβ₁)`,
   `U_b = (sinδ cosφ_b, sinφ_b sinδ, cosδ)`
-  (equivalent Setchell form: `T₁ = M(cosδ − sinδ cos(φ_d1 − φ_b) tanβ₁) cosβ₁`)
+  (equivalent Setchell form: `T₁ = |M(cosδ − sinδ cos(φ_d1 − φ_b) tanβ₁) cosβ₁|`)
 - Average-vector model (Berg, 2011) with:
   - `Uav = (Ud₁ + Ud₂) / ||Ud₁ + Ud₂||`
-  - `T₂ = M × (Uav • Uᵦ)`
+  - `T₂ = |M × (Uav • Uᵦ)|`
 - Average-thickness model with:
-  - `T₃ = (M × Ud₁ • Uᵦ + M × Ud₂ • Uᵦ) / 2`
-  - `T₃ = M × (Ud₁ + Ud₂) • Uᵦ / 2`
+  - `T₃ = |(M × Ud₁ • Uᵦ + M × Ud₂ • Uᵦ) / 2|`
+  - `T₃ = |M × (Ud₁ + Ud₂) • Uᵦ / 2|`
 - Mixed Average model with:
-  - `T₄ = (T₂ + T₃) / 2`
+  - `T₄ = |(T₂ + T₃) / 2|`
 - Concentric Fold model (Xu et al., 2007, 2010; bed azimuth fixed along strike; Berg, 2011 for M’):
   - `β'₂ = arctan(tanβ₂ |cos(φd₁ - φd₂)|)`
   - Smallest `|φd₁ - φd₂|` ≤ 90°: `U'd₂` from `φd₁`; else from `φd₁ + 180°`; `U_d1` as before with `β₁`
   - `N_dc = (U_d1 × U'd₂) / ||U_d1 × U'd₂||`; `M' = ||M_b - N_dc(N_dc · M_b)||` with `M_b = M U_b`
   - `U_c = (U_d1 - U'd₂) / ||U_d1 - U'd₂||`; `γ = arccos(U_c · U'_b)`, `η = arccos(U_d1 · U'd₂)`, `α = 90° - η/2` where `U'_b = M'_b / ||M'_b||`
-  - `T₅ = M' sinγ / cos(η/2)` (equiv. `M' sinγ / sinα` with `sinα = cos(η/2)`)
+  - `T₅ = |M' sinγ / cos(η/2)|` (equiv. `|M' sinγ / sinα|` with `sinα = cos(η/2)`)
 - Plunging Concentric Fold model (bed azimuths may differ; no base azimuth correction):
   - `N_dp = (Ud₁ × Ud₂) / ||Ud₁ × Ud₂||`; `M' = ||M_b - N_dp(N_dp · M_b)||` with `M_b = M U_b`
   - `U_c = (U_d1 - U_d2) / ||U_d1 - U_d2||`; `γ = arccos(U_c · U'_b)`, `α = arccos(U_d1 · U_c)` with `U'_b = M'_b / ||M'_b||`
-  - `T₆ = M' (sinγ / sinα)`
+  - `T₆ = |M' (sinγ / sinα)|`
 - Top-normal model (`M` measured normal to the top bed; Berg, 2011):
   - Same `N_dp`, `M'`, `U'_b` as Berg (2011) projection; `θ = arccos(U_d1 · U'_b)`, `η = arccos(U_d1 · U_d2)`
-  - **Top-normal** (paper `T₇`): `S = N_dp · U'_b`; if `S < 0`: `M' cos(θ − η) / cos(η)`; if `S ≥ 0`: `M' cos(θ + η) / cos(η)` (also `M' (sinγ / sinμ)`)
-- Equal-angle (`T₈`) tab: same inputs as Top-normal; `T₈ =` Top-normal `× cos(η/2)` (equal-angle method)
+  - **Top-normal** (paper `T₇`): `S = N_dp · U'_b`; if `S < 0`: `|M' cos(θ − η) / cos(η)|`; if `S ≥ 0`: `|M' cos(θ + η) / cos(η)|` (also `|M' (sinγ / sinμ)|`)
+- Equal-angle (`T₈`) tab: same inputs as Top-normal; `T₈ = |` Top-normal `× cos(η/2)|` (equal-angle method)
+- All reported true stratigraphic thicknesses `T₁`–`T₈` are absolute values.
 - Computed vectors:
   - `U_d1` (written as `U<sub>d1</sub>` in the app): downward dip-pole unit vector at top contact (`beta1`, `phi_d1`)
   - `U_d2` (written as `U<sub>d2</sub>` in the app): downward dip-pole unit vector at lower contact (`beta2`, `phi_d2`)

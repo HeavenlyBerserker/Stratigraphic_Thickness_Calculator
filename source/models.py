@@ -341,7 +341,7 @@ def compute_one_dip(inputs: OneDipInputs) -> OneDipResult:
     beta1 = radians(inputs.formation_dip_deg)
     azimuth_diff = radians(inputs.dip_azimuth_deg - inputs.wellbore_azimuth_deg)
 
-    thickness = (
+    thickness = abs(
         inputs.measured_thickness
         * (
             cos(delta)
@@ -404,7 +404,7 @@ def compute_average_vector(inputs: AverageVectorInputs) -> AverageVectorResult:
     )
 
     dot_uav_ub = uav[0] * ub[0] + uav[1] * ub[1] + uav[2] * ub[2]
-    thickness = inputs.measured_thickness * dot_uav_ub
+    thickness = abs(inputs.measured_thickness * dot_uav_ub)
 
     return AverageVectorResult(
         true_stratigraphic_thickness=thickness,
@@ -439,7 +439,7 @@ def compute_average_thickness(
 
     ud1_dot_ub = ud1[0] * ub[0] + ud1[1] * ub[1] + ud1[2] * ub[2]
     ud2_dot_ub = ud2[0] * ub[0] + ud2[1] * ub[1] + ud2[2] * ub[2]
-    thickness = inputs.measured_thickness * (ud1_dot_ub + ud2_dot_ub) / 2.0
+    thickness = abs(inputs.measured_thickness * (ud1_dot_ub + ud2_dot_ub) / 2.0)
 
     return AverageThicknessResult(
         true_stratigraphic_thickness=thickness,
@@ -477,7 +477,7 @@ def compute_mixed_average(inputs: MixedAverageInputs) -> MixedAverageResult:
 
     t2_value = avg_vector_result.true_stratigraphic_thickness
     t3_value = avg_thickness_result.true_stratigraphic_thickness
-    t4_value = (t2_value + t3_value) / 2.0
+    t4_value = abs((t2_value + t3_value) / 2.0)
 
     return MixedAverageResult(
         true_stratigraphic_thickness=t4_value,
@@ -560,7 +560,7 @@ def compute_concentric_fold(inputs: ConcentricFoldInputs) -> ConcentricFoldResul
     if abs(cos_half_eta) < 1e-12:
         raise ValueError("cos(η/2) is zero. T5 is undefined for this geometry.")
 
-    t5 = m_prime * (sin(gamma_rad) / cos_half_eta)
+    t5 = abs(m_prime * (sin(gamma_rad) / cos_half_eta))
     alpha_paper_rad = pi / 2.0 - eta_rad / 2.0
 
     eta_deg_check = eta_rad * 180.0 / pi
@@ -654,7 +654,7 @@ def compute_plunging_concentric_fold(
     if abs(sin_alpha) < 1e-12:
         raise ValueError("sin(alpha) is zero. T6 is undefined for this geometry.")
 
-    t6 = m_prime * (sin(gamma_rad) / sin_alpha)
+    t6 = abs(m_prime * (sin(gamma_rad) / sin_alpha))
     gamma_deg_check = gamma_rad * 180.0 / pi
     alpha_deg_check = alpha_rad * 180.0 / pi
     geom_warn: list[str] = []
@@ -683,7 +683,7 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
     """
     Top-normal (wedging) bed: M is measured normal to the top bed.
     M' from Berg (2011) projection onto the plane of Ud1 and Ud2 with N_dp.
-    Thickness = M' cos(θ ∓ η)/cos(η) (paper T7) with S = N_dp · U'b selecting the branch.
+    Thickness = |M' cos(θ ∓ η)/cos(η)| (paper T7) with S = N_dp · U'b selecting the branch.
     θ = arccos(Ud1 · U'b); η = arccos(Ud1 · Ud2). Named θ (not α) to avoid clash with T5/T6.
     """
     _validate_survey_angles(
@@ -739,10 +739,10 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
 
     s_val = _dot(ndp, ub_prime)
     if s_val >= 0.0:
-        t_top_normal = m_prime * cos(theta_rad + eta_rad) / cos_eta
+        t_top_normal = abs(m_prime * cos(theta_rad + eta_rad) / cos_eta)
         uses_positive = True
     else:
-        t_top_normal = m_prime * cos(theta_rad - eta_rad) / cos_eta
+        t_top_normal = abs(m_prime * cos(theta_rad - eta_rad) / cos_eta)
         uses_positive = False
 
     eta_deg_check = eta_rad * 180.0 / pi
@@ -767,7 +767,7 @@ def compute_top_normal(inputs: TopNormalInputs) -> TopNormalResult:
 
 def compute_equal_angle(inputs: EqualAngleInputs) -> EqualAngleResult:
     """
-    Equal-angle method: T8 = T_top cos(η/2) where T_top is the top-normal thickness
+    Equal-angle method: T8 = |T_top cos(η/2)| where T_top is the top-normal thickness
     and η = arccos(Ud1 · Ud2) as in the top-normal geometry.
     """
     tn = compute_top_normal(
@@ -782,7 +782,7 @@ def compute_equal_angle(inputs: EqualAngleInputs) -> EqualAngleResult:
         )
     )
     eta_rad = radians(tn.eta_deg)
-    t8 = tn.true_stratigraphic_thickness * cos(eta_rad / 2.0)
+    t8 = abs(tn.true_stratigraphic_thickness * cos(eta_rad / 2.0))
     return EqualAngleResult(
         true_stratigraphic_thickness=t8,
         top_normal_thickness=tn.true_stratigraphic_thickness,

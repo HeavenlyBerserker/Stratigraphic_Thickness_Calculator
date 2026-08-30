@@ -71,13 +71,13 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth_deg"},
         label="One-dip (T1)",
         formula=[
-            "T1 = M (Ud1 · Ub)",
+            "T1 = |M (Ud1 · Ub)|",
             "Ud1 = (−cosφd1 sinβ1, −sinφd1 sinβ1, cosβ1)",
             "Ub = (sinδ cosφb, sinφb sinδ, cosδ)",
-            "Equivalent (Setchell): T1 = M(cosδ − sinδ cos(φd1 − φb) tanβ1) cosβ1",
+            "Equivalent (Setchell): T1 = |M(cosδ − sinδ cos(φd1 − φb) tanβ1) cosβ1|",
         ],
         where=[
-            "T1: true stratigraphic thickness",
+            "T1: true stratigraphic thickness (absolute value)",
             "M: measured (apparent) thickness along the borehole between top and base",
             "Ud1: downward unit vector normal to the bed",
             "Ub: unit vector of the borehole direction",
@@ -99,9 +99,9 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         label="Average-vector (T2)",
         formula=[
             "Uav = (Ud1 + Ud2) / ||Ud1 + Ud2||",
-            "T2 = M (Uav · Ub)",
+            "T2 = |M (Uav · Ub)|",
         ],
-        where=["T2: average-vector thickness"],
+        where=["T2: average-vector thickness (absolute value)"],
     ),
     "t3": ModelSpec(
         input_builder=lambda d: AverageThicknessInputs(**d),
@@ -118,10 +118,10 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"},
         label="Average-thickness (T3)",
         formula=[
-            "T3 = (M Ud1·Ub + M Ud2·Ub) / 2",
-            "T3 = M (Ud1 + Ud2)·Ub / 2",
+            "T3 = |(M Ud1·Ub + M Ud2·Ub) / 2|",
+            "T3 = |M (Ud1 + Ud2)·Ub / 2|",
         ],
-        where=["T3: average-thickness model output"],
+        where=["T3: average-thickness model output (absolute value)"],
     ),
     "t4": ModelSpec(
         input_builder=lambda d: MixedAverageInputs(**d),
@@ -137,8 +137,8 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         ],
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"},
         label="Mixed Average (T4)",
-        formula=["T4 = (T2 + T3) / 2"],
-        where=["T4: mean of average-vector and average-thickness outputs"],
+        formula=["T4 = |(T2 + T3) / 2|"],
+        where=["T4: mean of average-vector and average-thickness outputs (absolute value)"],
     ),
     "t5": ModelSpec(
         input_builder=lambda d: ConcentricFoldInputs(**d),
@@ -156,9 +156,9 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         label="Concentric Fold (T5)",
         formula=[
             "β'2 = arctan(tanβ2 |cos(φd1−φd2)|)",
-            "T5 = M' sinγ / cos(η/2)",
+            "T5 = |M' sinγ / cos(η/2)|",
         ],
-        where=["T5: concentric-fold thickness"],
+        where=["T5: concentric-fold thickness (absolute value)"],
     ),
     "t6": ModelSpec(
         input_builder=lambda d: PlungingConcentricFoldInputs(**d),
@@ -174,8 +174,8 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         ],
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"},
         label="Plunging Concentric Fold (T6)",
-        formula=["T6 = M' (sinγ / sinα)"],
-        where=["T6: plunging-fold thickness (no base azimuth correction)"],
+        formula=["T6 = |M' (sinγ / sinα)|"],
+        where=["T6: plunging-fold thickness (no base azimuth correction; absolute value)"],
     ),
     "t7": ModelSpec(
         input_builder=lambda d: TopNormalInputs(**d),
@@ -193,11 +193,11 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         label="Top-normal (T7)",
         formula=[
             "θ = arccos(Ud1 · U'b); η = arccos(Ud1 · Ud2)",
-            "If S < 0: T7 = M' cos(θ−η) / cosη",
-            "If S ≥ 0: T7 = M' cos(θ+η) / cosη",
+            "If S < 0: T7 = |M' cos(θ−η) / cosη|",
+            "If S ≥ 0: T7 = |M' cos(θ+η) / cosη|",
         ],
         where=[
-            "T7: top-normal thickness",
+            "T7: top-normal thickness (absolute value)",
             "θ: angle between Ud1 and U'b (not the α of T5/T6)",
         ],
     ),
@@ -216,11 +216,11 @@ MODEL_SPECS: dict[str, ModelSpec] = {
         wrap_fields={"wellbore_azimuth_deg", "dip_azimuth1_deg", "dip_azimuth2_deg"},
         label="Equal-angle (T8)",
         formula=[
-            "T7 from top-normal branch rule (θ, η, S)",
-            "T8 = T7 × cos(η/2)",
+            "T7 from top-normal branch rule (θ, η, S; absolute value)",
+            "T8 = |T7 × cos(η/2)|",
         ],
         where=[
-            "T8: equal-angle thickness",
+            "T8: equal-angle thickness (absolute value)",
             "θ: same as in Top-normal (T7); not the α of T5/T6",
         ],
     ),
