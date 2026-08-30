@@ -70,16 +70,16 @@ const APP_INFO = {
       "id": "t5",
       "label": "T₅ — Concentric Fold",
       "references": [
-        "Xu et al. (2007, 2010) — corrected β′₂, U′<sub>d2</sub>, N<sub>dc</sub>, and concentric-fold geometry.",
-        "Berg, R.R. (2011) — M′ borehole projection onto the fold plane."
+        "Xu, H., Berg, R.R., et al. (2007, 2010) — corrected β′₂, U′<sub>d2</sub>, N<sub>dc</sub>, and concentric-fold geometry.",
+        "Berg, R.R. (2011). Cross-validation of geometric models for calculating true stratigraphic thickness from wellbore data. <i>AAPG Bulletin</i>, 95(6), 975–992. — M′ borehole projection onto the fold plane."
       ]
     },
     {
       "id": "t6",
       "label": "T₆ — Plunging Concentric Fold",
       "references": [
-        "Xu et al. (2007, 2010) — plunging fold geometry (N<sub>dp</sub>, U<sub>c</sub>, α, γ).",
-        "Berg, R.R. (2011) — M′ borehole projection."
+        "Xu, H., Berg, R.R., et al. (2007, 2010) — plunging fold geometry (N<sub>dp</sub>, U<sub>c</sub>, α, γ).",
+        "Berg, R.R. (2011). Cross-validation of geometric models for calculating true stratigraphic thickness from wellbore data. <i>AAPG Bulletin</i>, 95(6), 975–992. — M′ borehole projection."
       ]
     },
     {

@@ -93,7 +93,7 @@ globalThis.STC_FORMULA_WHERE = {
     "α = arccos(U<sub>d1</sub> . U<sub>c</sub>)<br>" +
     "T<sub>6</sub> = |M' (sinγ / sinα)|<br><br>" +
     "<b>Where</b><br>" +
-    "T<sub>6</sub>: plunging-fold thickness (no base azimuth correction; absolute value)<br>" +
+    "T<sub>6</sub>: plunging-fold thickness (no base azimuth correction; M' after Berg, 2011; absolute value)<br>" +
     "U<sub>d1</sub>, U<sub>d2</sub>: top and base dip-pole vectors<br>" +
     "N<sub>dp</sub>: normal to the plane of U<sub>d1</sub> and U<sub>d2</sub><br>" +
     "M<sub>b</sub>: well-path vector scaled by M; M': projected length<br>" +

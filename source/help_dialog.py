@@ -18,7 +18,7 @@ class HelpDocumentationDialog(QDialog):
 
     def __init__(self, parent=None, *, topic: HelpTopic = "calculator") -> None:
         super().__init__(parent)
-        self.setWindowTitle("Help && Documentation")
+        self.setWindowTitle("Help & Documentation")
         self.resize(640, 520)
 
         self._browser = QTextBrowser()
