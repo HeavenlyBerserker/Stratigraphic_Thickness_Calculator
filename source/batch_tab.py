@@ -104,7 +104,7 @@ class BatchTab(QWidget):
         top_row = QHBoxLayout()
         self._template_btn = QPushButton("Download Template (.xlsx)")
         self._example_btn = QPushButton("Download Example (.xlsx)")
-        self._help_btn = QPushButton("Help && Documentation")
+        self._help_btn = QPushButton("Help && Documentation for Batch")
         self._template_btn.clicked.connect(self._download_template)
         self._example_btn.clicked.connect(self._download_example)
         self._help_btn.clicked.connect(

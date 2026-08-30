@@ -1,4 +1,4 @@
-const CACHE_NAME = "stc-mobile-v20";
+const CACHE_NAME = "stc-mobile-v21";
 const ASSETS = [
   "./index.html",
   "./app-info.js",

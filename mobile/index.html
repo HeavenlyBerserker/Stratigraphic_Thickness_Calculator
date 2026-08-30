@@ -422,7 +422,7 @@
         <div class="batch-actions">
           <button type="button" id="btnBatchTemplate" class="secondary">Download Template (.xlsx)</button>
           <button type="button" id="btnBatchExample" class="secondary">Download Example (.xlsx)</button>
-          <button type="button" id="btnBatchHelp" class="secondary">Help &amp; Documentation</button>
+          <button type="button" id="btnBatchHelp" class="secondary">Help &amp; Documentation for Batch</button>
         </div>
         <div class="batch-format-row">
           <label for="batchPlotFormat">Monte Carlo plot format</label>
@@ -450,7 +450,7 @@
     </div>
   </div>
   <dialog id="helpDialog" class="help-dialog">
-    <h3 style="margin:0 0 8px 0;">Help &amp; Documentation</h3>
+    <h3 id="helpDialogTitle" style="margin:0 0 8px 0;">Help &amp; Documentation</h3>
     <div id="helpDialogBody" class="help-dialog-body"></div>
     <button id="btnCloseHelp" class="secondary">Close</button>
   </dialog>
@@ -729,8 +729,25 @@
 
     const btnHelp = document.getElementById("btnHelp");
     const helpDialog = document.getElementById("helpDialog");
+    const helpDialogTitle = document.getElementById("helpDialogTitle");
     const helpDialogBody = document.getElementById("helpDialogBody");
     const btnCloseHelp = document.getElementById("btnCloseHelp");
+    function openHelpDialog(topic) {
+      if (helpDialogTitle) {
+        helpDialogTitle.textContent =
+          topic === "batch_web" || topic === "batch"
+            ? "Help & Documentation for Batch"
+            : "Help & Documentation";
+      }
+      if (helpDialogBody && typeof helpDocumentationHtml === "function") {
+        helpDialogBody.innerHTML = helpDocumentationHtml(topic || "calculator");
+      }
+      if (typeof helpDialog.showModal === "function") {
+        helpDialog.showModal();
+      } else if (typeof helpDocumentationPlain === "function") {
+        alert(helpDocumentationPlain(topic || "calculator"));
+      }
+    }
     if (helpDialogBody && typeof helpDocumentationHtml === "function") {
       helpDialogBody.innerHTML = helpDocumentationHtml("calculator");
     }
@@ -1785,16 +1802,7 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
 
     modelSelect.addEventListener("change", () => renderFields(modelSelect.value));
     document.getElementById("btnReset").addEventListener("click", () => renderFields(modelSelect.value));
-    btnHelp.addEventListener("click", () => {
-      if (helpDialogBody && typeof helpDocumentationHtml === "function") {
-        helpDialogBody.innerHTML = helpDocumentationHtml("calculator");
-      }
-      if (typeof helpDialog.showModal === "function") {
-        helpDialog.showModal();
-      } else if (typeof helpDocumentationPlain === "function") {
-        alert(helpDocumentationPlain("calculator"));
-      }
-    });
+    btnHelp.addEventListener("click", () => openHelpDialog("calculator"));
     btnCloseHelp.addEventListener("click", () => helpDialog.close());
     btnXlsx.addEventListener("click", exportXlsx);
     btnPng.addEventListener("click", exportPlotPng);
@@ -1916,16 +1924,7 @@ def compute_payload(model_id, values, stds, wrap_fields, sample_count=2500):
       appendBatchLog(`Selected batch file: ${batchFileName}`);
     });
 
-    btnBatchHelp.addEventListener("click", () => {
-      if (helpDialogBody && typeof helpDocumentationHtml === "function") {
-        helpDialogBody.innerHTML = helpDocumentationHtml("batch_web");
-      }
-      if (typeof helpDialog.showModal === "function") {
-        helpDialog.showModal();
-      } else if (typeof helpDocumentationPlain === "function") {
-        alert(helpDocumentationPlain("batch_web"));
-      }
-    });
+    btnBatchHelp.addEventListener("click", () => openHelpDialog("batch_web"));
 
     btnBatchRun.addEventListener("click", async () => {
       if (!batchFileBuffer) {
