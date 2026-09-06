@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+
+from source.paths import project_root
 
 # Maps calculator model id → diagram file basename (without extension).
 MODEL_DIAGRAM_BASENAMES: dict[str, str] = {
@@ -16,12 +17,6 @@ MODEL_DIAGRAM_BASENAMES: dict[str, str] = {
     "t7": "Fig_T7",
     "t8": "Fig_T8",
 }
-
-
-def project_root() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(getattr(sys, "_MEIPASS", Path.cwd()))
-    return Path(__file__).resolve().parent.parent
 
 
 def diagrams_dir() -> Path:

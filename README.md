@@ -384,7 +384,7 @@ open source/Stratigraphic_Thickness_Calculator_MacOS.app
 
 - Development still uses `python -m source.main` from the repo root.
 - Deployment uses the repo-root `main.py` entry point (not `source/main.py`) so imports like `from source.app ...` resolve correctly inside the compiled app.
-- `source/pysidedeploy.spec` sets the menu bar name to **Stratigraphic Thickness Calculator** and includes the `source` package via Nuitka.
+- `source/pysidedeploy.spec` sets the menu bar name to **Stratigraphic Thickness Calculator**, includes the `source` package, and bundles `diagrams/` plus `logo.png` into the app.
 - `python_path` in the spec is filled in automatically when you run `pyside6-deploy` from your active environment.
 
 **First launch on another Mac (unsigned app)**

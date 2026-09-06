@@ -41,7 +41,7 @@ qml_files =
 excluded_qml_plugins = 
 
 # qt modules used. comma separated
-modules = Core,DBus,Gui,Widgets
+modules = Core,DBus,Gui,Svg,Widgets
 
 # qt plugins used by the application. only relevant for desktop deployment
 # for qt plugins used in android application see [android][plugins]
@@ -70,8 +70,9 @@ mode = onefile
 
 # specify any extra nuitka arguments
 # --macos-app-name sets cfbundlename / cfbundledisplayname (menu bar title)
-# --include-package = source ensures the desktop package is compiled into the app
-extra_args = --quiet --noinclude-qt-translations --include-package=source --macos-app-name="Stratigraphic Thickness Calculator" --macos-signed-app-name=org.stratigraphic.thickness.calculator
+# --include-package = source compiles the full desktop package
+# --include-data-* bundles diagrams/ and logo.png next to the binary
+extra_args = --quiet --noinclude-qt-translations --include-package=source --include-data-dir=../diagrams=diagrams --include-data-files=../logo.png=logo.png --macos-app-name="Stratigraphic Thickness Calculator" --macos-signed-app-name=org.stratigraphic.thickness.calculator
 
 [buildozer]
 

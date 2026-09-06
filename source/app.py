@@ -3,9 +3,7 @@ from __future__ import annotations
 import html
 import io
 import random
-import sys
 from statistics import mean, pstdev
-from pathlib import Path
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon
@@ -117,11 +115,9 @@ class StratigraphicCalculatorWindow(QMainWindow):
                 w.apply_theme(self._dark_mode)
 
     def _set_window_logo(self) -> None:
-        if getattr(sys, "frozen", False):
-            base_dir = Path(getattr(sys, "_MEIPASS", Path.cwd()))
-        else:
-            base_dir = Path(__file__).resolve().parent.parent
-        icon_path = base_dir / "logo.png"
+        from source.paths import project_root
+
+        icon_path = project_root() / "logo.png"
         if icon_path.exists():
             self.setWindowIcon(QIcon(str(icon_path)))
 
