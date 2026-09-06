@@ -56,21 +56,28 @@ echo "Bundling assets: $LOGO_FILE, diagrams/"
 
 python -m pip install -r requirements.txt
 
-python -m PyInstaller \
-  --noconfirm \
-  --onefile \
-  --windowed \
-  --icon "$LOGO_FILE" \
-  --add-data "${LOGO_FILE}${ADD_DATA_SEP}." \
-  --add-data "diagrams${ADD_DATA_SEP}diagrams" \
-  --hidden-import matplotlib.backends.backend_qtagg \
-  --hidden-import PySide6.QtSvg \
-  --hidden-import PySide6.QtSvgWidgets \
-  --exclude-module PySide6.QtWebEngineWidgets \
-  --exclude-module PySide6.QtWebEngineCore \
-  --exclude-module PySide6.QtWebEngineQuick \
-  --name "$APP_NAME" \
-  "$APP_MAIN"
+# Linux: use the tracked spec so the conda/env libexpat is bundled. PyInstaller
+# otherwise often resolves pyexpat to the older distro libexpat.so.1, and the
+# frozen app crashes with XML_SetAllocTrackerActivationThreshold.
+if [[ "$OS_NAME" == Linux* ]]; then
+  python -m PyInstaller --noconfirm --clean stratigraphic-thickness-calculator.spec
+else
+  python -m PyInstaller \
+    --noconfirm \
+    --onefile \
+    --windowed \
+    --icon "$LOGO_FILE" \
+    --add-data "${LOGO_FILE}${ADD_DATA_SEP}." \
+    --add-data "diagrams${ADD_DATA_SEP}diagrams" \
+    --hidden-import matplotlib.backends.backend_qtagg \
+    --hidden-import PySide6.QtSvg \
+    --hidden-import PySide6.QtSvgWidgets \
+    --exclude-module PySide6.QtWebEngineWidgets \
+    --exclude-module PySide6.QtWebEngineCore \
+    --exclude-module PySide6.QtWebEngineQuick \
+    --name "$APP_NAME" \
+    "$APP_MAIN"
+fi
 
 if [[ "$OS_NAME" == MINGW* || "$OS_NAME" == MSYS* || "$OS_NAME" == CYGWIN* ]]; then
   DIST_ARTIFACT="dist/${APP_NAME}.exe"
